@@ -1,145 +1,123 @@
 # Dusk
 
-![GitHub go.mod Go version (branch & subdirectory of monorepo)](https://img.shields.io/github/go-mod/go-version/philoserf/dusk/main?filename=go.mod&label=Go)
+![Go version](https://img.shields.io/github/go-mod/go-version/philoserf/dusk/main?filename=go.mod&label=Go)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/philoserf/dusk)](https://pkg.go.dev/github.com/philoserf/dusk)
 [![Go Report Card](https://goreportcard.com/badge/github.com/philoserf/dusk)](https://goreportcard.com/report/github.com/philoserf/dusk)
-[![Dusk Actions Status](https://github.com/philoserf/dusk/actions/workflows/ci.yml/badge.svg)](https://github.com/philoserf/dusk/actions/workflows/ci.yml)
+[![CI](https://github.com/philoserf/dusk/actions/workflows/ci.yml/badge.svg)](https://github.com/philoserf/dusk/actions/workflows/ci.yml)
 
-Dusk 🌑 is a minimal dependency Go library for calculating the most optimal time to observe various astronomical objects by utilising parameters such as astronomical twilight, the lunar phase and the rise and set times of the moon and sun.
-
-This is a fork of [observerly/dusk](https://github.com/observerly/dusk), originally created by [observerly](https://github.com/observerly).
-
-## Installation
-
-Make sure you have Go installed ([download](https://golang.org/dl/)). Version `1.20` or higher is required for this package.
-
-Initialize your project by creating a folder and then running `go mod init github.com/your/repo` ([learn more](https://blog.golang.org/using-go-modules)) inside the folder. Then install Dusk with the [`go get`](https://golang.org/cmd/go/#hdr-Add_dependencies_to_current_module_and_install_them) command:
+Dusk is a Go library for astronomical calculations: twilight times, sunrise/sunset, lunar phase, moon position, and rise/set times for arbitrary celestial objects. Single external dependency.
 
 ```bash
-go get -u github.com/philoserf/dusk
+go get github.com/philoserf/dusk
 ```
 
-## Usage
+## Quick Start
 
-### Get Twilight
-
-The basic usage of this package is to use the `GetLocalTwilight()` func, this provides the Sun rise and Sun set times (in datetime format, as local time), it also provides the "duration" between these two datetimes. The local time is calculated from a UTC date for the specific latitude and longitude coordinates provided.
+Calculate astronomical twilight for Seattle, WA:
 
 ```go
 package main
 
 import (
-  "time"
+	"fmt"
+	"log"
+	"time"
 
-  "github.com/philoserf/dusk"
+	"github.com/philoserf/dusk"
 )
 
 func main() {
-  // datetime of observation:
-  datetime := time.Date(2022, 2, 17, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
 
-  // observer's longitude, in degrees (*west of the Greenwich meridian is negative, east is positive):
-  longitude := -155.8246
+	// Seattle, WA — longitude west is negative, latitude north is positive
+	twilight, _, err := dusk.GetLocalAstronomicalTwilight(datetime, -122.3321, 47.6062, 58.0)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-  // observer's latitude, in degrees  (*south of the equator is negative, north is positive):
-  latitude := 20.0046
-
-  // observer's elevation above mean sea level, in meters:
-  elevation := 4207.0
-
-  // specify the twilight to be defined as a set number of degrees *below* the horizon (e.g, civil twilight is designated as being 6 degrees below horizon):
-  degreesBelowHorizon := -6.0
-
-  twilight, location, err := dusk.GetLocalTwilight(datetime, longitude, latitude, elevation, degreesBelowHorizon)
+	fmt.Printf("Sunset: %s\n", twilight.Until.Format(time.RFC3339))
+	fmt.Printf("Sunrise: %s\n", twilight.From.Format(time.RFC3339))
+	fmt.Printf("Dark sky: %s\n", twilight.Duration)
 }
 ```
 
-There are three wrapper functions which allow for an easy calculation of civil, nautical and astronomical twilight.
+## Twilight
 
-### Get Civil Twilight
+`GetLocalTwilight` computes rise and set times for a given sun angle below the horizon. Three convenience wrappers cover the standard definitions:
 
-For civil twilight, the degreesBelowHorizon for the Sun needs to be -6°.
+| Function                       | Sun angle | Use case                      |
+| ------------------------------ | --------- | ----------------------------- |
+| `GetLocalCivilTwilight`        | -6°       | Outdoor activities, headlamps |
+| `GetLocalNauticalTwilight`     | -12°      | Horizon visible at sea        |
+| `GetLocalAstronomicalTwilight` | -18°      | Deep-sky observation          |
+
+All take `(datetime, longitude, latitude, elevation)` and return `(Twilight, *time.Location, error)`.
+
+For a custom angle, call `GetLocalTwilight` directly with a fifth parameter `degreesBelowHorizon` (negative value, e.g., `-6.0`).
+
+## Lunar
+
+### Position
 
 ```go
-twilight, location, err := dusk.GetLocalCivilTwilight(datetime, longitude, latitude, elevation)
+datetime := time.Date(2025, 6, 21, 22, 0, 0, 0, time.UTC)
+
+eq := dusk.GetLunarEquatorialPosition(datetime)
+fmt.Printf("RA: %.4f°  Dec: %.4f°\n", eq.RightAscension, eq.Declination)
 ```
 
-### Get Nautical Twilight
-
-For nautical twilight, the degreesBelowHorizon for the Sun needs to be -12°.
+### Phase
 
 ```go
-twilight, location, err := dusk.GetLocalNauticalTwilight(datetime, longitude, latitude, elevation)
+ec := dusk.GetLunarEclipticPosition(datetime)
+phase := dusk.GetLunarPhase(datetime, -122.3321, ec)
+fmt.Printf("Age: %.1f days  Illumination: %.1f%%\n", phase.Days, phase.Illumination)
 ```
 
-### Get Astronomical Twilight
-
-For astronomical twilight, the degreesBelowHorizon for the Sun needs to be -18°.
+## Solar
 
 ```go
-twilight, location, err := dusk.GetLocalAstronomicalTwilight(datetime, longitude, latitude, elevation)
+eq := dusk.GetSolarEquatorialPosition(datetime)
+fmt.Printf("Sun RA: %.4f°  Dec: %.4f°\n", eq.RightAscension, eq.Declination)
 ```
 
-### Get Moon Position
+## Object Transit
 
-To calculate the rise and set of the moon, it is necessary to calculate the equatorial position of the moon at zero HH:mm:ss, e.g., midnight, for the +/-1 day for the day you want to calculate for, e.g., d-1, d and d+1.
-
-This library supplies the following function to calculate the equatorial position of the moon (in degrees):
+Calculate rise, transit, and set times for any object given its equatorial coordinates:
 
 ```go
-package main
+// Betelgeuse: RA 88.7929°, Dec 7.4071°
+transit := dusk.GetObjectTransit(datetime, -122.3321, 47.6062, 58.0, 88.7929, 7.4071)
 
-import (
-  "fmt"
-  "time"
-
-  "github.com/philoserf/dusk"
-)
-
-func main() {
-  // datetime of observation:
-  datetime := time.Date(2022, 2, 17, 14, 55, 0, 0, time.UTC)
-
-  eq := dusk.GetLunarEquatorialPosition(datetime)
-
-  fmt.Printf("The Moon is at the following equatorial coordinate:\n")
-  fmt.Printf("Right Ascension: %f°\n", eq.RightAscension)
-  fmt.Printf("Declination: %f°\n", eq.Declination)
+if transit.Rise != nil {
+	fmt.Printf("Rise: %s\n", transit.Rise.Format(time.RFC3339))
+}
+if transit.Set != nil {
+	fmt.Printf("Set: %s\n", transit.Set.Format(time.RFC3339))
 }
 ```
 
-### Get Moon Phase
+## API Overview
 
-To calculate the moon phase, it is necessary to calculate the ecliptic position of the moon at the datetime required, as well as knowing some longitude of an observer.
+The full API is documented at [pkg.go.dev](https://pkg.go.dev/github.com/philoserf/dusk). Key function groups:
 
-This library supplies the following function to calculate the phase of the moon:
+| Domain      | Functions                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------- |
+| Twilight    | `GetLocalTwilight`, `GetLocalCivilTwilight`, `GetLocalNauticalTwilight`, `GetLocalAstronomicalTwilight` |
+| Solar       | `GetSolarEquatorialPosition`, `GetSolarEclipticPosition`, `GetSolarMeanAnomaly`                         |
+| Lunar       | `GetLunarEquatorialPosition`, `GetLunarEclipticPosition`, `GetLunarPhase`                               |
+| Transit     | `GetObjectTransit`, `GetObjectTransitMaximaTime`                                                        |
+| Coordinates | `ConvertEquatorialToHorizontal`, `ConvertEclipticToEquatorial`                                          |
+| Astrometry  | `GetHourAngle`, `GetAngularSeparation`                                                                  |
+| Epoch       | `GetJulianDate`, `GetLocalSiderealTime`, `GetGreenwichSiderealTime`                                     |
 
-```go
-package main
+## Conventions
 
-import (
-  "fmt"
-  "time"
-
-  "github.com/philoserf/dusk"
-)
-
-func main() {
-  // datetime of observation:
-  datetime := time.Date(2022, 2, 17, 14, 55, 0, 0, time.UTC)
-
-  // some longitude, in degrees (*west of the Greenwich meridian is negative, east is positive):
-  longitude := -155.8246
-
-  // get the ecliptic coordinate of the Moon for the datetime:
-  ec := dusk.GetLunarEclipticPosition(datetime)
-
-  // calculate the phase for the datetime, longitude and ecliptic coordinate:
-  phase := dusk.GetLunarPhase(datetime, longitude, ec)
-}
-```
-
-**N.B.** The equatorial coordinate system is a celestial coordinate system widely used to specify the positions of celestial objects. It may be implemented in spherical or rectangular coordinates, both defined by an origin at the centre of Earth, a fundamental plane consisting of the projection of Earth's equator onto the celestial sphere (forming the celestial equator), a primary direction towards the vernal equinox, and a right-handed convention.
+- All angles are in **degrees** (internal trig helpers handle radian conversion)
+- Longitude: west negative, east positive
+- Latitude: south negative, north positive
+- Elevation: meters above mean sea level
+- Two algorithm families: **Meeus** (primary) and **Lawrence** (functions suffixed `Lawrence`)
 
 ## License
 
@@ -147,7 +125,7 @@ Dusk is free software licensed under the GNU General Public License v3.0 (GPL-3.
 
 Originally created by [observerly](https://github.com/observerly). This fork includes bug fixes, correctness improvements, and structural changes.
 
-| Attribution                                                           | License     |
-| --------------------------------------------------------------------- | ----------- |
-| [observerly/dusk](https://github.com/observerly/dusk)                 | GPL-3.0     |
-| [zsefvlol/timezonemapper](https://github.com/zsefvlol/timezonemapper) | MIT License |
+| Attribution                                                           | License |
+| --------------------------------------------------------------------- | ------- |
+| [observerly/dusk](https://github.com/observerly/dusk)                 | GPL-3.0 |
+| [zsefvlol/timezonemapper](https://github.com/zsefvlol/timezonemapper) | MIT     |
