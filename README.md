@@ -1,4 +1,4 @@
-![@philoserf/dusk](https://user-images.githubusercontent.com/84131395/172596337-7499f919-3e41-48ea-a561-b88afa75b8c9.png)
+# Dusk
 
 ![GitHub go.mod Go version (branch & subdirectory of monorepo)](https://img.shields.io/github/go-mod/go-version/philoserf/dusk/main?filename=go.mod&label=Go)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/philoserf/dusk)](https://pkg.go.dev/github.com/philoserf/dusk)
