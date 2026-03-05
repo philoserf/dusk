@@ -1,4 +1,4 @@
-module github.com/observerly/dusk
+module github.com/philoserf/dusk
 
 go 1.20
 
