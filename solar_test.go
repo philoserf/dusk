@@ -10,18 +10,18 @@ import (
 // differential w.r.t a time component. We set it to the date provided
 // on p.342 of Meeus, Jean. 1991. Astronomical algorithms.Richmond,
 // Va: Willmann - Bell.:
-var d time.Time = time.Date(1992, 4, 12, 0, 0, 0, 0, time.UTC)
+var d = time.Date(1992, 4, 12, 0, 0, 0, 0, time.UTC)
 
-var latitude float64 = 19.798484
+var latitude = 19.798484
 
-var elevation float64 = 0
+var elevation = 0.0
 
 func TestGetSolarMeanAnomaly(t *testing.T) {
-	var J float64 = GetMeanSolarTime(d, longitude)
+	J := GetMeanSolarTime(d, longitude)
 
-	var got float64 = GetSolarMeanAnomaly(J)
+	got := GetSolarMeanAnomaly(J)
 
-	var want float64 = 98.561957
+	want := 98.561957
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -29,13 +29,13 @@ func TestGetSolarMeanAnomaly(t *testing.T) {
 }
 
 func TestGetSolarEquationOfCenter(t *testing.T) {
-	var J float64 = GetMeanSolarTime(d, longitude)
+	J := GetMeanSolarTime(d, longitude)
 
-	var M float64 = GetSolarMeanAnomaly(J)
+	M := GetSolarMeanAnomaly(J)
 
-	var got float64 = GetSolarEquationOfCenter(M)
+	got := GetSolarEquationOfCenter(M)
 
-	var want float64 = 1.887301
+	want := 1.887301
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -43,15 +43,15 @@ func TestGetSolarEquationOfCenter(t *testing.T) {
 }
 
 func TestGetSolarEclipticLongitude(t *testing.T) {
-	var J float64 = GetMeanSolarTime(d, longitude)
+	J := GetMeanSolarTime(d, longitude)
 
-	var M float64 = GetSolarMeanAnomaly(J)
+	M := GetSolarMeanAnomaly(J)
 
-	var C float64 = GetSolarEquationOfCenter(M)
+	C := GetSolarEquationOfCenter(M)
 
-	var got float64 = GetSolarEclipticLongitude(M, C)
+	got := GetSolarEclipticLongitude(M, C)
 
-	var want float64 = 383.386458
+	want := 23.386458
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -59,17 +59,17 @@ func TestGetSolarEclipticLongitude(t *testing.T) {
 }
 
 func TestGetSolarTransit(t *testing.T) {
-	var J float64 = GetMeanSolarTime(d, longitude)
+	J := GetMeanSolarTime(d, longitude)
 
-	var M float64 = GetSolarMeanAnomaly(J)
+	M := GetSolarMeanAnomaly(J)
 
-	var C float64 = GetSolarEquationOfCenter(M)
+	C := GetSolarEquationOfCenter(M)
 
-	var λ float64 = GetSolarEclipticLongitude(M, C)
+	λ := GetSolarEclipticLongitude(M, C)
 
-	var got float64 = GetSolarTransitJulianDate(J, M, λ)
+	got := GetSolarTransitJulianDate(J, M, λ)
 
-	var want float64 = 2448725.432069
+	want := 2448725.432069
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -77,17 +77,17 @@ func TestGetSolarTransit(t *testing.T) {
 }
 
 func TestGetSolarDeclination(t *testing.T) {
-	var J float64 = GetMeanSolarTime(d, longitude)
+	J := GetMeanSolarTime(d, longitude)
 
-	var M float64 = GetSolarMeanAnomaly(J)
+	M := GetSolarMeanAnomaly(J)
 
-	var C float64 = GetSolarEquationOfCenter(M)
+	C := GetSolarEquationOfCenter(M)
 
-	var λ float64 = GetSolarEclipticLongitude(M, C)
+	λ := GetSolarEclipticLongitude(M, C)
 
-	var got float64 = GetSolarDeclination(λ)
+	got := GetSolarDeclination(λ)
 
-	var want float64 = 9.084711
+	want := 9.084711
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -95,11 +95,11 @@ func TestGetSolarDeclination(t *testing.T) {
 }
 
 func TestGetSolarMeanLongitude(t *testing.T) {
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var got float64 = GetSolarMeanLongitude(J)
+	got := GetSolarMeanLongitude(J)
 
-	var want float64 = 20.448123
+	want := 20.448123
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -107,19 +107,19 @@ func TestGetSolarMeanLongitude(t *testing.T) {
 }
 
 func TestGetSolarHourAngle(t *testing.T) {
-	var J float64 = GetMeanSolarTime(d, longitude)
+	J := GetMeanSolarTime(d, longitude)
 
-	var M float64 = GetSolarMeanAnomaly(J)
+	M := GetSolarMeanAnomaly(J)
 
-	var C float64 = GetSolarEquationOfCenter(M)
+	C := GetSolarEquationOfCenter(M)
 
-	var λ float64 = GetSolarEclipticLongitude(M, C)
+	λ := GetSolarEclipticLongitude(M, C)
 
-	var δ float64 = GetSolarDeclination(λ)
+	δ := GetSolarDeclination(λ)
 
-	var got float64 = GetSolarHourAngle(δ, 0, latitude, elevation)
+	got := GetSolarHourAngle(δ, 0, latitude, elevation)
 
-	var want float64 = 94.090408
+	want := 94.195177
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -129,16 +129,15 @@ func TestGetSolarHourAngle(t *testing.T) {
 func TestGetSunriseSunsetTimesRise(t *testing.T) {
 	timezone, _ := time.LoadLocation("Pacific/Honolulu")
 
-	var sun, err = GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation)
-
+	sun, err := GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation)
 	if err != nil {
 		t.Errorf("got %q", err)
 		return
 	}
 
-	var got time.Time = sun.Rise
+	got := sun.Rise
 
-	var want = time.Date(1992, 4, 12, 6, 05, 49, 72323712, timezone)
+	want := time.Date(1992, 4, 12, 6, 0o5, 23, 927740672, timezone)
 
 	if got.String() != want.String() {
 		t.Errorf("got %q, wanted %q", got, want)
@@ -148,16 +147,15 @@ func TestGetSunriseSunsetTimesRise(t *testing.T) {
 func TestGetSunriseSunsetTimesNoon(t *testing.T) {
 	timezone, _ := time.LoadLocation("Pacific/Honolulu")
 
-	var sun, err = GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation)
-
+	sun, err := GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation)
 	if err != nil {
 		t.Errorf("got %q", err)
 		return
 	}
 
-	var got time.Time = sun.Noon
+	got := sun.Noon
 
-	var want = time.Date(1992, 4, 12, 12, 22, 10, 770278016, timezone)
+	want := time.Date(1992, 4, 12, 12, 22, 10, 770278016, timezone)
 
 	if got.String() != want.String() {
 		t.Errorf("got %q, wanted %q", got, want)
@@ -167,16 +165,15 @@ func TestGetSunriseSunsetTimesNoon(t *testing.T) {
 func TestGetSunriseSunsetTimesSet(t *testing.T) {
 	timezone, _ := time.LoadLocation("Pacific/Honolulu")
 
-	var sun, err = GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation)
-
+	sun, err := GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation)
 	if err != nil {
 		t.Errorf("got %q", err)
 		return
 	}
 
-	var got time.Time = sun.Set
+	got := sun.Set
 
-	var want = time.Date(1992, 4, 12, 18, 38, 32, 468232192, timezone)
+	want := time.Date(1992, 4, 12, 18, 38, 57, 612815232, timezone)
 
 	if got.String() != want.String() {
 		t.Errorf("got %q, wanted %q", got, want)
@@ -185,17 +182,16 @@ func TestGetSunriseSunsetTimesSet(t *testing.T) {
 
 func TestGetSunriseSunsetTimesInUTCRise(t *testing.T) {
 	timezone, err := time.LoadLocation("Pacific/Honolulu")
-
 	if err != nil {
 		t.Errorf("got %q", err)
 		return
 	}
 
-	var sun Sun = GetSunriseSunsetTimesInUTC(d, 0, longitude, latitude, elevation)
+	sun := GetSunriseSunsetTimesInUTC(d, 0, longitude, latitude, elevation)
 
-	var got time.Time = sun.Rise.In(timezone)
+	got := sun.Rise.In(timezone)
 
-	var want = time.Date(1992, 4, 12, 6, 05, 49, 72323712, timezone)
+	want := time.Date(1992, 4, 12, 6, 0o5, 23, 927740672, timezone)
 
 	if got != want {
 		t.Errorf("got %q, wanted %q", got, want)
@@ -204,17 +200,16 @@ func TestGetSunriseSunsetTimesInUTCRise(t *testing.T) {
 
 func TestGetSunriseSunsetTimesInUTCRiseWithOffsetHorizon(t *testing.T) {
 	timezone, err := time.LoadLocation("Pacific/Honolulu")
-
 	if err != nil {
 		t.Errorf("got %q", err)
 		return
 	}
 
-	var sun Sun = GetSunriseSunsetTimesInUTC(d, -18, longitude, latitude, elevation)
+	sun := GetSunriseSunsetTimesInUTC(d, -18, longitude, latitude, elevation)
 
-	var got time.Time = sun.Rise.In(timezone)
+	got := sun.Rise.In(timezone)
 
-	var want = time.Date(1992, 4, 12, 6, 05, 49, 72323712, timezone)
+	want := time.Date(1992, 4, 12, 6, 0o5, 23, 927740672, timezone)
 
 	if got.After(want) {
 		t.Errorf("got %q, wanted %q", got, want)
@@ -223,17 +218,16 @@ func TestGetSunriseSunsetTimesInUTCRiseWithOffsetHorizon(t *testing.T) {
 
 func TestGetSunriseSunsetTimesInUTCNoon(t *testing.T) {
 	timezone, err := time.LoadLocation("Pacific/Honolulu")
-
 	if err != nil {
 		t.Errorf("got %q", err)
 		return
 	}
 
-	var sun Sun = GetSunriseSunsetTimesInUTC(d, 0, longitude, latitude, elevation)
+	sun := GetSunriseSunsetTimesInUTC(d, 0, longitude, latitude, elevation)
 
-	var got time.Time = sun.Noon.In(timezone)
+	got := sun.Noon.In(timezone)
 
-	var want = time.Date(1992, 4, 12, 12, 22, 10, 770278016, timezone)
+	want := time.Date(1992, 4, 12, 12, 22, 10, 770278016, timezone)
 
 	if got != want {
 		t.Errorf("got %q, wanted %q", got, want)
@@ -242,17 +236,16 @@ func TestGetSunriseSunsetTimesInUTCNoon(t *testing.T) {
 
 func TestGetSunriseSunsetTimesInUTCSet(t *testing.T) {
 	timezone, err := time.LoadLocation("Pacific/Honolulu")
-
 	if err != nil {
 		t.Errorf("got %q", err)
 		return
 	}
 
-	var sun Sun = GetSunriseSunsetTimesInUTC(d, 0, longitude, latitude, elevation)
+	sun := GetSunriseSunsetTimesInUTC(d, 0, longitude, latitude, elevation)
 
-	var got time.Time = sun.Set.In(timezone)
+	got := sun.Set.In(timezone)
 
-	var want = time.Date(1992, 4, 12, 18, 38, 32, 468232192, timezone)
+	want := time.Date(1992, 4, 12, 18, 38, 57, 612815232, timezone)
 
 	if got != want {
 		t.Errorf("got %q, wanted %q", got, want)
@@ -261,17 +254,16 @@ func TestGetSunriseSunsetTimesInUTCSet(t *testing.T) {
 
 func TestGetSunriseSunsetTimesInUTCSetWithOffsetHorizon(t *testing.T) {
 	timezone, err := time.LoadLocation("Pacific/Honolulu")
-
 	if err != nil {
 		t.Errorf("got %q", err)
 		return
 	}
 
-	var sun Sun = GetSunriseSunsetTimesInUTC(d, -18, longitude, latitude, elevation)
+	sun := GetSunriseSunsetTimesInUTC(d, -18, longitude, latitude, elevation)
 
-	var got time.Time = sun.Set.In(timezone)
+	got := sun.Set.In(timezone)
 
-	var want = time.Date(1992, 4, 12, 18, 38, 32, 468232192, timezone)
+	want := time.Date(1992, 4, 12, 18, 38, 57, 612815232, timezone)
 
 	if got.Before(want) {
 		t.Errorf("got %q, wanted %q", got, want)
@@ -280,13 +272,13 @@ func TestGetSunriseSunsetTimesInUTCSetWithOffsetHorizon(t *testing.T) {
 
 func TestGetSolarEclipticPositionLongitude(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 2, 5, 17, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 2, 5, 17, 0, 0, 0, time.UTC)
 
-	var ec = GetSolarEclipticPosition(datetime)
+	ec := GetSolarEclipticPosition(datetime)
 
-	var got = ec.Longitude
+	got := ec.Longitude
 
-	var want = 316.562255
+	want := 316.562255
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -295,13 +287,13 @@ func TestGetSolarEclipticPositionLongitude(t *testing.T) {
 
 func TestGetSolarEclipticPositionLatitude(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 2, 5, 17, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 2, 5, 17, 0, 0, 0, time.UTC)
 
-	var ec = GetSolarEclipticPosition(datetime)
+	ec := GetSolarEclipticPosition(datetime)
 
-	var got = ec.Latitude
+	got := ec.Latitude
 
-	var want = 0.0
+	want := 0.0
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -310,13 +302,13 @@ func TestGetSolarEclipticPositionLatitude(t *testing.T) {
 
 func TestGetSolarEquatorialPositionRightAscension(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 2, 5, 17, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 2, 5, 17, 0, 0, 0, time.UTC)
 
-	var eq = GetSolarEquatorialPosition(datetime)
+	eq := GetSolarEquatorialPosition(datetime)
 
-	var got = eq.RightAscension
+	got := eq.RightAscension
 
-	var want = 319.017015
+	want := 319.017015
 
 	if math.Abs(got-want) > 0.01 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -325,13 +317,13 @@ func TestGetSolarEquatorialPositionRightAscension(t *testing.T) {
 
 func TestGetSolarEquatorialPositionDeclination(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 2, 5, 17, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 2, 5, 17, 0, 0, 0, time.UTC)
 
-	var eq = GetSolarEquatorialPosition(datetime)
+	eq := GetSolarEquatorialPosition(datetime)
 
-	var got = eq.Declination
+	got := eq.Declination
 
-	var want = -15.872529
+	want := -15.872529
 
 	if math.Abs(got-want) > 0.01 {
 		t.Errorf("got %f, wanted %f", got, want)

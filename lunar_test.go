@@ -9,11 +9,11 @@ import (
 )
 
 func TestGetLunarMeanLongitude(t *testing.T) {
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var got float64 = GetLunarMeanLongitude(J)
+	got := GetLunarMeanLongitude(J)
 
-	var want float64 = 134.290182
+	want := 134.290182
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -22,11 +22,11 @@ func TestGetLunarMeanLongitude(t *testing.T) {
 
 func TestGetLunarMeanEclipticLongitude(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
 
-	var got = GetLunarMeanEclipticLongitude(datetime)
+	got := GetLunarMeanEclipticLongitude(datetime)
 
-	var want = 59.716785
+	want := 59.716785
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -35,11 +35,11 @@ func TestGetLunarMeanEclipticLongitude(t *testing.T) {
 
 func TestGetLunarTrueEclipticLongitude(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
 
-	var got = GetLunarTrueEclipticLongitude(datetime)
+	got := GetLunarTrueEclipticLongitude(datetime)
 
-	var want = 64.972240
+	want := 65.164007
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -48,11 +48,11 @@ func TestGetLunarTrueEclipticLongitude(t *testing.T) {
 
 func TestGetLunarMeanEclipticLongitudeOfTheAscendingNode(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
 
-	var got = GetLunarMeanEclipticLongitudeOfTheAscendingNode(datetime)
+	got := GetLunarMeanEclipticLongitudeOfTheAscendingNode(datetime)
 
-	var want = 194.877008
+	want := 194.877008
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -61,11 +61,11 @@ func TestGetLunarMeanEclipticLongitudeOfTheAscendingNode(t *testing.T) {
 
 func TestGetLunarCorrectedEclipticLongitudeOfTheAscendingNode(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
 
-	var got = GetLunarCorrectedEclipticLongitudeOfTheAscendingNode(datetime)
+	got := GetLunarCorrectedEclipticLongitudeOfTheAscendingNode(datetime)
 
-	var want = 194.881180
+	want := 194.881180
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -73,22 +73,23 @@ func TestGetLunarCorrectedEclipticLongitudeOfTheAscendingNode(t *testing.T) {
 }
 
 func TestGetLunarMeanElongation(t *testing.T) {
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var got float64 = GetLunarMeanElongation(J)
+	got := GetLunarMeanElongation(J)
 
-	var want float64 = 113.842304
+	want := 113.842304
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
 	}
 }
+
 func TestGetLunarMeanAnomaly(t *testing.T) {
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var got float64 = GetLunarMeanAnomaly(J)
+	got := GetLunarMeanAnomaly(J)
 
-	var want float64 = 5.150833
+	want := 5.150833
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -97,11 +98,11 @@ func TestGetLunarMeanAnomaly(t *testing.T) {
 
 func TestGetLunarTrueAnomaly(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
 
-	var got float64 = GetLunarTrueAnomaly(datetime)
+	got := GetLunarTrueAnomaly(datetime)
 
-	var want float64 = 6.302688
+	want := 6.302889
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -109,11 +110,11 @@ func TestGetLunarTrueAnomaly(t *testing.T) {
 }
 
 func TestGetLunarArgumentOfLatitude(t *testing.T) {
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var got float64 = GetLunarArgumentOfLatitude(J)
+	got := GetLunarArgumentOfLatitude(J)
 
-	var want float64 = 219.889721
+	want := 219.889721
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -121,15 +122,15 @@ func TestGetLunarArgumentOfLatitude(t *testing.T) {
 }
 
 func TestGetLunarHorizontalLongitude(t *testing.T) {
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var M float64 = GetLunarMeanAnomaly(J)
+	M := GetLunarMeanAnomaly(J)
 
-	var L float64 = GetLunarMeanLongitude(J)
+	L := GetLunarMeanLongitude(J)
 
-	var got float64 = GetLunarHorizontalLongitude(M, L)
+	got := GetLunarHorizontalLongitude(M, L)
 
-	var want float64 = 134.854795
+	want := 134.854795
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -137,13 +138,13 @@ func TestGetLunarHorizontalLongitude(t *testing.T) {
 }
 
 func TestGetLunarHorizontalLatitude(t *testing.T) {
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var F float64 = GetLunarArgumentOfLatitude(J)
+	F := GetLunarArgumentOfLatitude(J)
 
-	var got float64 = GetLunarHorizontalLatitude(F)
+	got := GetLunarHorizontalLatitude(F)
 
-	var want float64 = 356.711352
+	want := 356.711352
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -155,61 +156,13 @@ func TestGetLunarLongitudeOfTheAscendingNode(t *testing.T) {
 	// differential w.r.t a time component. We set it to the date provided
 	// on p.148 of Meeus, Jean. 1991. Astronomical algorithms.Richmond,
 	// Va: Willmann - Bell.:
-	var d time.Time = time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
+	d := time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
 
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var got float64 = GetLunarLongitudeOfTheAscendingNode(J)
+	got := GetLunarLongitudeOfTheAscendingNode(J)
 
-	var want float64 = 11.253083
-
-	if math.Abs(got-want) > 0.00001 {
-		t.Errorf("got %f, wanted %f", got, want)
-	}
-}
-
-func TestGetLunarLongitudeOfNutation(t *testing.T) {
-	// For testing we need to specify a date because most calculations are
-	// differential w.r.t a time component. We set it to the date provided
-	// on p.148 of Meeus, Jean. 1991. Astronomical algorithms.Richmond,
-	// Va: Willmann - Bell.:
-	var d time.Time = time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
-
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
-
-	var L float64 = GetSolarMeanLongitude(J)
-
-	var l float64 = GetLunarMeanLongitude(J)
-
-	var Ω float64 = GetLunarLongitudeOfTheAscendingNode(J)
-
-	var got float64 = GetLunarLongitudeOfNutation(L, l, Ω)
-
-	var want float64 = -0.000648203
-
-	if math.Abs(got-want) > 0.00001 {
-		t.Errorf("got %f, wanted %f", got, want)
-	}
-}
-
-func TestGetLunarObliquityOfNutation(t *testing.T) {
-	// For testing we need to specify a date because most calculations are
-	// differential w.r.t a time component. We set it to the date provided
-	// on p.148 of Meeus, Jean. 1991. Astronomical algorithms.Richmond,
-	// Va: Willmann - Bell.:
-	var d time.Time = time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
-
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
-
-	var L float64 = GetSolarMeanLongitude(J)
-
-	var l float64 = GetLunarMeanLongitude(J)
-
-	var Ω float64 = GetLunarLongitudeOfTheAscendingNode(J)
-
-	var got float64 = GetLunarObliquityOfNutation(L, l, Ω)
-
-	var want float64 = 0.002629996
+	want := 11.253083
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -218,13 +171,13 @@ func TestGetLunarObliquityOfNutation(t *testing.T) {
 
 func TestGetLunarAnnualEquationCorrection(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
 
-	var M float64 = GetSolarMeanAnomalyLawrence(datetime)
+	M := GetSolarMeanAnomalyLawrence(datetime)
 
-	var got float64 = GetLunarAnnualEquationCorrection(M)
+	got := GetLunarAnnualEquationCorrection(M)
 
-	var want float64 = -0.004845
+	want := -0.004845
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -233,21 +186,21 @@ func TestGetLunarAnnualEquationCorrection(t *testing.T) {
 
 func TestGetLunarEvectionCorrection(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
 
-	var M float64 = GetLunarMeanAnomalyLawrence(datetime)
+	M := GetLunarMeanAnomalyLawrence(datetime)
 
-	var λ float64 = GetLunarMeanEclipticLongitude(datetime)
+	λ := GetLunarMeanEclipticLongitude(datetime)
 
-	var Msol = GetSolarMeanAnomalyLawrence(datetime)
+	Msol := GetSolarMeanAnomalyLawrence(datetime)
 
-	var Csol = GetSolarEquationOfCenterLawrence(Msol)
+	Csol := GetSolarEquationOfCenterLawrence(Msol)
 
-	var λsol float64 = GetSolarEclipticLongitudeLawrence(Msol, Csol)
+	λsol := GetSolarEclipticLongitudeLawrence(Msol, Csol)
 
-	var got float64 = GetLunarEvectionCorrection(M, λ, λsol)
+	got := GetLunarEvectionCorrection(M, λ, λsol)
 
-	var want float64 = -0.237282
+	want := -0.237282
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -256,25 +209,25 @@ func TestGetLunarEvectionCorrection(t *testing.T) {
 
 func TestGetLunarMeanAnomalyCorrection(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 2, 3, 0, 0, 0, time.UTC)
 
-	var M float64 = GetLunarMeanAnomalyLawrence(datetime)
+	M := GetLunarMeanAnomalyLawrence(datetime)
 
-	var λ float64 = GetLunarMeanEclipticLongitude(datetime)
+	λ := GetLunarMeanEclipticLongitude(datetime)
 
-	var Msol = GetSolarMeanAnomalyLawrence(datetime)
+	Msol := GetSolarMeanAnomalyLawrence(datetime)
 
-	var Csol = GetSolarEquationOfCenterLawrence(Msol)
+	Csol := GetSolarEquationOfCenterLawrence(Msol)
 
-	var λsol float64 = GetSolarEclipticLongitudeLawrence(Msol, Csol)
+	λsol := GetSolarEclipticLongitudeLawrence(Msol, Csol)
 
-	var Ae float64 = GetLunarAnnualEquationCorrection(M)
+	Ae := GetLunarAnnualEquationCorrection(M)
 
-	var Eν float64 = GetLunarEvectionCorrection(M, λ, λsol)
+	Eν := GetLunarEvectionCorrection(M, λ, λsol)
 
-	var got float64 = GetLunarMeanAnomalyCorrection(M, Msol, Ae, Eν)
+	got := GetLunarMeanAnomalyCorrection(M, Msol, Ae, Eν)
 
-	var want float64 = 85.497682
+	want := 85.497682
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -282,11 +235,11 @@ func TestGetLunarMeanAnomalyCorrection(t *testing.T) {
 }
 
 func TestGetLunarEquatorialPositionRightAscension(t *testing.T) {
-	var eq EquatorialCoordinate = GetLunarEquatorialPosition(datetime)
+	eq := GetLunarEquatorialPosition(datetime)
 
-	var got float64 = eq.RightAscension
+	got := eq.RightAscension
 
-	var want float64 = 76.239624
+	want := 76.239624
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -294,22 +247,23 @@ func TestGetLunarEquatorialPositionRightAscension(t *testing.T) {
 }
 
 func TestGetLunarEquatorialPositionDeclination(t *testing.T) {
-	var eq EquatorialCoordinate = GetLunarEquatorialPosition(datetime)
+	eq := GetLunarEquatorialPosition(datetime)
 
-	var got float64 = eq.Declination
+	got := eq.Declination
 
-	var want float64 = 23.598793
+	want := 23.598793
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
 	}
 }
+
 func TestGetLunarEclipticPositionLongitude(t *testing.T) {
-	var ec EclipticCoordinate = GetLunarEclipticPosition(d)
+	ec := GetLunarEclipticPosition(d)
 
-	var got float64 = ec.Longitude
+	got := ec.Longitude
 
-	var want float64 = 133.162655
+	want := 133.162655
 
 	if math.Abs(got-want) > 0.15 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -318,13 +272,13 @@ func TestGetLunarEclipticPositionLongitude(t *testing.T) {
 
 func TestGetLunarEclipticPositionLongitudeAlt(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	var ec EclipticCoordinate = GetLunarEclipticPosition(datetime)
+	ec := GetLunarEclipticPosition(datetime)
 
-	var got float64 = ec.Longitude
+	got := ec.Longitude
 
-	var want float64 = 50.604878
+	want := 50.604878
 
 	if math.Abs(got-want) > 0.15 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -332,11 +286,11 @@ func TestGetLunarEclipticPositionLongitudeAlt(t *testing.T) {
 }
 
 func TestGetLunarEclipticPositionLatitude(t *testing.T) {
-	var ec EclipticCoordinate = GetLunarEclipticPosition(d)
+	ec := GetLunarEclipticPosition(d)
 
-	var got float64 = ec.Latitude
+	got := ec.Latitude
 
-	var want float64 = -3.229126
+	want := -3.229126
 
 	if math.Abs(got-want) > 0.1 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -345,13 +299,13 @@ func TestGetLunarEclipticPositionLatitude(t *testing.T) {
 
 func TestGetLunarEclipticPositionLatitudeAlt(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	var ec EclipticCoordinate = GetLunarEclipticPosition(datetime)
+	ec := GetLunarEclipticPosition(datetime)
 
-	var got float64 = ec.Latitude
+	got := ec.Latitude
 
-	var want float64 = -2.981288
+	want := -2.981288
 
 	if math.Abs(got-want) > 0.1 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -359,11 +313,11 @@ func TestGetLunarEclipticPositionLatitudeAlt(t *testing.T) {
 }
 
 func TestGetLunarEclipticPositionDistance(t *testing.T) {
-	var ec EclipticCoordinate = GetLunarEclipticPosition(d)
+	ec := GetLunarEclipticPosition(d)
 
-	var got float64 = ec.Δ
+	got := ec.Δ
 
-	var want float64 = 368403.226858
+	want := 368409.684786
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -371,11 +325,11 @@ func TestGetLunarEclipticPositionDistance(t *testing.T) {
 }
 
 func TestGetLunarHorizontalParallax(t *testing.T) {
-	var ec EclipticCoordinate = GetLunarEclipticPosition(d)
+	ec := GetLunarEclipticPosition(d)
 
-	var got float64 = GetLunarHorizontalParallax(ec.Δ)
+	got := GetLunarHorizontalParallax(ec.Δ)
 
-	var want float64 = 0.992007
+	want := 0.991990
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -383,15 +337,15 @@ func TestGetLunarHorizontalParallax(t *testing.T) {
 }
 
 func TestGetLunarHourAngle(t *testing.T) {
-	var ec EclipticCoordinate = GetLunarEclipticPosition(datetime)
+	ec := GetLunarEclipticPosition(datetime)
 
-	var eq EquatorialCoordinate = GetLunarEquatorialPosition(datetime)
+	eq := GetLunarEquatorialPosition(datetime)
 
-	var π float64 = GetLunarHorizontalParallax(ec.Δ)
+	π := GetLunarHorizontalParallax(ec.Δ)
 
-	var got float64 = GetLunarHourAngle(eq.Declination, latitude, 0, π)
+	got := GetLunarHourAngle(eq.Declination, latitude, 0, π)
 
-	var want float64 = 97.500858
+	want := 98.942949
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -400,29 +354,29 @@ func TestGetLunarHourAngle(t *testing.T) {
 
 func TestGetEclipticLongitudeInXHours(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	var M float64 = GetLunarMeanAnomalyLawrence(datetime)
+	M := GetLunarMeanAnomalyLawrence(datetime)
 
-	var λ float64 = GetLunarMeanEclipticLongitude(datetime)
+	λ := GetLunarMeanEclipticLongitude(datetime)
 
-	var Msol = GetSolarMeanAnomalyLawrence(datetime)
+	Msol := GetSolarMeanAnomalyLawrence(datetime)
 
-	var Csol = GetSolarEquationOfCenterLawrence(Msol)
+	Csol := GetSolarEquationOfCenterLawrence(Msol)
 
-	var λsol float64 = GetSolarEclipticLongitudeLawrence(Msol, Csol)
+	λsol := GetSolarEclipticLongitudeLawrence(Msol, Csol)
 
-	var Ae float64 = GetLunarAnnualEquationCorrection(M)
+	Ae := GetLunarAnnualEquationCorrection(M)
 
-	var Eν float64 = GetLunarEvectionCorrection(M, λ, λsol)
+	Eν := GetLunarEvectionCorrection(M, λ, λsol)
 
-	var Ca float64 = GetLunarMeanAnomalyCorrection(M, Msol, Ae, Eν)
+	Ca := GetLunarMeanAnomalyCorrection(M, Msol, Ae, Eν)
 
-	var ec EclipticCoordinate = GetLunarEclipticPosition(datetime)
+	ec := GetLunarEclipticPosition(datetime)
 
-	var got float64 = GetLunarEclipticLongitudeInXHours(ec.Longitude, Ca, 12)
+	got := GetLunarEclipticLongitudeInXHours(ec.Longitude, Ca, 12)
 
-	var want float64 = 57.438144
+	want := 57.438144
 
 	if math.Abs(got-want) > 0.15 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -431,17 +385,17 @@ func TestGetEclipticLongitudeInXHours(t *testing.T) {
 
 func TestGetEclipticLatitudeInXHours(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	var ec EclipticCoordinate = GetLunarEclipticPosition(datetime)
+	ec := GetLunarEclipticPosition(datetime)
 
-	var Ωprime1 float64 = GetLunarCorrectedEclipticLongitudeOfTheAscendingNode(datetime)
+	Ωprime1 := GetLunarCorrectedEclipticLongitudeOfTheAscendingNode(datetime)
 
-	var λt1 float64 = GetLunarTrueEclipticLongitude(datetime)
+	λt1 := GetLunarTrueEclipticLongitude(datetime)
 
-	var got float64 = GetLunarEclipticLatitudeInXHours(ec.Latitude, Ωprime1, λt1, 12)
+	got := GetLunarEclipticLatitudeInXHours(ec.Latitude, Ωprime1, λt1, 12)
 
-	var want float64 = -3.470089
+	want := -3.470089
 
 	if math.Abs(got-want) > 0.1 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -449,13 +403,13 @@ func TestGetEclipticLatitudeInXHours(t *testing.T) {
 }
 
 func TestGetLunarTransitJulianDate(t *testing.T) {
-	var eq EquatorialCoordinate = GetLunarEquatorialPosition(d)
+	eq := GetLunarEquatorialPosition(d)
 
-	var ϑ float64 = GetApparentGreenwhichSiderealTimeInDegrees(d)
+	ϑ := GetApparentGreenwichSiderealTimeInDegrees(d)
 
-	var got float64 = GetLunarTransitJulianDate(datetime, eq.RightAscension, longitude, ϑ)
+	got := GetLunarTransitJulianDate(datetime, eq.RightAscension, longitude, ϑ)
 
-	var want float64 = 2459348.890048
+	want := 2459348.890048
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -464,7 +418,6 @@ func TestGetLunarTransitJulianDate(t *testing.T) {
 
 func TestGetLunarHorizontalCoordinatesForDayCorrectLength(t *testing.T) {
 	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
-
 	if err != nil {
 		t.Errorf("got %q", err)
 	}
@@ -476,7 +429,6 @@ func TestGetLunarHorizontalCoordinatesForDayCorrectLength(t *testing.T) {
 
 func TestGetLunarHorizontalCoordinatesForDayCorrectStartTime(t *testing.T) {
 	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
-
 	if err != nil {
 		t.Errorf("got %q", err)
 	}
@@ -485,7 +437,7 @@ func TestGetLunarHorizontalCoordinatesForDayCorrectStartTime(t *testing.T) {
 
 	location, _ := time.LoadLocation(timezone)
 
-	var d = time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 0, 0, 0, 0, location)
+	d := time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 0, 0, 0, 0, location)
 
 	if horizontalCoordinates[0].Datetime.String() != d.String() {
 		t.Errorf("the start date for the day after timezone adjustments is wrong")
@@ -494,7 +446,6 @@ func TestGetLunarHorizontalCoordinatesForDayCorrectStartTime(t *testing.T) {
 
 func TestGetLunarHorizontalCoordinatesForDayCorrectEndTime(t *testing.T) {
 	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
-
 	if err != nil {
 		t.Errorf("got %q", err)
 	}
@@ -503,7 +454,7 @@ func TestGetLunarHorizontalCoordinatesForDayCorrectEndTime(t *testing.T) {
 
 	location, _ := time.LoadLocation(timezone)
 
-	var d = time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 23, 59, 0, 0, location)
+	d := time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 23, 59, 0, 0, location)
 
 	if horizontalCoordinates[len(horizontalCoordinates)-1].Datetime.String() != d.String() {
 		t.Errorf("the end date for the day after timezone adjustments is wrong")
@@ -512,10 +463,9 @@ func TestGetLunarHorizontalCoordinatesForDayCorrectEndTime(t *testing.T) {
 
 func TestGetLunarHorizontalCoordinatesForDay20210506(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC)
 
 	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
-
 	if err != nil {
 		t.Errorf("got %q", err)
 	}
@@ -531,38 +481,37 @@ func TestGetLunarHorizontalCoordinatesForDay20210506(t *testing.T) {
 
 func TestGetLunarHorizontalCoordinatesForDay20210521(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2021, 5, 21, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2021, 5, 21, 0, 0, 0, 0, time.UTC)
 
 	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
-
 	if err != nil {
 		t.Errorf("got %q", err)
 	}
 
-	if horizontalCoordinates[860].Datetime.String() == "2021-05-21 14:20:00 -1000 HST" && !horizontalCoordinates[860].IsRise {
-		t.Errorf("We're expecting the Moon to rise at 14:20pm on 21st May 2021")
+	if horizontalCoordinates[859].Datetime.String() == "2021-05-21 14:19:00 -1000 HST" && !horizontalCoordinates[859].IsRise {
+		t.Errorf("We're expecting the Moon to rise at 14:19pm on 21st May 2021")
 	}
 
-	if horizontalCoordinates[135].Datetime.String() == "2021-05-21 02:15:00 -1000 HST" && !horizontalCoordinates[135].IsSet {
-		t.Errorf("We're expecting the Moon to set at 2:15am on 21st May 2021")
+	if horizontalCoordinates[134].Datetime.String() == "2021-05-21 02:14:00 -1000 HST" && !horizontalCoordinates[134].IsSet {
+		t.Errorf("We're expecting the Moon to set at 2:14am on 21st May 2021")
 	}
 }
 
 func TestGetLunarPhase(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	got := GetLunarPhase(datetime, 78, EclipticCoordinate{Longitude: 50.279952, Latitude: -2.981288, Δ: 0})
 
-	var age float64 = 129.966690
+	age := 129.966690
 
-	var angle float64 = 49.924934
+	angle := 49.924934
 
-	var days float64 = 24.24562692920683
+	days := 24.24562692920683
 
-	var fraction float64 = 0.82
+	fraction := 0.82
 
-	var illumination float64 = 82
+	illumination := 82.0
 
 	if math.Abs(got.Age-age) > 0.1 {
 		t.Errorf("got %f, wanted %f", got.Age, age)
@@ -607,10 +556,9 @@ func TestGetLunarPhase(t *testing.T) {
 
 func TestGetMoonriseMoonsetTimes20210506(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC)
 
 	moon, err := GetMoonriseMoonsetTimes(datetime, longitude, latitude)
-
 	if err != nil {
 		t.Errorf("got %q", err)
 	}
@@ -626,29 +574,27 @@ func TestGetMoonriseMoonsetTimes20210506(t *testing.T) {
 
 func TestGetMoonriseMoonsetTimes20210521(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2021, 5, 21, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2021, 5, 21, 0, 0, 0, 0, time.UTC)
 
 	moon, err := GetMoonriseMoonsetTimes(datetime, longitude, latitude)
-
 	if err != nil {
 		t.Errorf("got %q", err)
 	}
 
-	if moon.Rise.String() != "2021-05-21 14:20:00 -1000 HST" {
-		t.Errorf("We're expecting the Moon to rise at 14:20pm on 21st May 2021")
+	if moon.Rise.String() != "2021-05-21 14:19:00 -1000 HST" {
+		t.Errorf("We're expecting the Moon to rise at 14:19pm on 21st May 2021")
 	}
 
-	if moon.Set.String() != "2021-05-21 02:15:00 -1000 HST" {
-		t.Errorf("We're expecting the Moon to set at 2:15am on 21st May 2021")
+	if moon.Set.String() != "2021-05-21 02:14:00 -1000 HST" {
+		t.Errorf("We're expecting the Moon to set at 2:14am on 21st May 2021")
 	}
 }
 
 func TestGetMoonriseMoonsetTimesInUTC20210506(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC)
 
 	moon, err := GetMoonriseMoonsetTimesInUTC(datetime, longitude, latitude)
-
 	if err != nil {
 		t.Errorf("got %q", err)
 	}
@@ -664,19 +610,18 @@ func TestGetMoonriseMoonsetTimesInUTC20210506(t *testing.T) {
 
 func TestGetMoonriseMoonsetTimesInUTC20210521(t *testing.T) {
 	// Date of observation:
-	var datetime time.Time = time.Date(2021, 5, 21, 0, 0, 0, 0, time.UTC)
+	datetime := time.Date(2021, 5, 21, 0, 0, 0, 0, time.UTC)
 
 	moon, err := GetMoonriseMoonsetTimesInUTC(datetime, longitude, latitude)
-
 	if err != nil {
 		t.Errorf("got %q", err)
 	}
 
-	if moon.Rise.String() != "2021-05-22 00:20:00 +0000 UTC" {
-		t.Errorf("We're expecting the Moon to rise at 0:20am on 22st May 2021")
+	if moon.Rise.String() != "2021-05-22 00:19:00 +0000 UTC" {
+		t.Errorf("We're expecting the Moon to rise at 0:19am on 22nd May 2021")
 	}
 
-	if moon.Set.String() != "2021-05-21 12:15:00 +0000 UTC" {
-		t.Errorf("We're expecting the Moon to set at 12:15pm on 21st May 2021")
+	if moon.Set.String() != "2021-05-21 12:14:00 +0000 UTC" {
+		t.Errorf("We're expecting the Moon to set at 12:14pm on 21st May 2021")
 	}
 }

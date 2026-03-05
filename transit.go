@@ -39,7 +39,7 @@ GetObjectRiseObjectSetTimesInUTCForDay()
 @param longitude - the longitude of the observer
 @returns a Transit struct which contains the rise and set times of the object in UTC
 */
-func GetObjectRiseObjectSetTimesInUTCForDay(datetime time.Time, eq EquatorialCoordinate, latitude float64, longitude float64) Transit {
+func GetObjectRiseObjectSetTimesInUTCForDay(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64) Transit {
 	if !GetDoesObjectRiseOrSet(eq, latitude) {
 		return Transit{
 			Rise:     nil,
@@ -48,14 +48,14 @@ func GetObjectRiseObjectSetTimesInUTCForDay(datetime time.Time, eq EquatorialCoo
 		}
 	}
 
-	var d = time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 0, 0, 0, 0, time.UTC)
+	d := time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 0, 0, 0, 0, time.UTC)
 
 	// see p.117 of Lawrence, J.L. 2015. Celestial Calculations - A Gentle Introduction To Computational Astronomy. Cambridge, Ma: The MIT Press
 	LSTr := 24 + eq.RightAscension/15 - GetArgumentOfLocalSiderealTimeForTransit(latitude, eq.Declination)/15
 
-	GSTr := ConvertLocalSiderealTimeToGreenwhichSiderealTime(LSTr, longitude)
+	GSTr := ConvertLocalSiderealTimeToGreenwichSiderealTime(LSTr, longitude)
 
-	UTr := ConvertGreenwhichSiderealTimeToUniversalTime(datetime, GSTr)
+	UTr := ConvertGreenwichSiderealTimeToUniversalTime(datetime, GSTr)
 
 	// for highest accuracy, convert hours to milliseconds to add:
 	rise := d.Add(time.Duration(UTr*3600000) * time.Millisecond)
@@ -63,9 +63,9 @@ func GetObjectRiseObjectSetTimesInUTCForDay(datetime time.Time, eq EquatorialCoo
 	// see p.117 of Lawrence, J.L. 2015. Celestial Calculations - A Gentle Introduction To Computational Astronomy. Cambridge, Ma: The MIT Press
 	LSTs := eq.RightAscension/15 + GetArgumentOfLocalSiderealTimeForTransit(latitude, eq.Declination)/15
 
-	GSTs := ConvertLocalSiderealTimeToGreenwhichSiderealTime(LSTs, longitude)
+	GSTs := ConvertLocalSiderealTimeToGreenwichSiderealTime(LSTs, longitude)
 
-	UTs := ConvertGreenwhichSiderealTimeToUniversalTime(d, GSTs)
+	UTs := ConvertGreenwichSiderealTimeToUniversalTime(d, GSTs)
 
 	// for highest accuracy, convert hours to milliseconds to add:
 	set := d.Add(time.Duration(UTs*3600000) * time.Millisecond)
@@ -73,7 +73,7 @@ func GetObjectRiseObjectSetTimesInUTCForDay(datetime time.Time, eq EquatorialCoo
 	return Transit{
 		Rise:     &rise,
 		Set:      &set,
-		Duration: rise.Sub(set),
+		Duration: set.Sub(rise),
 	}
 }
 
@@ -86,7 +86,7 @@ GetObjectHorizontalCoordinatesForDay()
 @param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
 @returns the horizontal coordinates of the target object for every minute of a given day.
 */
-func GetObjectHorizontalCoordinatesForDay(datetime time.Time, eq EquatorialCoordinate, longitude float64, latitude float64) ([]TransitHorizontalCoordinate, error) {
+func GetObjectHorizontalCoordinatesForDay(datetime time.Time, eq EquatorialCoordinate, longitude, latitude float64) ([]TransitHorizontalCoordinate, error) {
 	// create an empty list of horizontalCoordinate structs:
 	horizontalCoordinates := make([]TransitHorizontalCoordinate, 1442)
 
@@ -94,18 +94,17 @@ func GetObjectHorizontalCoordinatesForDay(datetime time.Time, eq EquatorialCoord
 	timezone := tzm.LatLngToTimezoneString(latitude, longitude)
 
 	location, err := time.LoadLocation(timezone)
-
 	if err != nil {
 		return horizontalCoordinates, err
 	}
 
-	var d = time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 0, 0, 0, 0, location).In(time.UTC)
+	d := time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 0, 0, 0, 0, location).In(time.UTC)
 
 	// Subtract one minute to ensure we are not over looking the rise time to be
 	d = d.Add(time.Minute * -1)
 
 	for i := range horizontalCoordinates {
-		var hz HorizontalCoordinate = ConvertEquatorialCoordinateToHorizontal(d, longitude, latitude, eq)
+		hz := ConvertEquatorialCoordinateToHorizontal(d, longitude, latitude, eq)
 
 		if i > 0 {
 			horizontalCoordinates[i] = TransitHorizontalCoordinate{
@@ -140,7 +139,7 @@ GetObjectRiseObjectSetTimesInUTC()
 @param longitude - the longitude of the observer
 @returns a Transit struct which contains the rise and set times of the object in UTC
 */
-func GetObjectRiseObjectSetTimesInUTC(datetime time.Time, eq EquatorialCoordinate, latitude float64, longitude float64) Transit {
+func GetObjectRiseObjectSetTimesInUTC(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64) Transit {
 	if !GetDoesObjectRiseOrSet(eq, latitude) {
 		return Transit{
 			Rise:     nil,
@@ -152,7 +151,7 @@ func GetObjectRiseObjectSetTimesInUTC(datetime time.Time, eq EquatorialCoordinat
 	transit := GetObjectRiseObjectSetTimesInUTCForDay(datetime, eq, latitude, longitude)
 
 	// We need to ensure that if the transit rise is before the transit set,
-	if transit.Rise != nil && transit.Set.Before(*transit.Rise) {
+	if transit.Rise != nil && transit.Set != nil && transit.Set.Before(*transit.Rise) {
 		tomorrow := GetObjectRiseObjectSetTimesInUTCForDay(datetime.Add(time.Hour*24), eq, latitude, longitude)
 		transit.Set = tomorrow.Set
 	}
@@ -160,7 +159,7 @@ func GetObjectRiseObjectSetTimesInUTC(datetime time.Time, eq EquatorialCoordinat
 	return Transit{
 		Rise:     transit.Rise,
 		Set:      transit.Set,
-		Duration: transit.Rise.Sub(*transit.Set),
+		Duration: transit.Set.Sub(*transit.Rise),
 	}
 }
 
@@ -173,7 +172,7 @@ GetObjectRiseObjectSetTimes()
 @param longitude - the longitude of the observer
 @returns a Transit struct which contains the rise and set times of the object in local time
 */
-func GetObjectRiseObjectSetTimes(datetime time.Time, eq EquatorialCoordinate, latitude float64, longitude float64) (*Transit, error) {
+func GetObjectRiseObjectSetTimes(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64) (*Transit, error) {
 	if !GetDoesObjectRiseOrSet(eq, latitude) {
 		return &Transit{
 			Rise:     nil,
@@ -187,7 +186,6 @@ func GetObjectRiseObjectSetTimes(datetime time.Time, eq EquatorialCoordinate, la
 
 	// the corresponding local timezone for the observer, e..g, the location name corresponding to a file in the IANA Time Zone database, such as "Pacific/Honolulu":
 	location, err := time.LoadLocation(timezone)
-
 	if err != nil {
 		return nil, err
 	}
@@ -214,9 +212,8 @@ GetObjectTransitMaximaTime()
 @param longitude - the longitude of the observer
 @returns a the Transit maxima time of the object in local time
 */
-func GetObjectTransitMaximaTime(datetime time.Time, eq EquatorialCoordinate, latitude float64, longitude float64) (*time.Time, error) {
+func GetObjectTransitMaximaTime(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64) (*time.Time, error) {
 	transit, err := GetObjectRiseObjectSetTimes(datetime, eq, latitude, longitude)
-
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +222,7 @@ func GetObjectTransitMaximaTime(datetime time.Time, eq EquatorialCoordinate, lat
 	minutes := 1440
 
 	if transit.Duration.Minutes() > 0 {
-		minutes = int(math.Ceil(math.Abs(transit.Duration.Minutes())))
+		minutes = int(math.Ceil(transit.Duration.Minutes()))
 	}
 
 	// create an empty list of horizontalCoordinate structs:
@@ -240,7 +237,7 @@ func GetObjectTransitMaximaTime(datetime time.Time, eq EquatorialCoordinate, lat
 
 	for i := range horizontalCoordinates {
 		// Get the current horizontal position of the object:
-		var hz HorizontalCoordinate = ConvertEquatorialCoordinateToHorizontal(d, longitude, latitude, eq)
+		hz := ConvertEquatorialCoordinateToHorizontal(d, longitude, latitude, eq)
 
 		horizontalCoordinates[i] = TransitHorizontalCoordinate{
 			Datetime: d,
@@ -278,9 +275,8 @@ GetObjectTransit()
 @param longitude - the longitude of the observer
 @returns a Transit struct which contains the rise, maximum and set times of the object in local time
 */
-func GetObjectTransit(datetime time.Time, eq EquatorialCoordinate, latitude float64, longitude float64) (*Transit, error) {
+func GetObjectTransit(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64) (*Transit, error) {
 	transit, err := GetObjectRiseObjectSetTimes(datetime, eq, latitude, longitude)
-
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +291,7 @@ func GetObjectTransit(datetime time.Time, eq EquatorialCoordinate, latitude floa
 	}
 
 	// find the number of minutes between the rise and set times:
-	minutes := int(math.Ceil(math.Abs(transit.Duration.Minutes())))
+	minutes := int(math.Ceil(transit.Duration.Minutes()))
 
 	// create an empty list of horizontalCoordinate structs:
 	horizontalCoordinates := make([]TransitHorizontalCoordinate, minutes)
@@ -304,7 +300,7 @@ func GetObjectTransit(datetime time.Time, eq EquatorialCoordinate, latitude floa
 
 	for i := range horizontalCoordinates {
 		// Get the current horizontal position of the object:
-		var hz HorizontalCoordinate = ConvertEquatorialCoordinateToHorizontal(d, longitude, latitude, eq)
+		hz := ConvertEquatorialCoordinateToHorizontal(d, longitude, latitude, eq)
 
 		horizontalCoordinates[i] = TransitHorizontalCoordinate{
 			Datetime: d,

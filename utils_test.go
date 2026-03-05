@@ -7,9 +7,9 @@ import (
 )
 
 func TestGetEarthObliquity(t *testing.T) {
-	var got float64 = GetEarthObliquity()
+	got := GetEarthObliquity()
 
-	var want float64 = 23.4397
+	want := 23.4397
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -21,13 +21,13 @@ func TestGetMeanObliquityOfTheEcliptic(t *testing.T) {
 	// differential w.r.t a time component. We set it to the date provided
 	// on p.148 of Meeus, Jean. 1991. Astronomical algorithms.Richmond,
 	// Va: Willmann - Bell.:
-	var d time.Time = time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
+	d := time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
 
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var got float64 = GetMeanObliquityOfTheEcliptic(J)
+	got := GetMeanObliquityOfTheEcliptic(J)
 
-	var want float64 = 23.440947
+	want := 23.440947
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -39,19 +39,19 @@ func TestGetNutationInLongitudeOfTheEcliptic(t *testing.T) {
 	// differential w.r.t a time component. We set it to the date provided
 	// on p.148 of Meeus, Jean. 1991. Astronomical algorithms.Richmond,
 	// Va: Willmann - Bell.:
-	var d time.Time = time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
+	d := time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
 
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var L float64 = GetSolarMeanLongitude(J)
+	L := GetSolarMeanLongitude(J)
 
-	var l float64 = GetLunarMeanLongitude(J)
+	l := GetLunarMeanLongitude(J)
 
-	var Ω float64 = GetLunarLongitudeOfTheAscendingNode(J)
+	Ω := GetLunarLongitudeOfTheAscendingNode(J)
 
-	var got float64 = GetNutationInLongitudeOfTheEcliptic(L, l, Ω)
+	got := GetNutationInLongitudeOfTheEcliptic(L, l, Ω)
 
-	var want float64 = -0.000648203
+	want := -0.000648203
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -63,19 +63,19 @@ func TestGetNutationInObliquityOfTheEcliptic(t *testing.T) {
 	// differential w.r.t a time component. We set it to the date provided
 	// on p.148 of Meeus, Jean. 1991. Astronomical algorithms.Richmond,
 	// Va: Willmann - Bell.:
-	var d time.Time = time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
+	d := time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
 
-	var J float64 = GetCurrentJulianCenturyRelativeToJ2000(d)
+	J := GetCurrentJulianCenturyRelativeToJ2000(d)
 
-	var L float64 = GetSolarMeanLongitude(J)
+	L := GetSolarMeanLongitude(J)
 
-	var l float64 = GetLunarMeanLongitude(J)
+	l := GetLunarMeanLongitude(J)
 
-	var Ω float64 = GetLunarLongitudeOfTheAscendingNode(J)
+	Ω := GetLunarLongitudeOfTheAscendingNode(J)
 
-	var got float64 = GetNutationInObliquityOfTheEcliptic(L, l, Ω)
+	got := GetNutationInObliquityOfTheEcliptic(L, l, Ω)
 
-	var want float64 = 0.002629996
+	want := 0.002629996
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -83,9 +83,9 @@ func TestGetNutationInObliquityOfTheEcliptic(t *testing.T) {
 }
 
 func TestGetArgumentOfLocalSiderealTime(t *testing.T) {
-	var got float64 = GetArgumentOfLocalSiderealTimeForTransit(latitude, 7.4070639)
+	got := GetArgumentOfLocalSiderealTimeForTransit(latitude, 7.4070639)
 
-	var want float64 = 92.682420
+	want := 92.682420
 
 	if math.Abs(got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", got, want)
@@ -97,11 +97,11 @@ func TestGetArgumentOfLocalSiderealTime(t *testing.T) {
 }
 
 func TestGetAtmosphericRefraction(t *testing.T) {
-	var hz HorizontalCoordinate = ConvertEquatorialCoordinateToHorizontal(datetime, longitude, latitude, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639})
+	hz := ConvertEquatorialCoordinateToHorizontal(datetime, longitude, latitude, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639})
 
 	got := GetAtmosphericRefraction(hz.Altitude)
 
-	var want float64 = 0.005219
+	want := 0.005219
 
 	if math.Abs(*got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", *got, want)
@@ -121,11 +121,11 @@ func TestGetAtmosphericRefractionBelowHorizon(t *testing.T) {
 }
 
 func TestGetRelativeAirMass(t *testing.T) {
-	var hz HorizontalCoordinate = ConvertEquatorialCoordinateToHorizontal(datetime, longitude, latitude, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639})
+	hz := ConvertEquatorialCoordinateToHorizontal(datetime, longitude, latitude, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639})
 
 	got := GetRelativeAirMass(hz.Altitude)
 
-	var want float64 = 1.046558
+	want := 1.046558
 
 	if math.Abs(*got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", *got, want)
@@ -139,7 +139,7 @@ func TestGetRelativeAirMass(t *testing.T) {
 func TestGetRelativeAirMassAtZenith(t *testing.T) {
 	got := GetRelativeAirMass(90)
 
-	var want float64 = 1.0
+	want := 1.0
 
 	if math.Abs(*got-want) > 0.00001 {
 		t.Errorf("got %f, wanted %f", *got, want)
@@ -153,7 +153,7 @@ func TestGetRelativeAirMassAtZenith(t *testing.T) {
 func TestGetRelativeAirMassAtHorizon(t *testing.T) {
 	got := GetRelativeAirMass(0)
 
-	var want float64 = 38
+	want := 38.0
 
 	if math.Abs(*got-want) > 2 {
 		t.Errorf("The relative air mass must be approximately ~37 - 39 at the observer's horizon")
@@ -173,7 +173,7 @@ func TestGetRelativeAirMassBelowHorizon(t *testing.T) {
 }
 
 func TestGetApparentAltitude(t *testing.T) {
-	var hz HorizontalCoordinate = ConvertEquatorialCoordinateToHorizontal(datetime, longitude, latitude, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639})
+	hz := ConvertEquatorialCoordinateToHorizontal(datetime, longitude, latitude, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639})
 
 	got := GetApparentAltitude(hz.Altitude)
 
