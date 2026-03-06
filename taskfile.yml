@@ -1,0 +1,53 @@
+version: "3"
+
+tasks:
+  default:
+    desc: Run all checks
+    aliases: [check]
+    cmds:
+      - task: fmt:check
+      - task: vet
+      - task: lint:check
+      - task: test
+
+  fix:
+    desc: Run all fixes
+    cmds:
+      - task: fmt:fix
+      - task: lint:fix
+
+  fmt:check:
+    desc: Check formatting with gofumpt -extra
+    cmds:
+      - |
+        output="$(gofumpt -extra -l .)"
+        if [ -n "$output" ]; then
+          echo "$output"
+          echo "gofumpt formatting check failed: run 'task fmt:fix' to fix." >&2
+          exit 1
+        fi
+
+  fmt:fix:
+    desc: Fix formatting with gofumpt -extra
+    cmds:
+      - gofumpt -extra -w .
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  lint:check:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  lint:fix:
+    desc: Run golangci-lint with auto-fix
+    cmds:
+      - golangci-lint run --fix ./...
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test -race -count=1 ./...

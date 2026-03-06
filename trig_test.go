@@ -1,0 +1,186 @@
+package dusk
+
+import (
+	"math"
+	"testing"
+)
+
+const (
+	epsTrig = 1e-15
+	epsMod  = 1e-10
+)
+
+func approxEqual(a, b, eps float64) bool {
+	return math.Abs(a-b) < eps
+}
+
+func TestSinx(t *testing.T) {
+	tests := []struct {
+		name string
+		deg  float64
+		want float64
+	}{
+		{"0°", 0, 0},
+		{"90°", 90, 1},
+		{"180°", 180, 0},
+		{"270°", 270, -1},
+		{"-90°", -90, -1},
+		{"45°", 45, math.Sqrt(2) / 2},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := sinx(tc.deg)
+			if !approxEqual(got, tc.want, epsTrig) {
+				t.Errorf("sinx(%v) = %v, want %v", tc.deg, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCosx(t *testing.T) {
+	tests := []struct {
+		name string
+		deg  float64
+		want float64
+	}{
+		{"0°", 0, 1},
+		{"90°", 90, 0},
+		{"180°", 180, -1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := cosx(tc.deg)
+			if !approxEqual(got, tc.want, epsTrig) {
+				t.Errorf("cosx(%v) = %v, want %v", tc.deg, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTanx(t *testing.T) {
+	tests := []struct {
+		name string
+		deg  float64
+		want float64
+	}{
+		{"0°", 0, 0},
+		{"45°", 45, 1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tanx(tc.deg)
+			if !approxEqual(got, tc.want, epsTrig) {
+				t.Errorf("tanx(%v) = %v, want %v", tc.deg, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAsinx(t *testing.T) {
+	tests := []struct {
+		name string
+		x    float64
+		want float64
+	}{
+		{"0", 0, 0},
+		{"1", 1, 90},
+		{"-1", -1, -90},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := asinx(tc.x)
+			if !approxEqual(got, tc.want, epsTrig) {
+				t.Errorf("asinx(%v) = %v, want %v", tc.x, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAcosx(t *testing.T) {
+	tests := []struct {
+		name string
+		x    float64
+		want float64
+	}{
+		{"0", 0, 90},
+		{"1", 1, 0},
+		{"-1", -1, 180},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := acosx(tc.x)
+			if !approxEqual(got, tc.want, epsTrig) {
+				t.Errorf("acosx(%v) = %v, want %v", tc.x, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAtan2x(t *testing.T) {
+	tests := []struct {
+		name string
+		y, x float64
+		want float64
+	}{
+		{"1,1", 1, 1, 45},
+		{"0,1", 0, 1, 0},
+		{"1,0", 1, 0, 90},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := atan2x(tc.y, tc.x)
+			if !approxEqual(got, tc.want, epsTrig) {
+				t.Errorf("atan2x(%v, %v) = %v, want %v", tc.y, tc.x, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSincosx(t *testing.T) {
+	s, c := sincosx(30)
+	wantSin := 0.5
+	wantCos := math.Sqrt(3) / 2
+	if !approxEqual(s, wantSin, epsTrig) {
+		t.Errorf("sincosx(30) sin = %v, want %v", s, wantSin)
+	}
+	if !approxEqual(c, wantCos, epsTrig) {
+		t.Errorf("sincosx(30) cos = %v, want %v", c, wantCos)
+	}
+}
+
+func TestMod360(t *testing.T) {
+	tests := []struct {
+		x    float64
+		want float64
+	}{
+		{370, 10},
+		{-10, 350},
+		{0, 0},
+		{360, 0},
+		{-730, 350},
+	}
+	for _, tc := range tests {
+		got := mod360(tc.x)
+		if !approxEqual(got, tc.want, epsMod) {
+			t.Errorf("mod360(%v) = %v, want %v", tc.x, got, tc.want)
+		}
+	}
+}
+
+func TestMod24(t *testing.T) {
+	tests := []struct {
+		x    float64
+		want float64
+	}{
+		{25, 1},
+		{-1, 23},
+		{0, 0},
+		{24, 0},
+	}
+	for _, tc := range tests {
+		got := mod24(tc.x)
+		if !approxEqual(got, tc.want, epsMod) {
+			t.Errorf("mod24(%v) = %v, want %v", tc.x, got, tc.want)
+		}
+	}
+}

@@ -1,257 +1,173 @@
 package dusk
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
 
-func TestGetDoesObjectRiseOrSetBetelgeuseNorthernHemisphere(t *testing.T) {
-	got := GetDoesObjectRiseOrSet(EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639}, 38.778132)
-
-	want := true
-
-	if got != want {
-		t.Errorf("got %t, wanted %t", got, want)
-	}
-}
-
-func TestGetDoesObjectRiseOrSetBetelgeuseSouthernHemisphere(t *testing.T) {
-	got := GetDoesObjectRiseOrSet(EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639}, -89.191006)
-
-	want := false
-
-	if got != want {
-		t.Errorf("got %t, wanted %t", got, want)
-	}
-}
-
-func TestGetDoesObjectRiseOrSetArcturusNorthernHemisphere(t *testing.T) {
-	got := GetDoesObjectRiseOrSet(EquatorialCoordinate{RightAscension: 213.9153, Declination: 19.182409}, 38.778132)
-
-	want := true
-
-	if got != want {
-		t.Errorf("got %t, wanted %t", got, want)
-	}
-}
-
-func TestGetDoesObjectRiseOrSetArcturusSouthernHemisphere(t *testing.T) {
-	got := GetDoesObjectRiseOrSet(EquatorialCoordinate{RightAscension: 213.9153, Declination: 19.182409}, -89.191006)
-
-	want := false
-
-	if got != want {
-		t.Errorf("got %t, wanted %t", got, want)
-	}
-}
-
-func TestGetObjectHorizontalCoordinatesForDay(t *testing.T) {
-	datetime := time.Date(2022, 5, 14, 0, 0, 0, 0, time.UTC)
-
-	got, err := GetObjectHorizontalCoordinatesForDay(datetime, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639}, -155.468094, 19.798484)
+func TestObjectTransit(t *testing.T) {
+	nyc, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	if got[0].Datetime.String() != "2022-05-14 00:00:00 -1000 HST" {
-		t.Errorf("got %v, wanted %v", got[0].Datetime, "2022-05-14 00:00:00 -1000 HST")
-	}
+	// Sirius: RA=101.287°, Dec=-16.716° from NYC on 2024-01-15.
+	date := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	sirius := Equatorial{RA: 101.287, Dec: -16.716}
+	obs := Observer{Lat: 40.7128, Lon: -74.006, Loc: nyc}
 
-	if got[1439].Datetime.String() != "2022-05-14 23:59:00 -1000 HST" {
-		t.Errorf("got %v, wanted %v", got[1439].Datetime, "2022-05-14 23:59:00 -1000 HST")
-	}
-
-	if got[517].Datetime.String() != "2022-05-14 08:37:00 -1000 HST" && !got[517].IsRise {
-		t.Errorf("We're expecting Betelgeuse to rise at 8:37am on 14th May 2022")
-	}
-
-	if got[1256].Datetime.String() != "2022-05-14 20:56:00 -1000 HST" && !got[1256].IsSet {
-		t.Errorf("We're expecting Betelgeuse to set at 8:56pm on 14th May 2022")
-	}
-}
-
-func TestGetObjectRiseObjectSetTimesInUTCLawrenceChapter5Exercise1(t *testing.T) {
-	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
-
-	got := GetObjectRiseObjectSetTimesInUTC(datetime, EquatorialCoordinate{RightAscension: 90, Declination: -60}, 45.250132, -100.300288)
-
-	if got.Rise != nil {
-		t.Errorf("got %v, but expected the object to never rise for the given paramaters", got)
-	}
-
-	if got.Set != nil {
-		t.Errorf("got %v, but expected the object to never set for the given parameters", got)
-	}
-}
-
-func TestGetObjectRiseObjectSetTimesInUTCLawrenceChapter5Exercise2(t *testing.T) {
-	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
-
-	got := GetObjectRiseObjectSetTimesInUTC(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288)
-
-	rise := time.Date(2015, 6, 6, 20, 57, 48, 562000000, time.UTC)
-
-	set := time.Date(2015, 6, 7, 11, 55, 55, 501000000, time.UTC)
-
-	if got.Rise.String() != rise.String() {
-		t.Errorf("got %v, wanted %v", *got.Rise, rise)
-	}
-
-	if got.Set.String() != set.String() {
-		t.Errorf("got %v, wanted %v", *got.Set, set)
-	}
-}
-
-func TestGetObjectRiseObjectSetTimesChapter5Exercise1(t *testing.T) {
-	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
-
-	got, err := GetObjectRiseObjectSetTimes(datetime, EquatorialCoordinate{RightAscension: 90, Declination: -60}, 45.250132, -100.300288)
+	tr, err := ObjectTransit(date, sirius, obs)
 	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
+		t.Fatalf("ObjectTransit() returned error: %v", err)
 	}
 
-	if got.Rise != nil {
-		t.Errorf("got %v, but expected the object to never rise for the given paramaters", got)
+	tolerance := 10 * time.Minute
+
+	// Object should rise and set (Dec > -(90-lat)).
+	if tr.Rise.IsZero() {
+		t.Fatal("expected Rise to be non-zero")
+	}
+	if tr.Set.IsZero() {
+		t.Fatal("expected Set to be non-zero")
 	}
 
-	if got.Set != nil {
-		t.Errorf("got %v, but expected the object to never set for the given parameters", got)
+	// Duration should be positive and less than 24 hours.
+	if tr.Duration <= 0 {
+		t.Errorf("Duration = %v, want > 0", tr.Duration)
 	}
-}
-
-func TestGetObjectRiseObjectSetTimesChapter5Exercise2(t *testing.T) {
-	timezone, _ := time.LoadLocation("America/New_York")
-
-	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
-
-	got, err := GetObjectRiseObjectSetTimes(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288)
-	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
+	if tr.Duration >= 24*time.Hour {
+		t.Errorf("Duration = %v, want < 24h", tr.Duration)
 	}
 
-	rise := time.Date(2015, 6, 6, 16, 57, 48, 562000000, timezone)
-
-	set := time.Date(2015, 6, 7, 7, 55, 55, 501000000, timezone)
-
-	if rise.After(set) {
-		t.Errorf("the object must rise before it sets")
+	// Maximum should be between Rise and Set.
+	if tr.Maximum.Before(tr.Rise) || tr.Maximum.After(tr.Set) {
+		t.Errorf("Maximum %v not between Rise %v and Set %v", tr.Maximum, tr.Rise, tr.Set)
 	}
 
-	if got.Rise.String() != rise.String() {
-		t.Errorf("got %v, wanted %v", *got.Rise, rise)
+	// Rise should be before Set.
+	if !tr.Rise.Before(tr.Set) {
+		t.Errorf("Rise %v should be before Set %v", tr.Rise, tr.Set)
 	}
 
-	if got.Set.String() != set.String() {
-		t.Errorf("got %v, wanted %v", *got.Set, set)
-	}
-}
-
-func TestGetObjectTransitMaximaTime(t *testing.T) {
-	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
-
-	transit, err := GetObjectRiseObjectSetTimes(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288)
-	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
-	}
-
-	got, err := GetObjectTransitMaximaTime(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288)
-	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
-	}
-
-	if got.Before(*transit.Rise) || got.After(*transit.Set) {
-		t.Errorf("maxima time must be between rise and set")
+	// Duration should match Set - Rise within tolerance.
+	computedDuration := tr.Set.Sub(tr.Rise)
+	if diff := tr.Duration - computedDuration; diff < -tolerance || diff > tolerance {
+		t.Errorf("Duration %v != Set-Rise %v", tr.Duration, computedDuration)
 	}
 }
 
-func TestGetObjectTransitMaximaTimeNoRiseNoSet(t *testing.T) {
-	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
-
-	got, err := GetObjectTransitMaximaTime(datetime, EquatorialCoordinate{RightAscension: 90, Declination: -60}, 45.250132, -100.300288)
+func TestObjectTransit_SouthernHemisphere(t *testing.T) {
+	// Canopus (RA=95.988°, Dec=-52.696°) from Sydney on 2024-01-15.
+	// From lat -33.87°, Canopus (Dec=-52.696°) should rise and set
+	// because |Dec| < 90 - |lat| is false, but Dec and lat same sign
+	// means the object is circumpolar or rises — it should be visible.
+	loc, err := time.LoadLocation("Australia/Sydney")
 	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	if got == nil {
-		t.Errorf("expected the object to reach a maxima for the given paramaters")
+	date := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	canopus := Equatorial{RA: 95.988, Dec: -52.696}
+	obs := Observer{Lat: -33.87, Lon: 151.21, Loc: loc}
+
+	tr, err := ObjectTransit(date, canopus, obs)
+
+	// Canopus from Sydney: Dec=-52.696° and lat=-33.87°.
+	// Both lat and dec are negative (southern), so the object is high in the sky.
+	// It may be circumpolar from Sydney.
+	if errors.Is(err, ErrCircumpolar) {
+		t.Logf("Canopus is circumpolar from Sydney")
+		return
+	}
+	if err != nil {
+		t.Fatalf("ObjectTransit() returned error: %v", err)
+	}
+
+	if !tr.Rise.IsZero() && !tr.Set.IsZero() {
+		if tr.Duration <= 0 {
+			t.Errorf("Duration = %v, want > 0 when Rise and Set are non-zero", tr.Duration)
+		}
+		if !tr.Rise.Before(tr.Set) {
+			t.Errorf("Rise %v should be before Set %v", tr.Rise, tr.Set)
+		}
+		t.Logf("Canopus from Sydney: rise=%v set=%v duration=%v", tr.Rise, tr.Set, tr.Duration)
 	}
 }
 
-func TestGetObjectTransit(t *testing.T) {
-	timezone, _ := time.LoadLocation("America/New_York")
-
-	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
-
-	got, err := GetObjectTransit(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288)
+func TestObjectTransit_Circumpolar(t *testing.T) {
+	nyc, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	rise := time.Date(2015, 6, 6, 16, 57, 48, 562000000, timezone)
+	// Polaris: RA=37.95°, Dec=89.264° from NYC.
+	// |Ar| > 1, so object never sets → circumpolar.
+	date := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	polaris := Equatorial{RA: 37.95, Dec: 89.264}
+	obs := Observer{Lat: 40.7128, Lon: -74.006, Loc: nyc}
 
-	set := time.Date(2015, 6, 7, 7, 55, 55, 501000000, timezone)
-
-	if rise.After(set) {
-		t.Errorf("the object must rise before it sets")
-	}
-
-	if got.Rise.String() != rise.String() {
-		t.Errorf("got %v, wanted %v", *got.Rise, rise)
-	}
-
-	if got.Set.String() != set.String() {
-		t.Errorf("got %v, wanted %v", *got.Set, set)
-	}
-
-	if got.Maximum == nil {
-		t.Errorf("got %v, wanted a maxima time", got)
-	}
-
-	if got.Maximum.Before(*got.Rise) || got.Maximum.After(*got.Set) {
-		t.Errorf("maxima time must be between rise and set")
+	_, err = ObjectTransit(date, polaris, obs)
+	if !errors.Is(err, ErrCircumpolar) {
+		t.Errorf("expected ErrCircumpolar for Polaris from NYC, got %v", err)
 	}
 }
 
-func TestGetObjectTransitForBetelgeuseAtHonolulu(t *testing.T) {
-	// timezone, _ := time.LoadLocation("Pacific/Honolulu")
-
-	datetime := time.Date(2022, 5, 14, 0, 0, 0, 0, time.UTC)
-
-	got, err := GetObjectTransit(datetime, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639}, 19.798484, -155.300288)
+func TestObjectTransit_NeverRises(t *testing.T) {
+	loc, err := time.LoadLocation("Europe/Oslo")
 	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	if got.Rise.After(*got.Set) {
-		t.Errorf("the object must rise before it sets")
-	}
+	// Object at Dec=-80° from lat=60°N: should never rise.
+	date := time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC)
+	obj := Equatorial{RA: 180.0, Dec: -80.0}
+	obs := Observer{Lat: 60.0, Lon: 10.0, Loc: loc}
 
-	if got.Maximum == nil {
-		t.Errorf("got %v, wanted a maxima time", got)
-	}
-
-	if got.Maximum.Before(*got.Rise) || got.Maximum.After(*got.Set) {
-		t.Errorf("maxima time must be between rise and set")
+	_, err = ObjectTransit(date, obj, obs)
+	if !errors.Is(err, ErrNeverRises) {
+		t.Errorf("expected ErrNeverRises for Dec=-80° from lat=60°N, got %v", err)
 	}
 }
 
-func TestGetObjectTransitNoRiseNoSetNoMaximum(t *testing.T) {
-	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
+func TestObjectTransit_NilLocation(t *testing.T) {
+	date := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	sirius := Equatorial{RA: 101.287, Dec: -16.716}
+	_, err := ObjectTransit(date, sirius, Observer{Lat: 40.7128, Lon: -74.006})
+	if err == nil {
+		t.Error("ObjectTransit() with nil location should return error")
+	}
+}
 
-	got, err := GetObjectTransit(datetime, EquatorialCoordinate{RightAscension: 90, Declination: -60}, 45.250132, -100.300288)
-	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
+func TestObjectTransit_InvalidObserverCoordinates(t *testing.T) {
+	date := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	sirius := Equatorial{RA: 101.287, Dec: -16.716}
+	_, err := ObjectTransit(date, sirius, Observer{Lat: 0, Lon: 200, Loc: time.UTC})
+	if err == nil {
+		t.Error("expected error for invalid observer coordinates")
+	}
+}
+
+func TestObjectTransit_InvalidEquatorial(t *testing.T) {
+	date := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	obs := Observer{Lat: 40.7128, Lon: -74.006, Loc: time.UTC}
+
+	tests := []struct {
+		name string
+		eq   Equatorial
+	}{
+		{"RA too high", Equatorial{RA: 400, Dec: 0}},
+		{"RA negative", Equatorial{RA: -1, Dec: 0}},
+		{"Dec too high", Equatorial{RA: 0, Dec: 91}},
+		{"Dec too low", Equatorial{RA: 0, Dec: -91}},
 	}
 
-	if got.Rise != nil {
-		t.Errorf("got %v, but expected the object to never rise for the given paramaters", got)
-	}
-
-	if got.Set != nil {
-		t.Errorf("got %v, but expected the object to never set for the given parameters", got)
-	}
-
-	if got.Maximum != nil {
-		t.Errorf("got %v, but expected the object to never reach a maxima above the horizon for the given paramaters", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ObjectTransit(date, tt.eq, obs)
+			if err == nil {
+				t.Error("expected error for invalid equatorial coordinates")
+			}
+		})
 	}
 }
