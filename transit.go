@@ -3,8 +3,6 @@ package dusk
 import (
 	"math"
 	"time"
-
-	tzm "github.com/zsefvlol/timezonemapper"
 )
 
 type Transit struct {
@@ -84,19 +82,16 @@ GetObjectHorizontalCoordinatesForDay()
 @params eq - the EquatorialCoordinate{} of the object to calculate the rise and set times for
 @param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
 @param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
+@param location - the timezone location for the observer (e.g., from time.LoadLocation)
 @returns the horizontal coordinates of the target object for every minute of a given day.
 */
-func GetObjectHorizontalCoordinatesForDay(datetime time.Time, eq EquatorialCoordinate, longitude, latitude float64) ([]TransitHorizontalCoordinate, error) {
+func GetObjectHorizontalCoordinatesForDay(datetime time.Time, eq EquatorialCoordinate, longitude, latitude float64, location *time.Location) []TransitHorizontalCoordinate {
+	if location == nil {
+		location = time.UTC
+	}
+
 	// create an empty list of horizontalCoordinate structs:
 	horizontalCoordinates := make([]TransitHorizontalCoordinate, 1442)
-
-	// get the corresponding timezone for the longitude and latitude provided:
-	timezone := tzm.LatLngToTimezoneString(latitude, longitude)
-
-	location, err := time.LoadLocation(timezone)
-	if err != nil {
-		return horizontalCoordinates, err
-	}
 
 	d := time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 0, 0, 0, 0, location).In(time.UTC)
 
@@ -127,7 +122,7 @@ func GetObjectHorizontalCoordinatesForDay(datetime time.Time, eq EquatorialCoord
 		d = d.Add(time.Minute)
 	}
 
-	return horizontalCoordinates[1:1441], nil
+	return horizontalCoordinates[1:1441]
 }
 
 /*
@@ -170,37 +165,32 @@ GetObjectRiseObjectSetTimes()
 @param eq - the EquatorialCoordinate{} of the object to calculate the rise and set times for
 @param latitude - the latitude of the observer
 @param longitude - the longitude of the observer
+@param location - the timezone location for the observer (e.g., from time.LoadLocation)
 @returns a Transit struct which contains the rise and set times of the object in local time
 */
-func GetObjectRiseObjectSetTimes(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64) (*Transit, error) {
+func GetObjectRiseObjectSetTimes(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64, location *time.Location) *Transit {
+	if location == nil {
+		location = time.UTC
+	}
+
 	if !GetDoesObjectRiseOrSet(eq, latitude) {
 		return &Transit{
 			Rise:     nil,
 			Set:      nil,
 			Duration: time.Duration(0),
-		}, nil
-	}
-
-	// get the corresponding timezone for the longitude and latitude provided:
-	timezone := tzm.LatLngToTimezoneString(latitude, longitude)
-
-	// the corresponding local timezone for the observer, e..g, the location name corresponding to a file in the IANA Time Zone database, such as "Pacific/Honolulu":
-	location, err := time.LoadLocation(timezone)
-	if err != nil {
-		return nil, err
+		}
 	}
 
 	transit := GetObjectRiseObjectSetTimesInUTC(datetime, eq, latitude, longitude)
 
 	rise := transit.Rise.In(location)
-
 	set := transit.Set.In(location)
 
 	return &Transit{
 		Rise:     &rise,
 		Set:      &set,
 		Duration: transit.Duration,
-	}, nil
+	}
 }
 
 /*
@@ -210,13 +200,11 @@ GetObjectTransitMaximaTime()
 @param eq - the EquatorialCoordinate{} of the object to calculate the rise and set times for
 @param latitude - the latitude of the observer
 @param longitude - the longitude of the observer
+@param location - the timezone location for the observer (e.g., from time.LoadLocation)
 @returns a the Transit maxima time of the object in local time
 */
-func GetObjectTransitMaximaTime(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64) (*time.Time, error) {
-	transit, err := GetObjectRiseObjectSetTimes(datetime, eq, latitude, longitude)
-	if err != nil {
-		return nil, err
-	}
+func GetObjectTransitMaximaTime(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64, location *time.Location) *time.Time {
+	transit := GetObjectRiseObjectSetTimes(datetime, eq, latitude, longitude, location)
 
 	// find the number of minutes between the rise and set times:
 	minutes := 1440
@@ -263,7 +251,7 @@ func GetObjectTransitMaximaTime(datetime time.Time, eq EquatorialCoordinate, lat
 		}
 	}
 
-	return &maximum.Datetime, nil
+	return &maximum.Datetime
 }
 
 /*
@@ -273,13 +261,11 @@ GetObjectTransit()
 @param eq - the EquatorialCoordinate{} of the object to calculate the rise and set times for
 @param latitude - the latitude of the observer
 @param longitude - the longitude of the observer
+@param location - the timezone location for the observer (e.g., from time.LoadLocation)
 @returns a Transit struct which contains the rise, maximum and set times of the object in local time
 */
-func GetObjectTransit(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64) (*Transit, error) {
-	transit, err := GetObjectRiseObjectSetTimes(datetime, eq, latitude, longitude)
-	if err != nil {
-		return nil, err
-	}
+func GetObjectTransit(datetime time.Time, eq EquatorialCoordinate, latitude, longitude float64, location *time.Location) *Transit {
+	transit := GetObjectRiseObjectSetTimes(datetime, eq, latitude, longitude, location)
 
 	if transit.Rise == nil || transit.Set == nil {
 		return &Transit{
@@ -287,7 +273,7 @@ func GetObjectTransit(datetime time.Time, eq EquatorialCoordinate, latitude, lon
 			Set:      nil,
 			Maximum:  nil,
 			Duration: 0,
-		}, nil
+		}
 	}
 
 	// find the number of minutes between the rise and set times:
@@ -321,5 +307,5 @@ func GetObjectTransit(datetime time.Time, eq EquatorialCoordinate, latitude, lon
 		Set:      transit.Set,
 		Maximum:  transit.Maximum,
 		Duration: transit.Duration,
-	}, nil
+	}
 }

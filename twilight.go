@@ -2,8 +2,6 @@ package dusk
 
 import (
 	"time"
-
-	tzm "github.com/zsefvlol/timezonemapper"
 )
 
 type SunriseStatus int
@@ -33,27 +31,23 @@ GetLocalTwilight()
 @param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
 @param elevation - is the elevation (above sea level) in meters of some observer on Earth
 @param degreesBelowHorizon - is the degrees below horizon for the designated "twilight period", with 0° being "night" e.g., as soon as the sun is below the horizon.
-@returns the start and end times of Civil Twilight, as designated by when the Sun is -6 degrees below the horizon.
+@param location - the timezone location for the observer (e.g., from time.LoadLocation)
+@returns the start and end times of the twilight period for the given degreesBelowHorizon, in the observer's local time.
 */
-func GetLocalTwilight(datetime time.Time, longitude, latitude, elevation, degreesBelowHorizon float64) (Twilight, time.Location, error) {
-	// get the corresponding timezone for the longitude and latitude provided:
-	timezone := tzm.LatLngToTimezoneString(latitude, longitude)
+func GetLocalTwilight(datetime time.Time, longitude, latitude, elevation, degreesBelowHorizon float64, location *time.Location) (Twilight, *time.Location) {
+	if location == nil {
+		location = time.UTC
+	}
 
 	s := GetSunriseSunsetTimesInUTC(datetime, degreesBelowHorizon, longitude, latitude, elevation)
 
 	r := GetSunriseSunsetTimesInUTC(datetime.Add(time.Hour*24), degreesBelowHorizon, longitude, latitude, elevation)
 
-	// the corresponding local timezone for the observer, e..g, the location name corresponding to a file in the IANA Time Zone database, such as "Pacific/Honolulu":
-	location, err := time.LoadLocation(timezone)
-	if err != nil {
-		return Twilight{}, time.Location{}, err
-	}
-
 	return Twilight{
 		From:     s.Set.In(location),
 		Until:    r.Rise.In(location),
 		Duration: r.Rise.Sub(s.Set),
-	}, *location, nil
+	}, location
 }
 
 /*
@@ -63,13 +57,14 @@ GetLocalCivilTwilight()
 @param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
 @param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
 @param elevation - is the elevation (above sea level) in meters of some observer on Earth
+@param location - the timezone location for the observer (e.g., from time.LoadLocation)
 @returns the start and end times of Civil Twilight, as designated by when the Sun is -6 degrees below the horizon.
 */
-func GetLocalCivilTwilight(datetime time.Time, longitude, latitude, elevation float64) (Twilight, time.Location, error) {
+func GetLocalCivilTwilight(datetime time.Time, longitude, latitude, elevation float64, location *time.Location) (Twilight, *time.Location) {
 	// civil twilight is designated as being 6 degrees below horizon:
 	var degreesBelowHorizon float64 = -6
 
-	return GetLocalTwilight(datetime, longitude, latitude, elevation, degreesBelowHorizon)
+	return GetLocalTwilight(datetime, longitude, latitude, elevation, degreesBelowHorizon, location)
 }
 
 /*
@@ -79,13 +74,14 @@ GetLocalNauticalTwilight()
 @param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
 @param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
 @param elevation - is the elevation (above sea level) in meters of some observer on Earth
+@param location - the timezone location for the observer (e.g., from time.LoadLocation)
 @returns the start and end times of Nautical Twilight, as designated by when the Sun is -12 degrees below the horizon.
 */
-func GetLocalNauticalTwilight(datetime time.Time, longitude, latitude, elevation float64) (Twilight, time.Location, error) {
+func GetLocalNauticalTwilight(datetime time.Time, longitude, latitude, elevation float64, location *time.Location) (Twilight, *time.Location) {
 	// nautical twilight is designated as being 12 degrees below horizon:
 	var degreesBelowHorizon float64 = -12
 
-	return GetLocalTwilight(datetime, longitude, latitude, elevation, degreesBelowHorizon)
+	return GetLocalTwilight(datetime, longitude, latitude, elevation, degreesBelowHorizon, location)
 }
 
 /*
@@ -95,11 +91,12 @@ GetLocalAstronomicalTwilight()
 @param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
 @param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
 @param elevation - is the elevation (above sea level) in meters of some observer on Earth
+@param location - the timezone location for the observer (e.g., from time.LoadLocation)
 @returns the start and end times of Astronomical Twilight, as designated by when the Sun is -18 degrees below the horizon.
 */
-func GetLocalAstronomicalTwilight(datetime time.Time, longitude, latitude, elevation float64) (Twilight, time.Location, error) {
+func GetLocalAstronomicalTwilight(datetime time.Time, longitude, latitude, elevation float64, location *time.Location) (Twilight, *time.Location) {
 	// astronomical twilight is designated as being 18 degrees below horizon:
 	var degreesBelowHorizon float64 = -18
 
-	return GetLocalTwilight(datetime, longitude, latitude, elevation, degreesBelowHorizon)
+	return GetLocalTwilight(datetime, longitude, latitude, elevation, degreesBelowHorizon, location)
 }

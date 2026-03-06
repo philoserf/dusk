@@ -12,11 +12,7 @@ func TestGetLocalCivilTwilightFrom(t *testing.T) {
 		return
 	}
 
-	twilight, location, err := GetLocalCivilTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
+	twilight, location := GetLocalCivilTwilight(d, longitude, latitude, elevation, timezone)
 
 	if timezone.String() != location.String() {
 		t.Errorf("got %q, wanted %q", location.String(), timezone)
@@ -46,11 +42,7 @@ func TestGetLocalCivilTwilightUntil(t *testing.T) {
 		return
 	}
 
-	twilight, location, err := GetLocalCivilTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
+	twilight, location := GetLocalCivilTwilight(d, longitude, latitude, elevation, timezone)
 
 	if timezone.String() != location.String() {
 		t.Errorf("got %q, wanted %q", location.String(), timezone)
@@ -80,11 +72,7 @@ func TestGetLocalCivilTwilightDuration(t *testing.T) {
 		return
 	}
 
-	twilight, location, err := GetLocalCivilTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
+	twilight, location := GetLocalCivilTwilight(d, longitude, latitude, elevation, timezone)
 
 	if timezone.String() != location.String() {
 		t.Errorf("got %q, wanted %q", location.String(), timezone)
@@ -106,11 +94,7 @@ func TestGetLocalNauticalTwilightFrom(t *testing.T) {
 		return
 	}
 
-	twilight, location, err := GetLocalNauticalTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
+	twilight, location := GetLocalNauticalTwilight(d, longitude, latitude, elevation, timezone)
 
 	if timezone.String() != location.String() {
 		t.Errorf("got %q, wanted %q", location.String(), timezone)
@@ -140,11 +124,7 @@ func TestGetLocalNauticalTwilightUntil(t *testing.T) {
 		return
 	}
 
-	twilight, location, err := GetLocalNauticalTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
+	twilight, location := GetLocalNauticalTwilight(d, longitude, latitude, elevation, timezone)
 
 	if timezone.String() != location.String() {
 		t.Errorf("got %q, wanted %q", location.String(), timezone)
@@ -174,11 +154,7 @@ func TestGetLocalNauticalTwilightDuration(t *testing.T) {
 		return
 	}
 
-	twilight, location, err := GetLocalNauticalTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
+	twilight, location := GetLocalNauticalTwilight(d, longitude, latitude, elevation, timezone)
 
 	if timezone.String() != location.String() {
 		t.Errorf("got %q, wanted %q", location.String(), timezone)
@@ -200,11 +176,7 @@ func TestGetLocalAstronomicalTwilightFrom(t *testing.T) {
 		return
 	}
 
-	twilight, location, err := GetLocalAstronomicalTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
+	twilight, location := GetLocalAstronomicalTwilight(d, longitude, latitude, elevation, timezone)
 
 	if timezone.String() != location.String() {
 		t.Errorf("got %q, wanted %q", location.String(), timezone)
@@ -234,11 +206,7 @@ func TestGetLocalAstronomicalTwilightUntil(t *testing.T) {
 		return
 	}
 
-	twilight, location, err := GetLocalAstronomicalTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
+	twilight, location := GetLocalAstronomicalTwilight(d, longitude, latitude, elevation, timezone)
 
 	if timezone.String() != location.String() {
 		t.Errorf("got %q, wanted %q", location.String(), timezone)
@@ -268,11 +236,7 @@ func TestGetLocalAstronomicalTwilightDuration(t *testing.T) {
 		return
 	}
 
-	twilight, location, err := GetLocalAstronomicalTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
+	twilight, location := GetLocalAstronomicalTwilight(d, longitude, latitude, elevation, timezone)
 
 	if timezone.String() != location.String() {
 		t.Errorf("got %q, wanted %q", location.String(), timezone)

@@ -4,8 +4,6 @@ import (
 	"math"
 	"testing"
 	"time"
-
-	tzm "github.com/zsefvlol/timezonemapper"
 )
 
 func TestGetLunarMeanLongitude(t *testing.T) {
@@ -417,10 +415,12 @@ func TestGetLunarTransitJulianDate(t *testing.T) {
 }
 
 func TestGetLunarHorizontalCoordinatesForDayCorrectLength(t *testing.T) {
-	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
+	location, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	horizontalCoordinates := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude, location)
 
 	if len(horizontalCoordinates) != 1440 {
 		t.Errorf("there is not enough horizontal coordinates for the day, expected 1440")
@@ -428,14 +428,12 @@ func TestGetLunarHorizontalCoordinatesForDayCorrectLength(t *testing.T) {
 }
 
 func TestGetLunarHorizontalCoordinatesForDayCorrectStartTime(t *testing.T) {
-	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
+	location, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
 
-	timezone := tzm.LatLngToTimezoneString(latitude, longitude)
-
-	location, _ := time.LoadLocation(timezone)
+	horizontalCoordinates := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude, location)
 
 	d := time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 0, 0, 0, 0, location)
 
@@ -445,14 +443,12 @@ func TestGetLunarHorizontalCoordinatesForDayCorrectStartTime(t *testing.T) {
 }
 
 func TestGetLunarHorizontalCoordinatesForDayCorrectEndTime(t *testing.T) {
-	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
+	location, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
 
-	timezone := tzm.LatLngToTimezoneString(latitude, longitude)
-
-	location, _ := time.LoadLocation(timezone)
+	horizontalCoordinates := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude, location)
 
 	d := time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 23, 59, 0, 0, location)
 
@@ -465,10 +461,12 @@ func TestGetLunarHorizontalCoordinatesForDay20210506(t *testing.T) {
 	// Date of observation:
 	datetime := time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC)
 
-	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
+	location, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	horizontalCoordinates := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude, location)
 
 	if horizontalCoordinates[181].Datetime.String() == "2021-05-06 03:01:00 -1000 HST" && !horizontalCoordinates[181].IsRise {
 		t.Errorf("We're expecting the Moon to rise at 3:01am on 6th May 2021")
@@ -483,10 +481,12 @@ func TestGetLunarHorizontalCoordinatesForDay20210521(t *testing.T) {
 	// Date of observation:
 	datetime := time.Date(2021, 5, 21, 0, 0, 0, 0, time.UTC)
 
-	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
+	location, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	horizontalCoordinates := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude, location)
 
 	if horizontalCoordinates[859].Datetime.String() == "2021-05-21 14:19:00 -1000 HST" && !horizontalCoordinates[859].IsRise {
 		t.Errorf("We're expecting the Moon to rise at 14:19pm on 21st May 2021")
@@ -558,10 +558,12 @@ func TestGetMoonriseMoonsetTimes20210506(t *testing.T) {
 	// Date of observation:
 	datetime := time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC)
 
-	moon, err := GetMoonriseMoonsetTimes(datetime, longitude, latitude)
+	location, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	moon := GetMoonriseMoonsetTimes(datetime, longitude, latitude, location)
 
 	if moon.Rise.String() != "2021-05-06 03:01:00 -1000 HST" {
 		t.Errorf("We're expecting the Moon to rise at 3:01am on 6th May 2021")
@@ -576,10 +578,12 @@ func TestGetMoonriseMoonsetTimes20210521(t *testing.T) {
 	// Date of observation:
 	datetime := time.Date(2021, 5, 21, 0, 0, 0, 0, time.UTC)
 
-	moon, err := GetMoonriseMoonsetTimes(datetime, longitude, latitude)
+	location, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	moon := GetMoonriseMoonsetTimes(datetime, longitude, latitude, location)
 
 	if moon.Rise.String() != "2021-05-21 14:19:00 -1000 HST" {
 		t.Errorf("We're expecting the Moon to rise at 14:19pm on 21st May 2021")
@@ -594,10 +598,12 @@ func TestGetMoonriseMoonsetTimesInUTC20210506(t *testing.T) {
 	// Date of observation:
 	datetime := time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC)
 
-	moon, err := GetMoonriseMoonsetTimesInUTC(datetime, longitude, latitude)
+	location, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	moon := GetMoonriseMoonsetTimesInUTC(datetime, longitude, latitude, location)
 
 	if moon.Rise.String() != "2021-05-06 13:01:00 +0000 UTC" {
 		t.Errorf("We're expecting the Moon to rise at 13:01pm on 6th May 2021")
@@ -612,10 +618,12 @@ func TestGetMoonriseMoonsetTimesInUTC20210521(t *testing.T) {
 	// Date of observation:
 	datetime := time.Date(2021, 5, 21, 0, 0, 0, 0, time.UTC)
 
-	moon, err := GetMoonriseMoonsetTimesInUTC(datetime, longitude, latitude)
+	location, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	moon := GetMoonriseMoonsetTimesInUTC(datetime, longitude, latitude, location)
 
 	if moon.Rise.String() != "2021-05-22 00:19:00 +0000 UTC" {
 		t.Errorf("We're expecting the Moon to rise at 0:19am on 22nd May 2021")

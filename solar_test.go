@@ -127,13 +127,12 @@ func TestGetSolarHourAngle(t *testing.T) {
 }
 
 func TestGetSunriseSunsetTimesRise(t *testing.T) {
-	timezone, _ := time.LoadLocation("Pacific/Honolulu")
-
-	sun, err := GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation)
+	timezone, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	sun := GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation, timezone)
 
 	got := sun.Rise
 
@@ -145,13 +144,12 @@ func TestGetSunriseSunsetTimesRise(t *testing.T) {
 }
 
 func TestGetSunriseSunsetTimesNoon(t *testing.T) {
-	timezone, _ := time.LoadLocation("Pacific/Honolulu")
-
-	sun, err := GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation)
+	timezone, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	sun := GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation, timezone)
 
 	got := sun.Noon
 
@@ -163,13 +161,12 @@ func TestGetSunriseSunsetTimesNoon(t *testing.T) {
 }
 
 func TestGetSunriseSunsetTimesSet(t *testing.T) {
-	timezone, _ := time.LoadLocation("Pacific/Honolulu")
-
-	sun, err := GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation)
+	timezone, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	sun := GetSunriseSunsetTimes(d, 0, longitude, latitude, elevation, timezone)
 
 	got := sun.Set
 

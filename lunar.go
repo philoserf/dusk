@@ -3,8 +3,6 @@ package dusk
 import (
 	"math"
 	"time"
-
-	tzm "github.com/zsefvlol/timezonemapper"
 )
 
 type Moon struct {
@@ -714,19 +712,16 @@ GetLunarHorizontalCoordinatesForDay()
 @param datetime - the datetime of the observer (in UTC)
 @param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
 @param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
+@param location - the timezone location for the observer (e.g., from time.LoadLocation)
 @returns the horizontal coordinates of the Moon for every minute of a given day.
 */
-func GetLunarHorizontalCoordinatesForDay(datetime time.Time, longitude, latitude float64) ([]TransitHorizontalCoordinate, error) {
+func GetLunarHorizontalCoordinatesForDay(datetime time.Time, longitude, latitude float64, location *time.Location) []TransitHorizontalCoordinate {
+	if location == nil {
+		location = time.UTC
+	}
+
 	// create an empty list of horizontalCoordinate structs:
 	horizontalCoordinates := make([]TransitHorizontalCoordinate, 1442)
-
-	// get the corresponding timezone for the longitude and latitude provided:
-	timezone := tzm.LatLngToTimezoneString(latitude, longitude)
-
-	location, err := time.LoadLocation(timezone)
-	if err != nil {
-		return horizontalCoordinates, err
-	}
 
 	d := time.Date(datetime.Year(), datetime.Month(), datetime.Day(), 0, 0, 0, 0, location).In(time.UTC)
 
@@ -762,7 +757,7 @@ func GetLunarHorizontalCoordinatesForDay(datetime time.Time, longitude, latitude
 		d = d.Add(time.Minute)
 	}
 
-	return horizontalCoordinates[1:1441], nil
+	return horizontalCoordinates[1:1441]
 }
 
 /*
@@ -811,16 +806,13 @@ GetMoonriseMoonsetTimes()
 @param datetime - the datetime of the observer (in UTC)
 @param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
 @param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
-@returns the times for when the Moon rises and sets, in the observer's local time, or an error.
+@returns the times for when the Moon rises and sets, in the observer's local time.
 */
-func GetMoonriseMoonsetTimes(datetime time.Time, longitude, latitude float64) (Moon, error) {
+func GetMoonriseMoonsetTimes(datetime time.Time, longitude, latitude float64, location *time.Location) Moon {
 	rise := time.Time{}
 	set := time.Time{}
 
-	horizontalCoordinates, err := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude)
-	if err != nil {
-		return Moon{}, err
-	}
+	horizontalCoordinates := GetLunarHorizontalCoordinatesForDay(datetime, longitude, latitude, location)
 
 	// efficiently loop and break when we have found a rise and set:
 	for _, v := range horizontalCoordinates {
@@ -840,7 +832,7 @@ func GetMoonriseMoonsetTimes(datetime time.Time, longitude, latitude float64) (M
 	return Moon{
 		Rise: rise,
 		Set:  set,
-	}, nil
+	}
 }
 
 /*
@@ -849,16 +841,13 @@ GetMoonriseMoonsetTimesInUTC()
 @param datetime - the datetime of the observer (in UTC)
 @param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
 @param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
-@returns the times for when the Moon rises and sets, in UTC time, or an error.
+@returns the times for when the Moon rises and sets, in UTC time.
 */
-func GetMoonriseMoonsetTimesInUTC(datetime time.Time, longitude, latitude float64) (Moon, error) {
-	moon, err := GetMoonriseMoonsetTimes(datetime, longitude, latitude)
-	if err != nil {
-		return Moon{}, err
-	}
+func GetMoonriseMoonsetTimesInUTC(datetime time.Time, longitude, latitude float64, location *time.Location) Moon {
+	moon := GetMoonriseMoonsetTimes(datetime, longitude, latitude, location)
 
 	return Moon{
 		Rise: moon.Rise.UTC(),
 		Set:  moon.Set.UTC(),
-	}, nil
+	}
 }

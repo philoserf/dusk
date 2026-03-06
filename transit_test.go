@@ -48,10 +48,12 @@ func TestGetDoesObjectRiseOrSetArcturusSouthernHemisphere(t *testing.T) {
 func TestGetObjectHorizontalCoordinatesForDay(t *testing.T) {
 	datetime := time.Date(2022, 5, 14, 0, 0, 0, 0, time.UTC)
 
-	got, err := GetObjectHorizontalCoordinatesForDay(datetime, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639}, -155.468094, 19.798484)
+	location, err := time.LoadLocation("Pacific/Honolulu")
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	got := GetObjectHorizontalCoordinatesForDay(datetime, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639}, -155.468094, 19.798484, location)
 
 	if got[0].Datetime.String() != "2022-05-14 00:00:00 -1000 HST" {
 		t.Errorf("got %v, wanted %v", got[0].Datetime, "2022-05-14 00:00:00 -1000 HST")
@@ -105,10 +107,12 @@ func TestGetObjectRiseObjectSetTimesInUTCLawrenceChapter5Exercise2(t *testing.T)
 func TestGetObjectRiseObjectSetTimesChapter5Exercise1(t *testing.T) {
 	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
 
-	got, err := GetObjectRiseObjectSetTimes(datetime, EquatorialCoordinate{RightAscension: 90, Declination: -60}, 45.250132, -100.300288)
+	location, err := time.LoadLocation("America/Chicago")
 	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	got := GetObjectRiseObjectSetTimes(datetime, EquatorialCoordinate{RightAscension: 90, Declination: -60}, 45.250132, -100.300288, location)
 
 	if got.Rise != nil {
 		t.Errorf("got %v, but expected the object to never rise for the given paramaters", got)
@@ -120,14 +124,14 @@ func TestGetObjectRiseObjectSetTimesChapter5Exercise1(t *testing.T) {
 }
 
 func TestGetObjectRiseObjectSetTimesChapter5Exercise2(t *testing.T) {
-	timezone, _ := time.LoadLocation("America/New_York")
+	timezone, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("failed to load location: %v", err)
+	}
 
 	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
 
-	got, err := GetObjectRiseObjectSetTimes(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288)
-	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
-	}
+	got := GetObjectRiseObjectSetTimes(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288, timezone)
 
 	rise := time.Date(2015, 6, 6, 16, 57, 48, 562000000, timezone)
 
@@ -149,15 +153,14 @@ func TestGetObjectRiseObjectSetTimesChapter5Exercise2(t *testing.T) {
 func TestGetObjectTransitMaximaTime(t *testing.T) {
 	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
 
-	transit, err := GetObjectRiseObjectSetTimes(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288)
+	location, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
 
-	got, err := GetObjectTransitMaximaTime(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288)
-	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
-	}
+	transit := GetObjectRiseObjectSetTimes(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288, location)
+
+	got := GetObjectTransitMaximaTime(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288, location)
 
 	if got.Before(*transit.Rise) || got.After(*transit.Set) {
 		t.Errorf("maxima time must be between rise and set")
@@ -167,10 +170,12 @@ func TestGetObjectTransitMaximaTime(t *testing.T) {
 func TestGetObjectTransitMaximaTimeNoRiseNoSet(t *testing.T) {
 	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
 
-	got, err := GetObjectTransitMaximaTime(datetime, EquatorialCoordinate{RightAscension: 90, Declination: -60}, 45.250132, -100.300288)
+	location, err := time.LoadLocation("America/Chicago")
 	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	got := GetObjectTransitMaximaTime(datetime, EquatorialCoordinate{RightAscension: 90, Declination: -60}, 45.250132, -100.300288, location)
 
 	if got == nil {
 		t.Errorf("expected the object to reach a maxima for the given paramaters")
@@ -178,14 +183,14 @@ func TestGetObjectTransitMaximaTimeNoRiseNoSet(t *testing.T) {
 }
 
 func TestGetObjectTransit(t *testing.T) {
-	timezone, _ := time.LoadLocation("America/New_York")
+	timezone, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("failed to load location: %v", err)
+	}
 
 	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
 
-	got, err := GetObjectTransit(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288)
-	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
-	}
+	got := GetObjectTransit(datetime, EquatorialCoordinate{RightAscension: 243.675000, Declination: 25.9613889}, 38.250132, -78.300288, timezone)
 
 	rise := time.Date(2015, 6, 6, 16, 57, 48, 562000000, timezone)
 
@@ -213,14 +218,14 @@ func TestGetObjectTransit(t *testing.T) {
 }
 
 func TestGetObjectTransitForBetelgeuseAtHonolulu(t *testing.T) {
-	// timezone, _ := time.LoadLocation("Pacific/Honolulu")
+	timezone, err := time.LoadLocation("Pacific/Honolulu")
+	if err != nil {
+		t.Fatalf("failed to load location: %v", err)
+	}
 
 	datetime := time.Date(2022, 5, 14, 0, 0, 0, 0, time.UTC)
 
-	got, err := GetObjectTransit(datetime, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639}, 19.798484, -155.300288)
-	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
-	}
+	got := GetObjectTransit(datetime, EquatorialCoordinate{RightAscension: 88.7929583, Declination: 7.4070639}, 19.798484, -155.300288, timezone)
 
 	if got.Rise.After(*got.Set) {
 		t.Errorf("the object must rise before it sets")
@@ -238,10 +243,12 @@ func TestGetObjectTransitForBetelgeuseAtHonolulu(t *testing.T) {
 func TestGetObjectTransitNoRiseNoSetNoMaximum(t *testing.T) {
 	datetime := time.Date(2015, 6, 6, 0, 0, 0, 0, time.UTC)
 
-	got, err := GetObjectTransit(datetime, EquatorialCoordinate{RightAscension: 90, Declination: -60}, 45.250132, -100.300288)
+	location, err := time.LoadLocation("America/Chicago")
 	if err != nil {
-		t.Errorf("got %v, wanted nil", err)
+		t.Fatalf("failed to load location: %v", err)
 	}
+
+	got := GetObjectTransit(datetime, EquatorialCoordinate{RightAscension: 90, Declination: -60}, 45.250132, -100.300288, location)
 
 	if got.Rise != nil {
 		t.Errorf("got %v, but expected the object to never rise for the given paramaters", got)
