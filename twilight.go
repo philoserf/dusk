@@ -1,105 +1,83 @@
 package dusk
 
-import (
-	"time"
+import "time"
 
-	tzm "github.com/zsefvlol/timezonemapper"
-)
-
-type SunriseStatus int
-
-const (
-	AboveHorizon = SunriseStatus(1)
-	AtHorizon    = SunriseStatus(0)
-	BelowHorizon = SunriseStatus(-1)
-)
-
-type Twilight struct {
-	From     time.Time
-	Until    time.Time
-	Duration time.Duration
+// TwilightEvent holds the dusk and dawn times of a twilight period.
+// Dusk is tonight's boundary (sun passes below the depression angle).
+// Dawn is tomorrow morning's boundary (sun passes above the depression angle).
+// To get this morning's dawn, call with yesterday's date.
+type TwilightEvent struct {
+	Dusk     time.Time     // evening boundary (today)
+	Dawn     time.Time     // morning boundary (tomorrow)
+	Duration time.Duration // time from Dusk to Dawn (overnight period below the depression angle)
 }
 
-// For all twilight funcs, please reference for information on timezones and their respective locations:
-// @see https://en.wikipedia.org/wiki/list_of_tz_database_time_zones
-// @see https://www.iana.org/time-zones
-// @see https://pkg.go.dev/time#LoadLocation
+// CivilTwilight computes the evening civil twilight period (Sun 6° below the
+// horizon) for the given date and observer position. Dusk is tonight's civil
+// dusk; Dawn is tomorrow morning's civil dawn.
+func CivilTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
+	return twilight(date, obs, 6)
+}
 
-/*
-GetLocalTwilight()
+// NauticalTwilight computes the evening nautical twilight period (Sun 12°
+// below the horizon) for the given date and observer position.
+func NauticalTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
+	return twilight(date, obs, 12)
+}
 
-@param datetime - the datetime of the observer (in UTC)
-@param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
-@param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
-@param elevation - is the elevation (above sea level) in meters of some observer on Earth
-@param degreesBelowHorizon - is the degrees below horizon for the designated "twilight period", with 0° being "night" e.g., as soon as the sun is below the horizon.
-@returns the start and end times of Civil Twilight, as designated by when the Sun is -6 degrees below the horizon.
-*/
-func GetLocalTwilight(datetime time.Time, longitude, latitude, elevation, degreesBelowHorizon float64) (Twilight, time.Location, error) {
-	// get the corresponding timezone for the longitude and latitude provided:
-	timezone := tzm.LatLngToTimezoneString(latitude, longitude)
+// AstronomicalTwilight computes the evening astronomical twilight period (Sun
+// 18° below the horizon) for the given date and observer position.
+func AstronomicalTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
+	return twilight(date, obs, 18)
+}
 
-	s := GetSunriseSunsetTimesInUTC(datetime, degreesBelowHorizon, longitude, latitude, elevation)
-
-	r := GetSunriseSunsetTimesInUTC(datetime.Add(time.Hour*24), degreesBelowHorizon, longitude, latitude, elevation)
-
-	// the corresponding local timezone for the observer, e..g, the location name corresponding to a file in the IANA Time Zone database, such as "Pacific/Honolulu":
-	location, err := time.LoadLocation(timezone)
-	if err != nil {
-		return Twilight{}, time.Location{}, err
+// twilight computes the twilight period for a given depression angle (positive
+// degrees below the geometric horizon). Only the calendar date is used; the
+// time-of-day is ignored. The returned Dusk is today's "set" at the depression
+// angle (evening boundary) and Dawn is tomorrow's "rise" at the depression
+// angle (morning boundary).
+func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, error) {
+	if err := validateObserver(obs); err != nil {
+		return TwilightEvent{}, err
 	}
 
-	return Twilight{
-		From:     s.Set.In(location),
-		Until:    r.Rise.In(location),
-		Duration: r.Rise.Sub(s.Set),
-	}, *location, nil
-}
+	// Evening twilight: sunset at the given depression angle for today.
+	J := meanSolarTime(date, obs.Lon)
+	M := solarMeanAnomaly(J)
+	C := solarEquationOfCenter(M)
+	lambda := solarEclipticLongitude(M, C)
+	T := julianCentury(date)
+	delta := solarDeclination(lambda, T)
+	omega, err := solarHourAngle(delta, depression, obs.Lat, obs.Elev)
+	if err != nil {
+		return TwilightEvent{}, err
+	}
+	h := omega / 360
+	jTransit := solarTransitJD(J, M, lambda)
 
-/*
-GetLocalCivilTwilight()
+	// Today's "set" at this depression = twilight dusk.
+	dusk := universalTimeFromJD(jTransit + h).In(obs.Loc)
 
-@param datetime - the datetime of the observer (in UTC)
-@param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
-@param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
-@param elevation - is the elevation (above sea level) in meters of some observer on Earth
-@returns the start and end times of Civil Twilight, as designated by when the Sun is -6 degrees below the horizon.
-*/
-func GetLocalCivilTwilight(datetime time.Time, longitude, latitude, elevation float64) (Twilight, time.Location, error) {
-	// civil twilight is designated as being 6 degrees below horizon:
-	var degreesBelowHorizon float64 = -6
+	// Tomorrow's "rise" at this depression = twilight dawn.
+	tomorrow := date.AddDate(0, 0, 1)
+	J2 := meanSolarTime(tomorrow, obs.Lon)
+	M2 := solarMeanAnomaly(J2)
+	C2 := solarEquationOfCenter(M2)
+	lambda2 := solarEclipticLongitude(M2, C2)
+	T2 := julianCentury(tomorrow)
+	delta2 := solarDeclination(lambda2, T2)
+	omega2, err2 := solarHourAngle(delta2, depression, obs.Lat, obs.Elev)
+	if err2 != nil {
+		return TwilightEvent{}, err2
+	}
+	h2 := omega2 / 360
+	jTransit2 := solarTransitJD(J2, M2, lambda2)
 
-	return GetLocalTwilight(datetime, longitude, latitude, elevation, degreesBelowHorizon)
-}
+	dawn := universalTimeFromJD(jTransit2 - h2).In(obs.Loc)
 
-/*
-GetLocalNauticalTwilight()
-
-@param datetime - the datetime of the observer (in UTC)
-@param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
-@param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
-@param elevation - is the elevation (above sea level) in meters of some observer on Earth
-@returns the start and end times of Nautical Twilight, as designated by when the Sun is -12 degrees below the horizon.
-*/
-func GetLocalNauticalTwilight(datetime time.Time, longitude, latitude, elevation float64) (Twilight, time.Location, error) {
-	// nautical twilight is designated as being 12 degrees below horizon:
-	var degreesBelowHorizon float64 = -12
-
-	return GetLocalTwilight(datetime, longitude, latitude, elevation, degreesBelowHorizon)
-}
-
-/*
-GetLocalAstronomicalTwilight()
-
-@param datetime - the datetime of the observer (in UTC)
-@param longitude - is the longitude (west is negative, east is positive) in degrees of some observer on Earth
-@param latitude - is the latitude (south is negative, north is positive) in degrees of some observer on Earth
-@param elevation - is the elevation (above sea level) in meters of some observer on Earth
-@returns the start and end times of Astronomical Twilight, as designated by when the Sun is -18 degrees below the horizon.
-*/
-func GetLocalAstronomicalTwilight(datetime time.Time, longitude, latitude, elevation float64) (Twilight, time.Location, error) {
-	// astronomical twilight is designated as being 18 degrees below horizon:
-	var degreesBelowHorizon float64 = -18
-
-	return GetLocalTwilight(datetime, longitude, latitude, elevation, degreesBelowHorizon)
+	return TwilightEvent{
+		Dusk:     dusk,
+		Dawn:     dawn,
+		Duration: dawn.Sub(dusk),
+	}, nil
 }

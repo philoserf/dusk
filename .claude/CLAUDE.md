@@ -5,48 +5,53 @@ Go library for astronomical calculations: twilight, lunar phase, rise/set times.
 ## Commands
 
 ```bash
-go test -count=1 ./...        # Run all tests
-go test -v -run TestName ./... # Run single test
-go vet ./...                   # Static analysis
+task              # Run all checks (fmt, vet, lint, test)
+task fix          # Run all fixes (fmt, lint)
+task test         # Run tests only
+go test -v -run TestName ./...  # Run single test
 ```
 
 ## Architecture
 
-Single package at the repo root.
+Single package at the repo root. Zero dependencies. Module path: `github.com/philoserf/dusk/v2`.
 
 | File              | Domain                                                          |
 | ----------------- | --------------------------------------------------------------- |
-| `epoch.go`        | Julian dates, sidereal time, epoch conversions                  |
-| `solar.go`        | Sun position, hour angle, sunrise/sunset                        |
+| `trig.go`         | Degree-based trig wrappers, `mod360`/`mod24` normalization      |
+| `epoch.go`        | Julian dates, sidereal time, nutation, obliquity                |
+| `coord.go`        | Coordinate types and ecliptic/equatorial/horizontal conversions |
+| `solar.go`        | Sun position, sunrise/sunset                                    |
 | `lunar.go`        | Moon position (Meeus tables), moonrise/moonset, phase           |
-| `lawrence.go`     | Alternative algorithms from Lawrence textbook                   |
+| `lunar_tables.go` | Meeus Table 47.A/B coefficients                                 |
 | `transit.go`      | Object rise/set/transit for arbitrary equatorial coordinates    |
-| `twilight.go`     | Civil, nautical, astronomical twilight wrappers                 |
-| `coordinates.go`  | Coordinate types and ecliptic/equatorial/horizontal conversions |
-| `astrometry.go`   | Hour angle, angular separation                                  |
-| `utils.go`        | Obliquity, nutation, refraction, air mass                       |
-| `trigonometry.go` | Degree-based trig wrappers (sinx, cosx, etc.)                   |
+| `twilight.go`     | Civil, nautical, astronomical twilight                          |
+| `doc.go`          | Package documentation                                           |
 
 ## Key Conventions
 
-- All angles in **degrees** (trig helpers in `trigonometry.go` handle conversion)
-- Negative angle correction: every `math.Mod(x, 360)` must be followed by `if x < 0 { x += 360 }`
-- Two algorithm families coexist:
-  - **Meeus** (e.g., `GetLunarEclipticPosition`): parameters in Julian **centuries**
-  - **Lawrence** (e.g., `GetSolarMeanAnomalyLawrence`): parameters in Julian **days**
-- `GetSolarMeanAnomaly()` uses the daily-rate coefficient (0.98560028) — pass **days**, not centuries
+- All angles in **degrees** (trig helpers in `trig.go` handle conversion)
+- Angle normalization via `mod360()` and `mod24()` helpers
+- Meeus algorithms preferred; `solarMeanAnomaly(J)` takes days, not centuries
+- `*time.Location` parameter for functions that produce local times
+- Zero-value `time.Time` signals "event did not occur" — check with `.IsZero()`
+- `(float64, bool)` returns for calculations that may not apply
+- `error` returns for bad input (nil location, out-of-range coordinates)
+- Table-driven tests everywhere, expected values from USNO/Stellarium/Meeus
 
 ## Gotchas
 
-- `time.Time` pointers in `Transit` struct — always nil-check both `Rise` and `Set`
-- `GetLunarHorizontalCoordinatesForDay` allocates 1442 entries and iterates minute-by-minute — slow by design
-- Twilight `degreesBelowHorizon` parameter is negative (e.g., -6 for civil) despite the name
-- Tests use package-level vars `d`, `datetime`, `longitude`, `latitude`, `elevation` defined across `solar_test.go` and `epoch_test.go`
+- `Transit` uses zero-value `time.Time` (not pointers) — check `.IsZero()` not `!= nil`
+- Moonrise/moonset iterates minute-by-minute (1440 iterations) — slow by design
+- `solarHourAngle` returns `(float64, error)` — returns `ErrCircumpolar` (midnight sun) or `ErrNeverRises` (polar night)
+- `solarHourAngle` takes `depression` (positive degrees below horizon) for twilight reuse; pass 0 for sunrise/sunset
+- `AngularSeparation` takes `(ra1, dec1, ra2, dec2)` — RA-first to match `Equatorial{RA, Dec}` field order
+- `LunarPhaseInfo.Waxing` distinguishes waxing (elongation 0-180) from waning; `DaysApprox` is symmetric
+- `Observer.Elev` only affects sunrise/sunset and twilight — not moonrise or `ObjectTransit`
 
 ## Dependencies
 
-Single external dep: `github.com/zsefvlol/timezonemapper` (lat/lng to IANA timezone)
+None. Zero external dependencies.
 
 ## CI
 
-GitHub Actions on PR to main (skips markdown-only changes). Matrix: Go 1.20-1.22 on Ubuntu.
+GitHub Actions on push to main and PR to main (skips markdown-only changes). Runs vet, golangci-lint, and tests with race detector. Go 1.24 on Ubuntu.

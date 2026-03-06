@@ -1,131 +1,132 @@
-# Dusk
+# dusk
 
-![Go version](https://img.shields.io/github/go-mod/go-version/philoserf/dusk/main?filename=go.mod&label=Go)
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/philoserf/dusk)](https://pkg.go.dev/github.com/philoserf/dusk)
-[![Go Report Card](https://goreportcard.com/badge/github.com/philoserf/dusk)](https://goreportcard.com/report/github.com/philoserf/dusk)
 [![CI](https://github.com/philoserf/dusk/actions/workflows/ci.yml/badge.svg)](https://github.com/philoserf/dusk/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/philoserf/dusk/v2.svg)](https://pkg.go.dev/github.com/philoserf/dusk/v2)
 
-Dusk is a Go library for astronomical calculations: twilight times, sunrise/sunset, lunar phase, moon position, and rise/set times for arbitrary celestial objects. Single external dependency.
+A single, zero-dependency Go package for astronomical calculations — sunrise/sunset, moonrise/moonset, twilight, lunar phase, and celestial coordinate conversions — based on Meeus's _Astronomical Algorithms_.
 
 ```bash
-go get github.com/philoserf/dusk
+go get github.com/philoserf/dusk/v2
 ```
 
-## Quick Start
+## Examples
 
-Calculate astronomical twilight for Seattle, WA:
+### Sunrise and sunset
 
 ```go
 package main
 
 import (
 	"fmt"
-	"log"
 	"time"
 
-	"github.com/philoserf/dusk"
+	"github.com/philoserf/dusk/v2"
 )
 
 func main() {
-	datetime := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
+	loc, _ := time.LoadLocation("America/Chicago")
+	date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
+	obs := dusk.Observer{Lat: 42.9634, Lon: -85.6681, Elev: 188.0, Loc: loc}
 
-	// Seattle, WA — longitude west is negative, latitude north is positive
-	twilight, _, err := dusk.GetLocalAstronomicalTwilight(datetime, -122.3321, 47.6062, 58.0)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Printf("Sunset: %s\n", twilight.Until.Format(time.RFC3339))
-	fmt.Printf("Sunrise: %s\n", twilight.From.Format(time.RFC3339))
-	fmt.Printf("Dark sky: %s\n", twilight.Duration)
+	sun, _ := dusk.SunriseSunset(date, obs)
+	fmt.Printf("Sunrise: %s\n", sun.Rise.Format(time.Kitchen))
+	fmt.Printf("Noon:    %s\n", sun.Noon.Format(time.Kitchen))
+	fmt.Printf("Sunset:  %s\n", sun.Set.Format(time.Kitchen))
 }
 ```
 
-## Twilight
-
-`GetLocalTwilight` computes rise and set times for a given sun angle below the horizon. Three convenience wrappers cover the standard definitions:
-
-| Function                       | Sun angle | Use case                      |
-| ------------------------------ | --------- | ----------------------------- |
-| `GetLocalCivilTwilight`        | -6°       | Outdoor activities, headlamps |
-| `GetLocalNauticalTwilight`     | -12°      | Horizon visible at sea        |
-| `GetLocalAstronomicalTwilight` | -18°      | Deep-sky observation          |
-
-All take `(datetime, longitude, latitude, elevation)` and return `(Twilight, *time.Location, error)`.
-
-For a custom angle, call `GetLocalTwilight` directly with a fifth parameter `degreesBelowHorizon` (negative value, e.g., `-6.0`).
-
-## Lunar
-
-### Position
+### Lunar phase
 
 ```go
-datetime := time.Date(2025, 6, 21, 22, 0, 0, 0, time.UTC)
-
-eq := dusk.GetLunarEquatorialPosition(datetime)
-fmt.Printf("RA: %.4f°  Dec: %.4f°\n", eq.RightAscension, eq.Declination)
+phase := dusk.LunarPhase(time.Date(2024, 1, 18, 3, 0, 0, 0, time.UTC))
+fmt.Printf("%s (%.0f%% illuminated, waxing: %t)\n", phase.Name, phase.Illumination, phase.Waxing)
 ```
 
-### Phase
+### Civil twilight
 
 ```go
-ec := dusk.GetLunarEclipticPosition(datetime)
-phase := dusk.GetLunarPhase(datetime, -122.3321, ec)
-fmt.Printf("Age: %.1f days  Illumination: %.1f%%\n", phase.Days, phase.Illumination)
+loc, _ := time.LoadLocation("America/Los_Angeles")
+date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
+obs := dusk.Observer{Lat: 47.6062, Lon: -122.3321, Elev: 58.0, Loc: loc}
+
+tw, _ := dusk.CivilTwilight(date, obs)
+fmt.Printf("Dusk:  %s\n", tw.Dusk.Format(time.Kitchen))
+fmt.Printf("Dawn:  %s\n", tw.Dawn.Format(time.Kitchen))
 ```
 
-## Solar
+### Object transit
 
 ```go
-eq := dusk.GetSolarEquatorialPosition(datetime)
-fmt.Printf("Sun RA: %.4f°  Dec: %.4f°\n", eq.RightAscension, eq.Declination)
-```
+loc, _ := time.LoadLocation("America/Los_Angeles")
+date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
+obs := dusk.Observer{Lat: 47.6062, Lon: -122.3321, Elev: 58.0, Loc: loc}
 
-## Object Transit
-
-Calculate rise, transit, and set times for any object given its equatorial coordinates:
-
-```go
 // Betelgeuse: RA 88.7929°, Dec 7.4071°
-transit := dusk.GetObjectTransit(datetime, -122.3321, 47.6062, 58.0, 88.7929, 7.4071)
-
-if transit.Rise != nil {
-	fmt.Printf("Rise: %s\n", transit.Rise.Format(time.RFC3339))
+betelgeuse := dusk.Equatorial{RA: 88.7929, Dec: 7.4071}
+tr, err := dusk.ObjectTransit(date, betelgeuse, obs)
+if err != nil {
+	fmt.Println(err) // e.g., ErrCircumpolar or ErrNeverRises
+	return
 }
-if transit.Set != nil {
-	fmt.Printf("Set: %s\n", transit.Set.Format(time.RFC3339))
-}
+fmt.Printf("Rise:    %s\n", tr.Rise.Format(time.Kitchen))
+fmt.Printf("Maximum: %s\n", tr.Maximum.Format(time.Kitchen))
+fmt.Printf("Set:     %s\n", tr.Set.Format(time.Kitchen))
 ```
 
-## API Overview
+## API
 
-The full API is documented at [pkg.go.dev](https://pkg.go.dev/github.com/philoserf/dusk). Key function groups:
+### Solar
 
-| Domain      | Functions                                                                                               |
-| ----------- | ------------------------------------------------------------------------------------------------------- |
-| Twilight    | `GetLocalTwilight`, `GetLocalCivilTwilight`, `GetLocalNauticalTwilight`, `GetLocalAstronomicalTwilight` |
-| Solar       | `GetSolarEquatorialPosition`, `GetSolarEclipticPosition`, `GetSolarMeanAnomaly`                         |
-| Lunar       | `GetLunarEquatorialPosition`, `GetLunarEclipticPosition`, `GetLunarPhase`                               |
-| Transit     | `GetObjectTransit`, `GetObjectTransitMaximaTime`                                                        |
-| Coordinates | `ConvertEquatorialToHorizontal`, `ConvertEclipticToEquatorial`                                          |
-| Astrometry  | `GetHourAngle`, `GetAngularSeparation`                                                                  |
-| Epoch       | `GetJulianDate`, `GetLocalSiderealTime`, `GetGreenwichSiderealTime`                                     |
+- `SunriseSunset` — sunrise, solar noon, sunset, and daylight duration
+- `SolarPosition` — equatorial coordinates of the Sun
+
+### Lunar
+
+- `LunarPhase` — illumination, elongation, approximate age, waxing/waning, phase angle, and name
+- `LunarEclipticPosition` — ecliptic longitude, latitude, and distance (km)
+- `LunarPosition` — equatorial coordinates of the Moon
+- `MoonriseMoonset` — moonrise and moonset times
+
+### Twilight
+
+- `CivilTwilight` — sun 6° below horizon
+- `NauticalTwilight` — sun 12° below horizon
+- `AstronomicalTwilight` — sun 18° below horizon
+
+### Transit
+
+- `ObjectTransit` — rise, set, transit maximum, and above-horizon duration for arbitrary equatorial coordinates
+
+### Coordinates
+
+- `EclipticToEquatorial` — ecliptic to equatorial conversion
+- `EquatorialToHorizontal` — equatorial to horizontal conversion
+- `HourAngle` — local hour angle from right ascension
+- `AngularSeparation` — angular distance between two positions
+
+### Epoch
+
+- `JulianDate` — Julian date from `time.Time`
+- `LocalSiderealTime` — LST for a given longitude
 
 ## Conventions
 
-- All angles are in **degrees** (internal trig helpers handle radian conversion)
-- Longitude: west negative, east positive
-- Latitude: south negative, north positive
-- Elevation: meters above mean sea level
-- Two algorithm families: **Meeus** (primary) and **Lawrence** (functions suffixed `Lawrence`)
+- All angles are in **degrees**. `Equatorial.RA` is in degrees (0–360); divide by 15 to convert to hours.
+- `Observer.Lon` is **east-positive, west-negative** (e.g., New York is −74.006).
+- Functions that can fail return `error`. Two sentinel errors distinguish polar edge cases: `ErrCircumpolar` (object always above the horizon) and `ErrNeverRises` (object never rises).
+- A **zero-value `time.Time`** signals "event did not occur" (e.g., the Moon does not rise on a given day). Check with `.IsZero()`.
+- Twilight functions return tonight's **Dusk** and tomorrow morning's **Dawn**. To get this morning's dawn, call with yesterday's date.
+
+## Accuracy
+
+Sunrise/sunset times are typically within 1–2 minutes of USNO data. Moonrise/moonset uses a simplified Meeus approach with a minute-by-minute altitude scan and can differ from USNO by up to several minutes. Lunar ecliptic position uses the full Meeus Chapter 47 periodic terms (100+ coefficients).
+
+## Requirements
+
+Go 1.24+. Zero dependencies.
 
 ## License
 
-Dusk is free software licensed under the GNU General Public License v3.0 (GPL-3.0). See [LICENSE](./LICENSE).
+GPL-3.0. See [LICENSE](./LICENSE).
 
-Originally created by [observerly](https://github.com/observerly). This fork includes bug fixes, correctness improvements, and structural changes.
-
-| Attribution                                                           | License |
-| --------------------------------------------------------------------- | ------- |
-| [observerly/dusk](https://github.com/observerly/dusk)                 | GPL-3.0 |
-| [zsefvlol/timezonemapper](https://github.com/zsefvlol/timezonemapper) | MIT     |
+Originally created by [observerly](https://github.com/observerly/dusk). This fork includes bug fixes, algorithm improvements, and a complete v2 rewrite.

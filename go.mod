@@ -1,5 +1,3 @@
-module github.com/philoserf/dusk
+module github.com/philoserf/dusk/v2
 
-go 1.20
-
-require github.com/zsefvlol/timezonemapper v1.0.0
+go 1.24

@@ -3,13 +3,23 @@
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
-        "command": "case \"$CLAUDE_FILE_PATH\" in *.go) gofumpt -w \"$CLAUDE_FILE_PATH\" ;; esac",
-        "description": "Auto-format Go files with gofumpt after edit"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in *.go) gofumpt -w \"$CLAUDE_FILE_PATH\" ;; esac",
+            "timeout": 10
+          }
+        ]
       },
       {
         "matcher": "Edit|Write",
-        "command": "case \"$CLAUDE_FILE_PATH\" in *.go) go test -count=1 -short ./... 2>&1 | tail -1 ;; esac",
-        "description": "Run tests after editing Go files"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in *.go) go test -count=1 -short ./... 2>&1 | tail -1 ;; esac",
+            "timeout": 30
+          }
+        ]
       }
     ]
   }

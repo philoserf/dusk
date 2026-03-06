@@ -1,288 +1,232 @@
 package dusk
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
 
-func TestGetLocalCivilTwilightFrom(t *testing.T) {
-	timezone, err := time.LoadLocation("Pacific/Honolulu")
+func TestCivilTwilight(t *testing.T) {
+	nyc, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	twilight, location, err := GetLocalCivilTwilight(d, longitude, latitude, elevation)
+	// NYC (40.7128°N, 74.006°W) on 2024-03-20 (vernal equinox).
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	lat := 40.7128
+	lon := -74.006
+	elev := 10.0
+	tolerance := 5 * time.Minute
+
+	obs := Observer{Lat: lat, Lon: lon, Elev: elev, Loc: nyc}
+	event, err := CivilTwilight(date, obs)
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("CivilTwilight() returned error: %v", err)
 	}
 
-	if timezone.String() != location.String() {
-		t.Errorf("got %q, wanted %q", location.String(), timezone)
+	// Civil twilight dusk should be roughly 7:30-7:40 PM EDT (after sunset ~7:08 PM).
+	wantDusk := time.Date(2024, 3, 20, 19, 35, 0, 0, nyc)
+	if diff := event.Dusk.Sub(wantDusk); diff < -tolerance || diff > tolerance {
+		t.Errorf("Dusk = %v, want %v (±%v, diff=%v)", event.Dusk.Format("15:04:05"), wantDusk.Format("15:04"), tolerance, diff)
 	}
 
-	got := twilight.From
-
-	want := time.Date(1992, 4, 12, 19, 0o4, 57, 329480960, timezone)
-
-	if got.Before(want) {
-		t.Errorf("got %q, wanted %q", got, want)
+	// Civil twilight dawn should be roughly 6:25-6:35 AM EDT next day.
+	wantDawn := time.Date(2024, 3, 21, 6, 30, 0, 0, nyc)
+	if diff := event.Dawn.Sub(wantDawn); diff < -tolerance || diff > tolerance {
+		t.Errorf("Dawn = %v, want %v (±%v, diff=%v)", event.Dawn.Format("15:04:05"), wantDawn.Format("15:04"), tolerance, diff)
 	}
 
-	if want.After(got) {
-		t.Errorf("got %q, wanted %q", got, want)
-	}
-
-	if !got.Equal(want) {
-		t.Errorf("got %q, wanted %q", got, want)
+	if event.Duration <= 0 {
+		t.Errorf("Duration = %v, want > 0", event.Duration)
 	}
 }
 
-func TestGetLocalCivilTwilightUntil(t *testing.T) {
-	timezone, err := time.LoadLocation("Pacific/Honolulu")
+func TestNauticalTwilight(t *testing.T) {
+	nyc, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	twilight, location, err := GetLocalCivilTwilight(d, longitude, latitude, elevation)
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	lat := 40.7128
+	lon := -74.006
+	elev := 10.0
+
+	obs := Observer{Lat: lat, Lon: lon, Elev: elev, Loc: nyc}
+	civil, err := CivilTwilight(date, obs)
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("CivilTwilight() returned error: %v", err)
 	}
 
-	if timezone.String() != location.String() {
-		t.Errorf("got %q, wanted %q", location.String(), timezone)
+	nautical, err := NauticalTwilight(date, obs)
+	if err != nil {
+		t.Fatalf("NauticalTwilight() returned error: %v", err)
 	}
 
-	got := twilight.Until
-
-	want := time.Date(1992, 4, 13, 5, 38, 34, 818866560, timezone)
-
-	if got.Before(want) {
-		t.Errorf("got %q, wanted %q", got, want)
+	// Nautical twilight dusk is later than civil (Sun is deeper below horizon).
+	if !nautical.Dusk.After(civil.Dusk) {
+		t.Errorf("Nautical dusk %v should be after civil dusk %v", nautical.Dusk.Format("15:04:05"), civil.Dusk.Format("15:04:05"))
 	}
 
-	if want.After(got) {
-		t.Errorf("got %q, wanted %q", got, want)
+	// Nautical twilight dawn is earlier than civil.
+	if !nautical.Dawn.Before(civil.Dawn) {
+		t.Errorf("Nautical dawn %v should be before civil dawn %v", nautical.Dawn.Format("15:04:05"), civil.Dawn.Format("15:04:05"))
 	}
 
-	if !got.Equal(want) {
-		t.Errorf("got %q, wanted %q", got, want)
+	if nautical.Duration <= 0 {
+		t.Errorf("Duration = %v, want > 0", nautical.Duration)
 	}
 }
 
-func TestGetLocalCivilTwilightDuration(t *testing.T) {
-	timezone, err := time.LoadLocation("Pacific/Honolulu")
+func TestAstronomicalTwilight(t *testing.T) {
+	nyc, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	twilight, location, err := GetLocalCivilTwilight(d, longitude, latitude, elevation)
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	lat := 40.7128
+	lon := -74.006
+	elev := 10.0
+
+	obs := Observer{Lat: lat, Lon: lon, Elev: elev, Loc: nyc}
+	nautical, err := NauticalTwilight(date, obs)
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("NauticalTwilight() returned error: %v", err)
 	}
 
-	if timezone.String() != location.String() {
-		t.Errorf("got %q, wanted %q", location.String(), timezone)
+	astro, err := AstronomicalTwilight(date, obs)
+	if err != nil {
+		t.Fatalf("AstronomicalTwilight() returned error: %v", err)
 	}
 
-	got := twilight.Duration
+	// Astronomical twilight dusk is later than nautical.
+	if !astro.Dusk.After(nautical.Dusk) {
+		t.Errorf("Astronomical dusk %v should be after nautical dusk %v", astro.Dusk.Format("15:04:05"), nautical.Dusk.Format("15:04:05"))
+	}
 
-	want := time.Duration(38017489385600)
+	// Astronomical twilight dawn is earlier than nautical.
+	if !astro.Dawn.Before(nautical.Dawn) {
+		t.Errorf("Astronomical dawn %v should be before nautical dawn %v", astro.Dawn.Format("15:04:05"), nautical.Dawn.Format("15:04:05"))
+	}
 
-	if got.Nanoseconds() != want.Nanoseconds() {
-		t.Errorf("got %d, wanted %d", got.Nanoseconds(), want.Nanoseconds())
+	if astro.Duration <= 0 {
+		t.Errorf("Duration = %v, want > 0", astro.Duration)
 	}
 }
 
-func TestGetLocalNauticalTwilightFrom(t *testing.T) {
-	timezone, err := time.LoadLocation("Pacific/Honolulu")
+func TestTwilight_Equatorial(t *testing.T) {
+	// Quito, Ecuador on 2024-03-20 (equinox).
+	// Near the equator, twilight transitions are the fastest in the world.
+	loc, err := time.LoadLocation("America/Guayaquil")
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	twilight, location, err := GetLocalNauticalTwilight(d, longitude, latitude, elevation)
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, loc)
+	lat := -0.18
+	lon := -78.47
+	elev := 2800.0
+
+	obs := Observer{Lat: lat, Lon: lon, Elev: elev, Loc: loc}
+	civil, err := CivilTwilight(date, obs)
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("CivilTwilight() returned error: %v", err)
 	}
 
-	if timezone.String() != location.String() {
-		t.Errorf("got %q, wanted %q", location.String(), timezone)
+	if civil.Dusk.IsZero() {
+		t.Error("expected non-zero civil twilight Dusk")
+	}
+	if civil.Dawn.IsZero() {
+		t.Error("expected non-zero civil twilight Dawn")
 	}
 
-	got := twilight.From
-
-	want := time.Date(1992, 4, 12, 19, 31, 11, 189139712, timezone)
-
-	if got.Before(want) {
-		t.Errorf("got %q, wanted %q", got, want)
+	// Civil twilight duration (darkness period) should be less than 12 hours
+	// at the equator, where twilight transitions are rapid.
+	if civil.Duration >= 12*time.Hour {
+		t.Errorf("civil twilight Duration = %v, want < 12h near equator", civil.Duration)
+	}
+	if civil.Duration <= 0 {
+		t.Errorf("civil twilight Duration = %v, want > 0", civil.Duration)
 	}
 
-	if want.After(got) {
-		t.Errorf("got %q, wanted %q", got, want)
+	t.Logf("Quito civil twilight: dusk=%v dawn=%v duration=%v", civil.Dusk, civil.Dawn, civil.Duration)
+}
+
+func TestTwilight_PolarDay(t *testing.T) {
+	// Tromsø, Norway (69.65°N) on June 21 — no astronomical twilight during midnight sun.
+	loc, err := time.LoadLocation("Europe/Oslo")
+	if err != nil {
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	if !got.Equal(want) {
-		t.Errorf("got %q, wanted %q", got, want)
+	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
+	obs := Observer{Lat: 69.65, Lon: 18.96, Elev: 0, Loc: loc}
+
+	_, err = AstronomicalTwilight(date, obs)
+	if !errors.Is(err, ErrCircumpolar) {
+		t.Errorf("expected ErrCircumpolar for astronomical twilight at 69.65°N midsummer, got %v", err)
 	}
 }
 
-func TestGetLocalNauticalTwilightUntil(t *testing.T) {
-	timezone, err := time.LoadLocation("Pacific/Honolulu")
+func TestTwilight_PolarNight(t *testing.T) {
+	// Near North Pole (87°N) on December 21 — deep polar night.
+	// At this latitude the sun is far enough below the horizon that even
+	// astronomical twilight (18° depression) does not occur.
+	loc, err := time.LoadLocation("UTC")
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	twilight, location, err := GetLocalNauticalTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
+	date := time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
+	obs := Observer{Lat: 87.0, Lon: 0, Elev: 0, Loc: loc}
 
-	if timezone.String() != location.String() {
-		t.Errorf("got %q, wanted %q", location.String(), timezone)
-	}
-
-	got := twilight.Until
-
-	want := time.Date(1992, 4, 13, 5, 12, 18, 311666304, timezone)
-
-	if got.Before(want) {
-		t.Errorf("got %q, wanted %q", got, want)
-	}
-
-	if want.After(got) {
-		t.Errorf("got %q, wanted %q", got, want)
-	}
-
-	if !got.Equal(want) {
-		t.Errorf("got %q, wanted %q", got, want)
+	_, err = AstronomicalTwilight(date, obs)
+	if !errors.Is(err, ErrNeverRises) {
+		t.Errorf("expected ErrNeverRises for astronomical twilight at 87°N midwinter, got %v", err)
 	}
 }
 
-func TestGetLocalNauticalTwilightDuration(t *testing.T) {
-	timezone, err := time.LoadLocation("Pacific/Honolulu")
+func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
+	// USNO reference: NYC 2024-03-20 nautical twilight dusk ~20:05 EDT, dawn ~05:55 EDT.
+	nyc, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	twilight, location, err := GetLocalNauticalTwilight(d, longitude, latitude, elevation)
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	obs := Observer{Lat: 40.7128, Lon: -74.006, Elev: 10.0, Loc: nyc}
+	tolerance := 10 * time.Minute
+
+	nautical, err := NauticalTwilight(date, obs)
 	if err != nil {
-		t.Errorf("got %q", err)
-		return
+		t.Fatalf("NauticalTwilight() returned error: %v", err)
 	}
 
-	if timezone.String() != location.String() {
-		t.Errorf("got %q, wanted %q", location.String(), timezone)
+	wantDusk := time.Date(2024, 3, 20, 20, 5, 0, 0, nyc)
+	if diff := nautical.Dusk.Sub(wantDusk); diff < -tolerance || diff > tolerance {
+		t.Errorf("Dusk = %v, want %v (±%v, diff=%v)", nautical.Dusk.Format("15:04:05"), wantDusk.Format("15:04"), tolerance, diff)
 	}
 
-	got := twilight.Duration
-
-	want := time.Duration(34867122526592)
-
-	if got.Nanoseconds() != want.Nanoseconds() {
-		t.Errorf("got %d, wanted %d", got.Nanoseconds(), want.Nanoseconds())
+	wantDawn := time.Date(2024, 3, 21, 5, 55, 0, 0, nyc)
+	if diff := nautical.Dawn.Sub(wantDawn); diff < -tolerance || diff > tolerance {
+		t.Errorf("Dawn = %v, want %v (±%v, diff=%v)", nautical.Dawn.Format("15:04:05"), wantDawn.Format("15:04"), tolerance, diff)
 	}
 }
 
-func TestGetLocalAstronomicalTwilightFrom(t *testing.T) {
-	timezone, err := time.LoadLocation("Pacific/Honolulu")
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
-
-	twilight, location, err := GetLocalAstronomicalTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
-
-	if timezone.String() != location.String() {
-		t.Errorf("got %q, wanted %q", location.String(), timezone)
-	}
-
-	got := twilight.From
-
-	want := time.Date(1992, 4, 12, 19, 57, 44, 24917760, timezone)
-
-	if got.Before(want) {
-		t.Errorf("got %q, wanted %q", got, want)
-	}
-
-	if want.After(got) {
-		t.Errorf("got %q, wanted %q", got, want)
-	}
-
-	if !got.Equal(want) {
-		t.Errorf("got %q, wanted %q", got, want)
+func TestTwilight_NilLocation(t *testing.T) {
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, time.UTC)
+	_, err := CivilTwilight(date, Observer{Lat: 40.7128, Lon: -74.006, Elev: 10})
+	if err == nil {
+		t.Error("CivilTwilight() with nil location should return error")
 	}
 }
 
-func TestGetLocalAstronomicalTwilightUntil(t *testing.T) {
-	timezone, err := time.LoadLocation("Pacific/Honolulu")
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
-
-	twilight, location, err := GetLocalAstronomicalTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
-
-	if timezone.String() != location.String() {
-		t.Errorf("got %q, wanted %q", location.String(), timezone)
-	}
-
-	got := twilight.Until
-
-	want := time.Date(1992, 4, 13, 4, 45, 42, 138791168, timezone)
-
-	if got.Before(want) {
-		t.Errorf("got %q, wanted %q", got, want)
-	}
-
-	if want.After(got) {
-		t.Errorf("got %q, wanted %q", got, want)
-	}
-
-	if !got.Equal(want) {
-		t.Errorf("got %q, wanted %q", got, want)
-	}
-}
-
-func TestGetLocalAstronomicalTwilightDuration(t *testing.T) {
-	timezone, err := time.LoadLocation("Pacific/Honolulu")
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
-
-	twilight, location, err := GetLocalAstronomicalTwilight(d, longitude, latitude, elevation)
-	if err != nil {
-		t.Errorf("got %q", err)
-		return
-	}
-
-	if timezone.String() != location.String() {
-		t.Errorf("got %q, wanted %q", location.String(), timezone)
-	}
-
-	got := twilight.Duration
-
-	want := time.Duration(31678113873408)
-
-	if got.Nanoseconds() != want.Nanoseconds() {
-		t.Errorf("got %d, wanted %d", got.Nanoseconds(), want.Nanoseconds())
+func TestTwilight_InvalidCoordinates(t *testing.T) {
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, time.UTC)
+	_, err := CivilTwilight(date, Observer{Lat: -91, Lon: 0, Loc: time.UTC})
+	if err == nil {
+		t.Error("expected error for invalid coordinates")
 	}
 }
