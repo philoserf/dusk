@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/philoserf/dusk)](https://goreportcard.com/report/github.com/philoserf/dusk)
 [![CI](https://github.com/philoserf/dusk/actions/workflows/ci.yml/badge.svg)](https://github.com/philoserf/dusk/actions/workflows/ci.yml)
 
-Dusk is a Go library for astronomical calculations: twilight times, sunrise/sunset, lunar phase, moon position, and rise/set times for arbitrary celestial objects. Single external dependency.
+Dusk is a Go library for astronomical calculations: twilight times, sunrise/sunset, lunar phase, moon position, and rise/set times for arbitrary celestial objects. Zero external dependencies.
 
 ```bash
 go get github.com/philoserf/dusk
@@ -30,10 +30,12 @@ func main() {
 	datetime := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
 
 	// Seattle, WA — longitude west is negative, latitude north is positive
-	twilight, _, err := dusk.GetLocalAstronomicalTwilight(datetime, -122.3321, 47.6062, 58.0)
+	location, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	twilight, _ := dusk.GetLocalAstronomicalTwilight(datetime, -122.3321, 47.6062, 58.0, location)
 
 	fmt.Printf("Sunset: %s\n", twilight.Until.Format(time.RFC3339))
 	fmt.Printf("Sunrise: %s\n", twilight.From.Format(time.RFC3339))
@@ -51,9 +53,9 @@ func main() {
 | `GetLocalNauticalTwilight`     | -12°      | Horizon visible at sea        |
 | `GetLocalAstronomicalTwilight` | -18°      | Deep-sky observation          |
 
-All take `(datetime, longitude, latitude, elevation)` and return `(Twilight, *time.Location, error)`.
+All take `(datetime, longitude, latitude, elevation, location)` and return `(Twilight, *time.Location)`. The caller provides a `*time.Location` (e.g., from `time.LoadLocation`).
 
-For a custom angle, call `GetLocalTwilight` directly with a fifth parameter `degreesBelowHorizon` (negative value, e.g., `-6.0`).
+For a custom angle, call `GetLocalTwilight` directly with `degreesBelowHorizon` (negative value, e.g., `-6.0`) and `location`.
 
 ## Lunar
 
@@ -125,7 +127,6 @@ Dusk is free software licensed under the GNU General Public License v3.0 (GPL-3.
 
 Originally created by [observerly](https://github.com/observerly). This fork includes bug fixes, correctness improvements, and structural changes.
 
-| Attribution                                                           | License |
-| --------------------------------------------------------------------- | ------- |
-| [observerly/dusk](https://github.com/observerly/dusk)                 | GPL-3.0 |
-| [zsefvlol/timezonemapper](https://github.com/zsefvlol/timezonemapper) | MIT     |
+| Attribution                                           | License |
+| ----------------------------------------------------- | ------- |
+| [observerly/dusk](https://github.com/observerly/dusk) | GPL-3.0 |
