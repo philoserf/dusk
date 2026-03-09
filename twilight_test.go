@@ -216,55 +216,22 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 }
 
 func TestTwilight_PolarTransition(t *testing.T) {
-	// Test high-latitude locations near polar twilight boundaries.
-	// At these latitudes, twilight functions may return errors for some dates
-	// but not others, exercising the transition branches in twilight().
+	// At 75°N, civil twilight succeeds on Nov 25 but fails on Nov 26,
+	// exercising the polar-transition branch in twilight().
 	loc := time.UTC
+	obs := Observer{Lat: 75.0, Lon: 25.0, Elev: 0, Loc: loc}
 
-	// Scan multiple latitudes and date ranges to exercise error paths.
-	latitudes := []float64{68.0, 70.0, 72.0, 75.0}
-	found := false
-	for _, lat := range latitudes {
-		obs := Observer{Lat: lat, Lon: 25.0, Elev: 0, Loc: loc}
-		prevOk := false
-		for day := 1; day <= 31; day++ {
-			date := time.Date(2024, 12, day, 0, 0, 0, 0, loc)
-			_, err := CivilTwilight(date, obs)
-			if err == nil {
-				prevOk = true
-			} else if prevOk {
-				found = true
-				t.Logf("Civil twilight transition at %.0f°N on Dec %d: %v", lat, day, err)
-				break
-			}
-		}
-		if found {
-			break
-		}
+	before := time.Date(2024, 11, 25, 0, 0, 0, 0, loc)
+	after := time.Date(2024, 11, 26, 0, 0, 0, 0, loc)
+
+	_, err := CivilTwilight(before, obs)
+	if err != nil {
+		t.Fatalf("CivilTwilight(Nov 25, 75°N) should succeed, got %v", err)
 	}
-	if !found {
-		t.Log("No civil transition found; trying astronomical twilight")
-		for _, lat := range latitudes {
-			obs := Observer{Lat: lat, Lon: 25.0, Elev: 0, Loc: loc}
-			prevOk := false
-			for day := 1; day <= 31; day++ {
-				date := time.Date(2024, 12, day, 0, 0, 0, 0, loc)
-				_, err := AstronomicalTwilight(date, obs)
-				if err == nil {
-					prevOk = true
-				} else if prevOk {
-					found = true
-					t.Logf("Astronomical twilight transition at %.0f°N on Dec %d: %v", lat, day, err)
-					break
-				}
-			}
-			if found {
-				break
-			}
-		}
-	}
-	if !found {
-		t.Log("No transition found in scan; polar twilight behavior verified without panic")
+
+	_, err = CivilTwilight(after, obs)
+	if !errors.Is(err, ErrNeverRises) {
+		t.Fatalf("CivilTwilight(Nov 26, 75°N) should return ErrNeverRises, got %v", err)
 	}
 }
 
