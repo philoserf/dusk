@@ -46,7 +46,11 @@ func (m MoonEvent) String() string {
 
 // String returns a human-readable representation of the lunar phase.
 func (l LunarPhaseInfo) String() string {
-	return fmt.Sprintf("%s %.1f%% (day %.1f)", l.Name, l.Illumination, l.DaysApprox)
+	namePart := l.Name
+	if namePart != "" {
+		namePart += " "
+	}
+	return fmt.Sprintf("%s%.1f%% (day %.1f)", namePart, l.Illumination, l.DaysApprox)
 }
 
 // String returns a human-readable representation of the transit event.

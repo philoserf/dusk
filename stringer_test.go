@@ -51,6 +51,14 @@ func TestSunEventString_Zero(t *testing.T) {
 	}
 }
 
+func TestMoonEventString_Zero(t *testing.T) {
+	m := MoonEvent{}
+	want := "Rise=--:-- Set=--:-- Duration=0s"
+	if got := m.String(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestMoonEventString(t *testing.T) {
 	loc := time.FixedZone("TEST", 0)
 	m := MoonEvent{
@@ -60,6 +68,14 @@ func TestMoonEventString(t *testing.T) {
 	}
 	want := "Rise=08:15 Set=20:30 Duration=12h15m0s"
 	if got := m.String(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestLunarPhaseInfoString_Zero(t *testing.T) {
+	l := LunarPhaseInfo{}
+	want := "0.0% (day 0.0)"
+	if got := l.String(); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -76,6 +92,14 @@ func TestLunarPhaseInfoString(t *testing.T) {
 	}
 }
 
+func TestTransitString_Zero(t *testing.T) {
+	tr := Transit{}
+	want := "Rise=--:-- Max=--:-- Set=--:-- Duration=0s"
+	if got := tr.String(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestTransitString(t *testing.T) {
 	loc := time.FixedZone("TEST", 0)
 	tr := Transit{
@@ -86,6 +110,14 @@ func TestTransitString(t *testing.T) {
 	}
 	want := "Rise=18:01 Max=23:00 Set=04:00 Duration=9h59m0s"
 	if got := tr.String(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestTwilightEventString_Zero(t *testing.T) {
+	tw := TwilightEvent{}
+	want := "Dusk=--:-- Dawn=--:-- Duration=0s"
+	if got := tw.String(); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
