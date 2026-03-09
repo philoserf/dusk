@@ -1,6 +1,7 @@
 package dusk
 
 import (
+	"errors"
 	"math"
 	"time"
 )
@@ -12,10 +13,33 @@ const (
 
 // JulianDate returns the Julian date for a given time, i.e., the continuous
 // count of days and fractions of day since the beginning of the Julian period.
-// Uses UnixNano internally; valid for dates approximately 1677–2262.
+//
+// Uses UnixNano internally, which limits the valid range to approximately
+// 1677-04-22 to 2262-04-11 (the int64 nanosecond bounds). Dates outside
+// this range silently produce incorrect results because UnixNano returns 0.
+// Use [ValidJulianDateRange] to check before calling.
 func JulianDate(t time.Time) float64 {
 	ms := t.UTC().UnixNano() / 1e6
 	return float64(ms)/86400000.0 + j1970
+}
+
+// ErrDateOutOfRange is returned when a date falls outside the valid range
+// for [JulianDate] (approximately 1677-04-22 to 2262-04-11).
+var ErrDateOutOfRange = errors.New("dusk: date outside valid range (~1677–2262) for JulianDate")
+
+// julianDateMin and julianDateMax are the approximate bounds of UnixNano.
+var (
+	julianDateMin = time.Date(1678, 1, 1, 0, 0, 0, 0, time.UTC)
+	julianDateMax = time.Date(2262, 1, 1, 0, 0, 0, 0, time.UTC)
+)
+
+// ValidJulianDateRange reports whether t falls within the valid range for
+// [JulianDate]. Returns nil if valid, [ErrDateOutOfRange] otherwise.
+func ValidJulianDateRange(t time.Time) error {
+	if t.Before(julianDateMin) || t.After(julianDateMax) {
+		return ErrDateOutOfRange
+	}
+	return nil
 }
 
 // greenwichMeanSiderealTime returns the mean sidereal time at Greenwich in
