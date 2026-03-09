@@ -7,11 +7,15 @@ const (
 	radToDeg = 180.0 / math.Pi
 )
 
+// clamp restricts x to [-1, 1] to guard against floating-point rounding
+// pushing asin/acos inputs slightly out of domain.
+func clamp(x float64) float64 { return math.Max(-1, math.Min(1, x)) }
+
 func sinx(deg float64) float64    { return math.Sin(deg * degToRad) }
 func cosx(deg float64) float64    { return math.Cos(deg * degToRad) }
 func tanx(deg float64) float64    { return math.Tan(deg * degToRad) }
-func asinx(x float64) float64     { return radToDeg * math.Asin(x) }
-func acosx(x float64) float64     { return radToDeg * math.Acos(x) }
+func asinx(x float64) float64     { return radToDeg * math.Asin(clamp(x)) }
+func acosx(x float64) float64     { return radToDeg * math.Acos(clamp(x)) }
 func atan2x(y, x float64) float64 { return radToDeg * math.Atan2(y, x) }
 
 func sincosx(deg float64) (float64, float64) {
