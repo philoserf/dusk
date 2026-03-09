@@ -28,7 +28,8 @@ func ObjectTransit(date time.Time, eq Equatorial, obs Observer) (Transit, error)
 	if err := validateObserver(obs); err != nil {
 		return Transit{}, err
 	}
-	if err := validateEquatorial(eq); err != nil {
+	var err error
+	if eq, err = validateEquatorial(eq); err != nil {
 		return Transit{}, err
 	}
 

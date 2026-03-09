@@ -148,6 +148,34 @@ func TestObjectTransit_InvalidObserverCoordinates(t *testing.T) {
 	}
 }
 
+func TestObjectTransit_RANormalization(t *testing.T) {
+	nyc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("failed to load timezone: %v", err)
+	}
+
+	date := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	obs := Observer{Lat: 40.7128, Lon: -74.006, Loc: nyc}
+
+	// RA=360.0 is equivalent to RA=0.0; RA=-10 normalizes to 350.
+	tests := []struct {
+		name string
+		ra   float64
+	}{
+		{"RA=360", 360.0},
+		{"RA=720", 720.0},
+		{"RA=-10", -10.0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ObjectTransit(date, Equatorial{RA: tt.ra, Dec: 20}, obs)
+			if err != nil {
+				t.Errorf("ObjectTransit with %s should succeed, got %v", tt.name, err)
+			}
+		})
+	}
+}
+
 func TestObjectTransit_InvalidEquatorial(t *testing.T) {
 	date := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	obs := Observer{Lat: 40.7128, Lon: -74.006, Loc: time.UTC}
@@ -156,8 +184,6 @@ func TestObjectTransit_InvalidEquatorial(t *testing.T) {
 		name string
 		eq   Equatorial
 	}{
-		{"RA too high", Equatorial{RA: 400, Dec: 0}},
-		{"RA negative", Equatorial{RA: -1, Dec: 0}},
 		{"Dec too high", Equatorial{RA: 0, Dec: 91}},
 		{"Dec too low", Equatorial{RA: 0, Dec: -91}},
 	}

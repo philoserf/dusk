@@ -26,7 +26,7 @@ type Observer struct {
 
 var (
 	errInvalidCoord      = errors.New("dusk: latitude must be in [-90, 90] and longitude in [-180, 180]")
-	errInvalidEquatorial = errors.New("dusk: RA must be in [0, 360) and Dec in [-90, 90]")
+	errInvalidEquatorial = errors.New("dusk: Dec must be in [-90, 90]")
 )
 
 // validateObserver checks that the observer has a non-nil location and valid
@@ -47,12 +47,14 @@ type Equatorial struct {
 	Dec float64
 }
 
-// validateEquatorial checks that RA is in [0, 360) and Dec is in [-90, 90].
-func validateEquatorial(eq Equatorial) error {
-	if eq.RA < 0 || eq.RA >= 360 || eq.Dec < -90 || eq.Dec > 90 {
-		return errInvalidEquatorial
+// validateEquatorial normalizes RA to [0, 360) via mod360 and checks that
+// Dec is in [-90, 90]. Returns the normalized Equatorial or an error.
+func validateEquatorial(eq Equatorial) (Equatorial, error) {
+	eq.RA = mod360(eq.RA)
+	if eq.Dec < -90 || eq.Dec > 90 {
+		return Equatorial{}, errInvalidEquatorial
 	}
-	return nil
+	return eq, nil
 }
 
 // Horizontal represents altitude and azimuth in degrees.
