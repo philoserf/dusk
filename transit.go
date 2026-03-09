@@ -19,7 +19,7 @@ type Transit struct {
 // calendar date (year/month/day in UTC) is used; the time-of-day is ignored.
 //
 // Observer elevation (obs.Elev) is not used; it only affects sunrise/sunset
-// and twilight calculations. Transit maximum precision is ±1 minute.
+// and twilight calculations.
 //
 // Returns an error if obs.Loc is nil or coordinates are out of range.
 // Returns ErrCircumpolar if the object never sets, or ErrNeverRises if
@@ -62,8 +62,18 @@ func ObjectTransit(date time.Time, eq Equatorial, obs Observer) (Transit, error)
 		set = nextDay.Add(time.Duration(setUTNext * float64(time.Hour))).In(obs.Loc)
 	}
 
-	// Find transit maximum by minute-by-minute scan from rise to set.
-	maximum := findTransitMaximum(rise, set, obs, eq)
+	// Transit maximum occurs when the hour angle is zero (LST = RA).
+	transitLST := eq.RA / 15 // hours
+	transitGST := lstToGST(transitLST, obs.Lon)
+	transitUT := gstToUT(date, transitGST)
+	maximum := midnight.Add(time.Duration(transitUT * float64(time.Hour))).In(obs.Loc)
+
+	// If maximum is before rise, recompute on the next day.
+	if maximum.Before(rise) {
+		nextDay := midnight.AddDate(0, 0, 1)
+		transitUTNext := gstToUT(nextDay, transitGST)
+		maximum = nextDay.Add(time.Duration(transitUTNext * float64(time.Hour))).In(obs.Loc)
+	}
 
 	return Transit{
 		Rise:     rise,
@@ -122,21 +132,4 @@ func gstToUT(datetime time.Time, GST float64) float64 {
 		A += 24
 	}
 	return 0.997270 * A
-}
-
-// findTransitMaximum scans minute-by-minute between rise and set to find the
-// time of highest altitude (transit maximum). Precision is ±1 minute.
-func findTransitMaximum(rise, set time.Time, obs Observer, eq Equatorial) time.Time {
-	maxAlt := -90.0
-	var maxTime time.Time
-
-	for t := rise; !t.After(set); t = t.Add(time.Minute) {
-		h := EquatorialToHorizontal(t, obs, eq)
-		if h.Alt > maxAlt {
-			maxAlt = h.Alt
-			maxTime = t
-		}
-	}
-
-	return maxTime
 }
