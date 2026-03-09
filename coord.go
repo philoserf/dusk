@@ -49,7 +49,11 @@ type Equatorial struct {
 
 // validateEquatorial normalizes RA to [0, 360) via mod360 and checks that
 // Dec is in [-90, 90]. Returns the normalized Equatorial or an error.
+// Non-finite RA or Dec values (NaN, ±Inf) are rejected.
 func validateEquatorial(eq Equatorial) (Equatorial, error) {
+	if math.IsNaN(eq.RA) || math.IsInf(eq.RA, 0) || math.IsNaN(eq.Dec) || math.IsInf(eq.Dec, 0) {
+		return Equatorial{}, errInvalidEquatorial
+	}
 	eq.RA = mod360(eq.RA)
 	if eq.Dec < -90 || eq.Dec > 90 {
 		return Equatorial{}, errInvalidEquatorial

@@ -2,6 +2,7 @@ package dusk
 
 import (
 	"errors"
+	"math"
 	"testing"
 	"time"
 )
@@ -186,6 +187,10 @@ func TestObjectTransit_InvalidEquatorial(t *testing.T) {
 	}{
 		{"Dec too high", Equatorial{RA: 0, Dec: 91}},
 		{"Dec too low", Equatorial{RA: 0, Dec: -91}},
+		{"RA +Inf", Equatorial{RA: math.Inf(1), Dec: 0}},
+		{"RA -Inf", Equatorial{RA: math.Inf(-1), Dec: 0}},
+		{"RA NaN", Equatorial{RA: math.NaN(), Dec: 0}},
+		{"Dec NaN", Equatorial{RA: 0, Dec: math.NaN()}},
 	}
 
 	for _, tt := range tests {
