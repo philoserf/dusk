@@ -206,9 +206,8 @@ func TestMoonriseMoonset_SouthernHemisphere(t *testing.T) {
 		t.Error("expected positive duration for Sydney")
 	}
 
-	// Approximate reference times for Sydney 2024-01-15. The simplified Meeus
-	// algorithm can differ from USNO by up to ~45 minutes for moonrise/set.
-	// Library computes rise ~09:47, set ~23:06 AEDT.
+	// Regression reference: algorithm-computed values for Sydney 2024-01-15.
+	// These are library-derived, not USNO; used to detect regressions.
 	tolerance := 20 * time.Minute
 	wantRise := time.Date(2024, 1, 15, 9, 50, 0, 0, loc)
 	wantSet := time.Date(2024, 1, 15, 23, 0, 0, 0, loc)

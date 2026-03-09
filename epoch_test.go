@@ -224,17 +224,19 @@ func TestJulianCentury(t *testing.T) {
 			epsilon: 1e-6,
 		},
 		{
-			// 2100-01-01 12:00 UTC is exactly 1 Julian century after J2000.
-			name:    "J2100 → T = 1.0",
+			// 2100-01-01 12:00 UTC is 36524 days after J2000 in Julian Date terms,
+			// so T = 36524 / 36525 ≈ 0.9999726 (slightly less than 1 Julian century).
+			name:    "J2100 → T ≈ 0.9999726",
 			time:    time.Date(2100, 1, 1, 12, 0, 0, 0, time.UTC),
-			want:    1.0,
+			want:    36524.0 / 36525.0,
 			epsilon: 0.001,
 		},
 		{
-			// 1900-01-01 12:00 UTC is 1 century before J2000.
-			name:    "J1900 → T = -1.0",
+			// 1900-01-01 12:00 UTC is 36524 days before J2000 in Julian Date terms,
+			// so T = -36524 / 36525 ≈ -0.9999726 (slightly more than -1 Julian century).
+			name:    "J1900 → T ≈ -0.9999726",
 			time:    time.Date(1900, 1, 1, 12, 0, 0, 0, time.UTC),
-			want:    -1.0,
+			want:    -36524.0 / 36525.0,
 			epsilon: 0.001,
 		},
 	}
