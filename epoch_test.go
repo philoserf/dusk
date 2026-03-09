@@ -45,16 +45,23 @@ func TestJulianDate(t *testing.T) {
 }
 
 func TestValidJulianDateRange(t *testing.T) {
+	minValid := time.Unix(0, math.MinInt64).UTC()
+	maxValid := time.Unix(0, math.MaxInt64).UTC()
+
 	tests := []struct {
 		name    string
 		time    time.Time
 		wantErr bool
 	}{
 		{"valid 2024", time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC), false},
-		{"valid 1700", time.Date(1700, 1, 1, 0, 0, 0, 0, time.UTC), false},
-		{"valid 2200", time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), false},
+		{"valid min boundary", minValid, false},
+		{"valid max boundary", maxValid, false},
 		{"too early 1600", time.Date(1600, 1, 1, 0, 0, 0, 0, time.UTC), true},
 		{"too late 2300", time.Date(2300, 1, 1, 0, 0, 0, 0, time.UTC), true},
+		{"just before min", minValid.Add(-time.Nanosecond), true},
+		{"just after min", minValid.Add(time.Nanosecond), false},
+		{"just before max", maxValid.Add(-time.Nanosecond), false},
+		{"just after max", maxValid.Add(time.Nanosecond), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

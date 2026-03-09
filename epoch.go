@@ -14,8 +14,8 @@ const (
 // JulianDate returns the Julian date for a given time, i.e., the continuous
 // count of days and fractions of day since the beginning of the Julian period.
 //
-// Uses UnixNano internally, which limits the valid range to approximately
-// 1677-04-22 to 2262-04-11 (the int64 nanosecond bounds). Dates outside
+// Uses UnixNano internally, which limits the valid range to the int64
+// nanosecond bounds (approximately 1677-09-21 to 2262-04-11). Dates outside
 // this range silently produce incorrect results because UnixNano returns 0.
 // Use [ValidJulianDateRange] to check before calling.
 func JulianDate(t time.Time) float64 {
@@ -24,13 +24,14 @@ func JulianDate(t time.Time) float64 {
 }
 
 // ErrDateOutOfRange is returned when a date falls outside the valid range
-// for [JulianDate] (approximately 1677-04-22 to 2262-04-11).
-var ErrDateOutOfRange = errors.New("dusk: date outside valid range (~1677–2262) for JulianDate")
+// for [JulianDate] (the int64 nanosecond bounds, approximately
+// 1677-09-21 to 2262-04-11).
+var ErrDateOutOfRange = errors.New("dusk: date outside valid range (1677-09-21 to 2262-04-11) for JulianDate")
 
-// julianDateMin and julianDateMax are the approximate bounds of UnixNano.
+// julianDateMin and julianDateMax are the bounds of the int64 UnixNano range.
 var (
-	julianDateMin = time.Date(1678, 1, 1, 0, 0, 0, 0, time.UTC)
-	julianDateMax = time.Date(2262, 1, 1, 0, 0, 0, 0, time.UTC)
+	julianDateMin = time.Unix(0, math.MinInt64).UTC()
+	julianDateMax = time.Unix(0, math.MaxInt64).UTC()
 )
 
 // ValidJulianDateRange reports whether t falls within the valid range for
