@@ -85,8 +85,8 @@ func TestAsinx(t *testing.T) {
 		{"0", 0, 0},
 		{"1", 1, 90},
 		{"-1", -1, -90},
-		{"clamped above", 1.0000000000000002, 90},
-		{"clamped below", -1.0000000000000002, -90},
+		{"clamped above", math.Nextafter(1, 2), 90},
+		{"clamped below", math.Nextafter(-1, -2), -90},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -110,8 +110,8 @@ func TestAcosx(t *testing.T) {
 		{"0", 0, 90},
 		{"1", 1, 0},
 		{"-1", -1, 180},
-		{"clamped above", 1.0000000000000002, 0},
-		{"clamped below", -1.0000000000000002, 180},
+		{"clamped above", math.Nextafter(1, 2), 0},
+		{"clamped below", math.Nextafter(-1, -2), 180},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

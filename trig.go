@@ -7,8 +7,9 @@ const (
 	radToDeg = 180.0 / math.Pi
 )
 
-// clamp restricts x to [-1, 1] to guard against floating-point rounding
-// pushing asin/acos inputs slightly out of domain.
+// clamp restricts x to [-1, 1] before passing it to asin/acos. This applies
+// to any out-of-range value, not just those slightly outside [-1, 1] due to
+// floating-point rounding.
 func clamp(x float64) float64 { return math.Max(-1, math.Min(1, x)) }
 
 func sinx(deg float64) float64    { return math.Sin(deg * degToRad) }
