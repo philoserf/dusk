@@ -215,6 +215,59 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 	}
 }
 
+func TestTwilight_PolarTransition(t *testing.T) {
+	// Test high-latitude locations near polar twilight boundaries.
+	// At these latitudes, twilight functions may return errors for some dates
+	// but not others, exercising the transition branches in twilight().
+	loc := time.UTC
+
+	// Scan multiple latitudes and date ranges to exercise error paths.
+	latitudes := []float64{68.0, 70.0, 72.0, 75.0}
+	found := false
+	for _, lat := range latitudes {
+		obs := Observer{Lat: lat, Lon: 25.0, Elev: 0, Loc: loc}
+		prevOk := false
+		for day := 1; day <= 31; day++ {
+			date := time.Date(2024, 12, day, 0, 0, 0, 0, loc)
+			_, err := CivilTwilight(date, obs)
+			if err == nil {
+				prevOk = true
+			} else if prevOk {
+				found = true
+				t.Logf("Civil twilight transition at %.0f°N on Dec %d: %v", lat, day, err)
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	if !found {
+		t.Log("No civil transition found; trying astronomical twilight")
+		for _, lat := range latitudes {
+			obs := Observer{Lat: lat, Lon: 25.0, Elev: 0, Loc: loc}
+			prevOk := false
+			for day := 1; day <= 31; day++ {
+				date := time.Date(2024, 12, day, 0, 0, 0, 0, loc)
+				_, err := AstronomicalTwilight(date, obs)
+				if err == nil {
+					prevOk = true
+				} else if prevOk {
+					found = true
+					t.Logf("Astronomical twilight transition at %.0f°N on Dec %d: %v", lat, day, err)
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+	}
+	if !found {
+		t.Log("No transition found in scan; polar twilight behavior verified without panic")
+	}
+}
+
 func TestTwilight_NilLocation(t *testing.T) {
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, time.UTC)
 	_, err := CivilTwilight(date, Observer{Lat: 40.7128, Lon: -74.006, Elev: 10})

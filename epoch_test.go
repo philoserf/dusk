@@ -90,6 +90,20 @@ func TestGMST(t *testing.T) {
 			want:    197.693195,
 			epsilon: 0.01,
 		},
+		{
+			// Meeus p.88: 1987-04-10 19:21:00 UTC → θ = 128.7378734°
+			name:    "Meeus p.88: 1987-04-10 19:21 UTC",
+			time:    time.Date(1987, 4, 10, 19, 21, 0, 0, time.UTC),
+			want:    128.7379,
+			epsilon: 0.05,
+		},
+		{
+			// J2000 epoch: 2000-01-01 12:00 UTC → θ₀ ≈ 280.46°
+			name:    "J2000 epoch",
+			time:    time.Date(2000, 1, 1, 12, 0, 0, 0, time.UTC),
+			want:    280.46,
+			epsilon: 0.1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -208,6 +222,20 @@ func TestJulianCentury(t *testing.T) {
 			time:    time.Date(2000, 1, 1, 12, 0, 0, 0, time.UTC),
 			want:    0.0,
 			epsilon: 1e-6,
+		},
+		{
+			// 2100-01-01 12:00 UTC is exactly 1 Julian century after J2000.
+			name:    "J2100 → T = 1.0",
+			time:    time.Date(2100, 1, 1, 12, 0, 0, 0, time.UTC),
+			want:    1.0,
+			epsilon: 0.001,
+		},
+		{
+			// 1900-01-01 12:00 UTC is 1 century before J2000.
+			name:    "J1900 → T = -1.0",
+			time:    time.Date(1900, 1, 1, 12, 0, 0, 0, time.UTC),
+			want:    -1.0,
+			epsilon: 0.001,
 		},
 	}
 
