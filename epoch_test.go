@@ -1,6 +1,7 @@
 package dusk
 
 import (
+	"errors"
 	"math"
 	"testing"
 	"time"
@@ -38,6 +39,31 @@ func TestJulianDate(t *testing.T) {
 			got := JulianDate(tt.time)
 			if math.Abs(got-tt.want) > tt.epsilon {
 				t.Errorf("JulianDate() = %f, want %f (±%f)", got, tt.want, tt.epsilon)
+			}
+		})
+	}
+}
+
+func TestValidJulianDateRange(t *testing.T) {
+	tests := []struct {
+		name    string
+		time    time.Time
+		wantErr bool
+	}{
+		{"valid 2024", time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC), false},
+		{"valid 1700", time.Date(1700, 1, 1, 0, 0, 0, 0, time.UTC), false},
+		{"valid 2200", time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), false},
+		{"too early 1600", time.Date(1600, 1, 1, 0, 0, 0, 0, time.UTC), true},
+		{"too late 2300", time.Date(2300, 1, 1, 0, 0, 0, 0, time.UTC), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidJulianDateRange(tt.time)
+			if tt.wantErr && !errors.Is(err, ErrDateOutOfRange) {
+				t.Errorf("expected ErrDateOutOfRange, got %v", err)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("expected nil, got %v", err)
 			}
 		})
 	}
