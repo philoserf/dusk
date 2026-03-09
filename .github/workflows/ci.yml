@@ -29,9 +29,6 @@ jobs:
         with:
           go-version: "1.24.x"
 
-      - name: Go Vet
-        run: go vet ./...
-
       - name: Install golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
@@ -44,7 +41,7 @@ jobs:
         run: |
           COVERAGE=$(go tool cover -func=coverage.txt | grep ^total: | awk '{print $3}' | tr -d '%')
           echo "Total coverage: ${COVERAGE}%"
-          if [ "$(echo "$COVERAGE < 80" | bc -l)" -eq 1 ]; then
+          if awk -v cov="$COVERAGE" 'BEGIN { exit (cov < 80 ? 0 : 1) }'; then
             echo "::error::Coverage ${COVERAGE}% is below 80% threshold"
             exit 1
           fi
