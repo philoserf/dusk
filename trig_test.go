@@ -85,10 +85,15 @@ func TestAsinx(t *testing.T) {
 		{"0", 0, 0},
 		{"1", 1, 90},
 		{"-1", -1, -90},
+		{"clamped above", 1.0000000000000002, 90},
+		{"clamped below", -1.0000000000000002, -90},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got := asinx(tc.x)
+			if math.IsNaN(got) {
+				t.Fatalf("asinx(%v) = NaN, want %v", tc.x, tc.want)
+			}
 			if !approxEqual(got, tc.want, epsTrig) {
 				t.Errorf("asinx(%v) = %v, want %v", tc.x, got, tc.want)
 			}
@@ -105,10 +110,15 @@ func TestAcosx(t *testing.T) {
 		{"0", 0, 90},
 		{"1", 1, 0},
 		{"-1", -1, 180},
+		{"clamped above", 1.0000000000000002, 0},
+		{"clamped below", -1.0000000000000002, 180},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got := acosx(tc.x)
+			if math.IsNaN(got) {
+				t.Fatalf("acosx(%v) = NaN, want %v", tc.x, tc.want)
+			}
 			if !approxEqual(got, tc.want, epsTrig) {
 				t.Errorf("acosx(%v) = %v, want %v", tc.x, got, tc.want)
 			}
