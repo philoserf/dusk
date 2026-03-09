@@ -186,6 +186,35 @@ func TestSunriseSunset_InvalidCoordinates(t *testing.T) {
 	}
 }
 
+func TestSunriseSunset_NegativeElevation(t *testing.T) {
+	// Negative elevation should be clamped to sea level (math.Max(0, elev)).
+	// Results with Elev: -100 should match Elev: 0 exactly.
+	nyc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("failed to load timezone: %v", err)
+	}
+
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, time.UTC)
+	base := Observer{Lat: 40.7128, Lon: -74.006, Elev: 0, Loc: nyc}
+	neg := Observer{Lat: 40.7128, Lon: -74.006, Elev: -100, Loc: nyc}
+
+	evtBase, err := SunriseSunset(date, base)
+	if err != nil {
+		t.Fatalf("SunriseSunset(Elev=0) error: %v", err)
+	}
+	evtNeg, err := SunriseSunset(date, neg)
+	if err != nil {
+		t.Fatalf("SunriseSunset(Elev=-100) error: %v", err)
+	}
+
+	if !evtBase.Rise.Equal(evtNeg.Rise) {
+		t.Errorf("Rise differs: Elev=0 %v, Elev=-100 %v", evtBase.Rise, evtNeg.Rise)
+	}
+	if !evtBase.Set.Equal(evtNeg.Set) {
+		t.Errorf("Set differs: Elev=0 %v, Elev=-100 %v", evtBase.Set, evtNeg.Set)
+	}
+}
+
 func TestSolarPosition(t *testing.T) {
 	// Near the vernal equinox: RA ~0°, Dec ~0°.
 	dt := time.Date(2024, 3, 20, 12, 0, 0, 0, time.UTC)
@@ -202,6 +231,19 @@ func TestSolarPosition(t *testing.T) {
 
 	if math.Abs(pos.Dec) > 2 {
 		t.Errorf("SolarPosition() Dec = %f°, want near 0° (±2°) at vernal equinox", pos.Dec)
+	}
+}
+
+func TestSolarPosition_SummerSolstice(t *testing.T) {
+	// Summer solstice 2024-06-20: RA ~90°, Dec ~+23.44°.
+	dt := time.Date(2024, 6, 20, 12, 0, 0, 0, time.UTC)
+	pos := SolarPosition(dt)
+
+	if math.Abs(pos.RA-90) > 2 {
+		t.Errorf("SolarPosition() RA = %f°, want near 90° (±2°) at summer solstice", pos.RA)
+	}
+	if math.Abs(pos.Dec-23.44) > 1 {
+		t.Errorf("SolarPosition() Dec = %f°, want near 23.44° (±1°) at summer solstice", pos.Dec)
 	}
 }
 
