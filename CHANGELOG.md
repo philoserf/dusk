@@ -1,5 +1,45 @@
 # Changelog
 
+## v2.1.0 — 2026-03-10
+
+### New features
+
+- `fmt.Stringer` interface on all 8 exported result types (`SunEvent`, `MoonEvent`, `LunarPhaseInfo`, `Transit`, `TwilightEvent`, `Equatorial`, `Ecliptic`, `Horizontal`)
+- `ValidJulianDateRange` helper and `ErrDateOutOfRange` sentinel for guarding `JulianDate` range (~1677–2262)
+
+### Bug fixes
+
+- `asinx`/`acosx` now clamp inputs to [-1, 1] via `clamp()`, preventing NaN from floating-point rounding
+- `validateEquatorial` normalizes RA via `mod360` instead of rejecting values at 360.0; rejects NaN/Inf inputs
+
+### Performance
+
+- `ObjectTransit` transit maximum: replaced O(n) minute-by-minute scan with O(1) analytical solution (hour angle = 0)
+
+### Refactoring
+
+- Extracted `computeSolarParams` helper eliminating 3× duplication of the 6-step solar parameter sequence; `twilight()` reduced from 44 to 29 lines
+- Renamed shadowed variable `F` → `frac` in `LunarPhase`
+
+### Testing
+
+- Fuzz tests for `SunriseSunset`, `LunarPhase`, `ObjectTransit`, `MoonriseMoonset`
+- Benchmarks for `MoonriseMoonset`, `LunarEclipticPosition`, `SunriseSunset`, `ObjectTransit` (0 allocations)
+- Polar twilight transition test (75°N, Nov 25→26)
+- Negative elevation clamping, summer solstice solar position, GMST/julianCentury helper tests
+- Southern hemisphere moonrise/moonset regression references
+- Consistent `t.Run` subtests for `TestMod360`/`TestMod24`; table-driven `TestEclipticToEquatorial`
+
+### Infrastructure
+
+- `.golangci.yml` with explicit linter list (gocritic, revive, misspell, etc.); `captLocal` disabled for Meeus conventions
+- 80% coverage threshold in CI (currently 99.7%); removed duplicate `go vet` step
+
+### Documentation
+
+- `Observer.Elev` doc comment: negative value clamping, scope (sunrise/sunset/twilight only)
+- `gstToUT` precision note about J1900-epoch model accuracy
+
 ## v2.0.0 — 2026-03-06
 
 Complete rewrite of the library. Zero external dependencies.

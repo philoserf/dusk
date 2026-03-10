@@ -107,6 +107,7 @@ fmt.Printf("Set:     %s\n", tr.Set.Format(time.Kitchen))
 ### Epoch
 
 - `JulianDate` — Julian date from `time.Time`
+- `ValidJulianDateRange` — check whether a date is within `JulianDate`'s valid range
 - `LocalSiderealTime` — LST for a given longitude
 
 ## Conventions
@@ -115,6 +116,7 @@ fmt.Printf("Set:     %s\n", tr.Set.Format(time.Kitchen))
 - `Observer.Lon` is **east-positive, west-negative** (e.g., New York is −74.006).
 - Functions that can fail return `error`. Two sentinel errors distinguish polar edge cases: `ErrCircumpolar` (object always above the horizon) and `ErrNeverRises` (object never rises).
 - A **zero-value `time.Time`** signals "event did not occur" (e.g., the Moon does not rise on a given day). Check with `.IsZero()`.
+- All result types implement **`fmt.Stringer`** for convenient display.
 - Twilight functions return tonight's **Dusk** and tomorrow morning's **Dawn**. To get this morning's dawn, call with yesterday's date.
 
 ## Accuracy
