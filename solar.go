@@ -14,6 +14,27 @@ type SunEvent struct {
 	Duration time.Duration
 }
 
+// solarParams holds intermediate solar position values computed from a date
+// and longitude. Used by SunriseSunset and twilight to avoid repeating the
+// 6-step parameter sequence.
+type solarParams struct {
+	delta    float64 // solar declination (degrees)
+	Jtransit float64 // Julian date of solar transit (noon)
+}
+
+// computeSolarParams returns the solar declination and transit JD for a given
+// date and observer longitude.
+func computeSolarParams(date time.Time, lon float64) solarParams {
+	J := meanSolarTime(date, lon)
+	M := solarMeanAnomaly(J)
+	C := solarEquationOfCenter(M)
+	lambda := solarEclipticLongitude(M, C)
+	T := julianCentury(date)
+	delta := solarDeclination(lambda, T)
+	Jtransit := solarTransitJD(J, M, lambda)
+	return solarParams{delta: delta, Jtransit: Jtransit}
+}
+
 // SunriseSunset computes sunrise, solar noon, and sunset for the given date
 // and observer position.
 //
@@ -26,25 +47,18 @@ func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
 		return SunEvent{}, err
 	}
 
-	J := meanSolarTime(date, obs.Lon)
-	M := solarMeanAnomaly(J)
-	C := solarEquationOfCenter(M)
-	lambda := solarEclipticLongitude(M, C)
-	T := julianCentury(date)
-	delta := solarDeclination(lambda, T)
+	sp := computeSolarParams(date, obs.Lon)
 
-	Jtransit := solarTransitJD(J, M, lambda)
-
-	omega, err := solarHourAngle(delta, 0, obs.Lat, obs.Elev)
+	omega, err := solarHourAngle(sp.delta, 0, obs.Lat, obs.Elev)
 	if err != nil {
 		return SunEvent{}, err
 	}
 
-	Jrise := Jtransit - omega/360.0
-	Jset := Jtransit + omega/360.0
+	Jrise := sp.Jtransit - omega/360.0
+	Jset := sp.Jtransit + omega/360.0
 
 	rise := universalTimeFromJD(Jrise).In(obs.Loc)
-	noon := universalTimeFromJD(Jtransit).In(obs.Loc)
+	noon := universalTimeFromJD(sp.Jtransit).In(obs.Loc)
 	set := universalTimeFromJD(Jset).In(obs.Loc)
 
 	return SunEvent{
