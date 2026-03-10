@@ -42,38 +42,21 @@ func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, 
 	}
 
 	// Evening twilight: sunset at the given depression angle for today.
-	J := meanSolarTime(date, obs.Lon)
-	M := solarMeanAnomaly(J)
-	C := solarEquationOfCenter(M)
-	lambda := solarEclipticLongitude(M, C)
-	T := julianCentury(date)
-	delta := solarDeclination(lambda, T)
-	omega, err := solarHourAngle(delta, depression, obs.Lat, obs.Elev)
+	sp := computeSolarParams(date, obs.Lon)
+	omega, err := solarHourAngle(sp.delta, depression, obs.Lat, obs.Elev)
 	if err != nil {
 		return TwilightEvent{}, err
 	}
-	h := omega / 360
-	jTransit := solarTransitJD(J, M, lambda)
-
-	// Today's "set" at this depression = twilight dusk.
-	dusk := universalTimeFromJD(jTransit + h).In(obs.Loc)
+	dusk := universalTimeFromJD(sp.Jtransit + omega/360).In(obs.Loc)
 
 	// Tomorrow's "rise" at this depression = twilight dawn.
 	tomorrow := date.AddDate(0, 0, 1)
-	J2 := meanSolarTime(tomorrow, obs.Lon)
-	M2 := solarMeanAnomaly(J2)
-	C2 := solarEquationOfCenter(M2)
-	lambda2 := solarEclipticLongitude(M2, C2)
-	T2 := julianCentury(tomorrow)
-	delta2 := solarDeclination(lambda2, T2)
-	omega2, err2 := solarHourAngle(delta2, depression, obs.Lat, obs.Elev)
+	sp2 := computeSolarParams(tomorrow, obs.Lon)
+	omega2, err2 := solarHourAngle(sp2.delta, depression, obs.Lat, obs.Elev)
 	if err2 != nil {
 		return TwilightEvent{}, err2
 	}
-	h2 := omega2 / 360
-	jTransit2 := solarTransitJD(J2, M2, lambda2)
-
-	dawn := universalTimeFromJD(jTransit2 - h2).In(obs.Loc)
+	dawn := universalTimeFromJD(sp2.Jtransit - omega2/360).In(obs.Loc)
 
 	return TwilightEvent{
 		Dusk:     dusk,
