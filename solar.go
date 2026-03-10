@@ -19,7 +19,7 @@ type SunEvent struct {
 // 6-step parameter sequence.
 type solarParams struct {
 	delta    float64 // solar declination (degrees)
-	Jtransit float64 // Julian date of solar transit (noon)
+	jTransit float64 // Julian date of solar transit (noon)
 }
 
 // computeSolarParams returns the solar declination and transit JD for a given
@@ -31,8 +31,8 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 	lambda := solarEclipticLongitude(M, C)
 	T := julianCentury(date)
 	delta := solarDeclination(lambda, T)
-	Jtransit := solarTransitJD(J, M, lambda)
-	return solarParams{delta: delta, Jtransit: Jtransit}
+	jTransit := solarTransitJD(J, M, lambda)
+	return solarParams{delta: delta, jTransit: jTransit}
 }
 
 // SunriseSunset computes sunrise, solar noon, and sunset for the given date
@@ -54,11 +54,11 @@ func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
 		return SunEvent{}, err
 	}
 
-	Jrise := sp.Jtransit - omega/360.0
-	Jset := sp.Jtransit + omega/360.0
+	Jrise := sp.jTransit - omega/360.0
+	Jset := sp.jTransit + omega/360.0
 
 	rise := universalTimeFromJD(Jrise).In(obs.Loc)
-	noon := universalTimeFromJD(sp.Jtransit).In(obs.Loc)
+	noon := universalTimeFromJD(sp.jTransit).In(obs.Loc)
 	set := universalTimeFromJD(Jset).In(obs.Loc)
 
 	return SunEvent{
