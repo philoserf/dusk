@@ -7,20 +7,45 @@ import (
 )
 
 func TestEclipticToEquatorial(t *testing.T) {
-	// Meeus p. 342: Moon ecliptic position for 1992-04-12 00:00 UTC.
-	dt := time.Date(1992, 4, 12, 0, 0, 0, 0, time.UTC)
-	lon := 133.162655 // ecliptic longitude (degrees)
-	lat := -3.229126  // ecliptic latitude (degrees)
-
-	eq := EclipticToEquatorial(dt, lon, lat)
-
-	// Expected RA ~134.7° and Dec ~13.8° (nutation-corrected).
-	const eps = 0.15
-	if math.Abs(eq.RA-134.7) > eps {
-		t.Errorf("RA = %.4f, want ~134.7 (within %.2f°)", eq.RA, eps)
+	tests := []struct {
+		name    string
+		dt      time.Time
+		lon     float64
+		lat     float64
+		wantRA  float64
+		wantDec float64
+		eps     float64
+	}{
+		{
+			name:    "Meeus p.342: Moon 1992-04-12",
+			dt:      time.Date(1992, 4, 12, 0, 0, 0, 0, time.UTC),
+			lon:     133.162655,
+			lat:     -3.229126,
+			wantRA:  134.7,
+			wantDec: 13.8,
+			eps:     0.15,
+		},
+		{
+			name:    "Sun at summer solstice 2024",
+			dt:      time.Date(2024, 6, 20, 12, 0, 0, 0, time.UTC),
+			lon:     90.0,
+			lat:     0.0,
+			wantRA:  90.0,
+			wantDec: 23.44,
+			eps:     0.5,
+		},
 	}
-	if math.Abs(eq.Dec-13.8) > eps {
-		t.Errorf("Dec = %.4f, want ~13.8 (within %.2f°)", eq.Dec, eps)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			eq := EclipticToEquatorial(tt.dt, tt.lon, tt.lat)
+			if math.Abs(eq.RA-tt.wantRA) > tt.eps {
+				t.Errorf("RA = %.4f, want ~%.1f (within %.2f°)", eq.RA, tt.wantRA, tt.eps)
+			}
+			if math.Abs(eq.Dec-tt.wantDec) > tt.eps {
+				t.Errorf("Dec = %.4f, want ~%.2f (within %.2f°)", eq.Dec, tt.wantDec, tt.eps)
+			}
+		})
 	}
 }
 
