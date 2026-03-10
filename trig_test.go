@@ -160,37 +160,43 @@ func TestSincosx(t *testing.T) {
 
 func TestMod360(t *testing.T) {
 	tests := []struct {
+		name string
 		x    float64
 		want float64
 	}{
-		{370, 10},
-		{-10, 350},
-		{0, 0},
-		{360, 0},
-		{-730, 350},
+		{"positive overflow", 370, 10},
+		{"negative wrap", -10, 350},
+		{"zero", 0, 0},
+		{"exact period", 360, 0},
+		{"large negative", -730, 350},
 	}
 	for _, tc := range tests {
-		got := mod360(tc.x)
-		if !approxEqual(got, tc.want, epsMod) {
-			t.Errorf("mod360(%v) = %v, want %v", tc.x, got, tc.want)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			got := mod360(tc.x)
+			if !approxEqual(got, tc.want, epsMod) {
+				t.Errorf("mod360(%v) = %v, want %v", tc.x, got, tc.want)
+			}
+		})
 	}
 }
 
 func TestMod24(t *testing.T) {
 	tests := []struct {
+		name string
 		x    float64
 		want float64
 	}{
-		{25, 1},
-		{-1, 23},
-		{0, 0},
-		{24, 0},
+		{"positive overflow", 25, 1},
+		{"negative wrap", -1, 23},
+		{"zero", 0, 0},
+		{"exact period", 24, 0},
 	}
 	for _, tc := range tests {
-		got := mod24(tc.x)
-		if !approxEqual(got, tc.want, epsMod) {
-			t.Errorf("mod24(%v) = %v, want %v", tc.x, got, tc.want)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			got := mod24(tc.x)
+			if !approxEqual(got, tc.want, epsMod) {
+				t.Errorf("mod24(%v) = %v, want %v", tc.x, got, tc.want)
+			}
+		})
 	}
 }
