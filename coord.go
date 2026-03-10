@@ -18,9 +18,13 @@ var errNilLocation = errors.New("dusk: location must not be nil")
 
 // Observer represents a geographic position on Earth.
 type Observer struct {
-	Lat  float64        // latitude in degrees (north positive)
-	Lon  float64        // longitude in degrees (east positive)
-	Elev float64        // elevation in meters above sea level; negative values are treated as sea level; only affects sunrise/sunset and twilight
+	Lat float64 // latitude in degrees (north positive)
+	Lon float64 // longitude in degrees (east positive)
+	// Elev is the observer's elevation in meters above sea level.
+	// Negative values are clamped to 0 (sea level).
+	// Only affects sunrise/sunset and twilight; ignored by MoonriseMoonset
+	// and ObjectTransit.
+	Elev float64
 	Loc  *time.Location // timezone
 }
 
