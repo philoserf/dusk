@@ -26,7 +26,7 @@ func TestEclipticToEquatorial(t *testing.T) {
 			eps:     0.15,
 		},
 		{
-			name:    "Sun at summer solstice 2024",
+			name:    "ecliptic lon=90 lat=0 (solstice geometry)",
 			dt:      time.Date(2024, 6, 20, 12, 0, 0, 0, time.UTC),
 			lon:     90.0,
 			lat:     0.0,
