@@ -15,17 +15,18 @@ go test -v -run TestName ./...  # Run single test
 
 Single package at the repo root. Zero dependencies. Module path: `github.com/philoserf/dusk/v2`.
 
-| File              | Domain                                                          |
-| ----------------- | --------------------------------------------------------------- |
-| `trig.go`         | Degree-based trig wrappers, `mod360`/`mod24` normalization      |
-| `epoch.go`        | Julian dates, sidereal time, nutation, obliquity                |
-| `coord.go`        | Coordinate types and ecliptic/equatorial/horizontal conversions |
-| `solar.go`        | Sun position, sunrise/sunset                                    |
-| `lunar.go`        | Moon position (Meeus tables), moonrise/moonset, phase           |
-| `lunar_tables.go` | Meeus Table 47.A/B coefficients                                 |
-| `transit.go`      | Object rise/set/transit for arbitrary equatorial coordinates    |
-| `twilight.go`     | Civil, nautical, astronomical twilight                          |
-| `doc.go`          | Package documentation                                           |
+| File              | Domain                                                                   |
+| ----------------- | ------------------------------------------------------------------------ |
+| `trig.go`         | Degree-based trig wrappers, `clamp`, `mod360`/`mod24` normalization      |
+| `epoch.go`        | Julian dates, sidereal time, nutation, obliquity, `ValidJulianDateRange` |
+| `coord.go`        | Coordinate types, validation, ecliptic/equatorial/horizontal conversions |
+| `solar.go`        | Sun position, sunrise/sunset, `computeSolarParams` shared helper         |
+| `lunar.go`        | Moon position (Meeus tables), moonrise/moonset, phase                    |
+| `lunar_tables.go` | Meeus Table 47.A/B coefficients                                          |
+| `transit.go`      | Object rise/set/transit (analytical maximum) for equatorial coordinates  |
+| `twilight.go`     | Civil, nautical, astronomical twilight (uses `computeSolarParams`)       |
+| `stringer.go`     | `fmt.Stringer` implementations for all exported result types             |
+| `doc.go`          | Package documentation                                                    |
 
 ## Key Conventions
 
