@@ -47,7 +47,7 @@ func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, 
 	if err != nil {
 		return TwilightEvent{}, err
 	}
-	dusk := universalTimeFromJD(sp.Jtransit + omega/360).In(obs.Loc)
+	dusk := universalTimeFromJD(sp.jTransit + omega/360).In(obs.Loc)
 
 	// Tomorrow's "rise" at this depression = twilight dawn.
 	tomorrow := date.AddDate(0, 0, 1)
@@ -56,7 +56,7 @@ func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, 
 	if err2 != nil {
 		return TwilightEvent{}, err2
 	}
-	dawn := universalTimeFromJD(sp2.Jtransit - omega2/360).In(obs.Loc)
+	dawn := universalTimeFromJD(sp2.jTransit - omega2/360).In(obs.Loc)
 
 	return TwilightEvent{
 		Dusk:     dusk,
