@@ -118,9 +118,10 @@ func lstToGST(lst, longitude float64) float64 {
 // produce equivalent results; this particular algorithm is retained because it
 // maps GST→UT directly without iterative inversion.
 //
-// Precision note: the B term includes 24*(year-1900), which accumulates
-// rounding drift for dates far from 1900. This is acceptable within the
-// library's valid JulianDate range (~1677–2262).
+// Precision note: this J1900-era sidereal-time approximation (via the
+// R/B/T0 terms) loses accuracy for dates far from 1900 due to the model
+// and floating-point arithmetic. The resulting UT remains adequate within
+// the library's valid JulianDate range (~1677–2262).
 func gstToUT(datetime time.Time, GST float64) float64 {
 	d := datetimeZeroHour(datetime)
 	JD := JulianDate(d)
