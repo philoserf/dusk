@@ -1,0 +1,8 @@
+_extends: .github
+
+repository:
+  name: dusk
+  description: "Dusk is a Go library for astronomical calculations: twilight times, sunrise/sunset, lunar phase, moon position, and rise/set times for arbitrary celestial objects."
+  topics:
+    - go
+    - astronomy
