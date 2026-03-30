@@ -72,17 +72,21 @@ if err != nil {
 	log.Fatal(err)
 }
 
-if moon.Rise.IsZero() {
+switch {
+case moon.Rise.IsZero() && moon.Set.IsZero():
 	if moon.AboveHorizon {
-		fmt.Println("Moon was already up at midnight and does not set today.")
+		fmt.Println("Moon is above the horizon all day.")
 	} else {
-		fmt.Println("Moon does not rise today.")
+		fmt.Println("Moon is below the horizon all day.")
 	}
-} else {
+case moon.Rise.IsZero():
+	fmt.Println("Moon was already up at midnight.")
+	fmt.Printf("Moonset:  %s\n", moon.Set.Format(time.Kitchen))
+case moon.Set.IsZero():
 	fmt.Printf("Moonrise: %s\n", moon.Rise.Format(time.Kitchen))
-}
-
-if !moon.Set.IsZero() {
+	fmt.Println("Moon stays up past midnight.")
+default:
+	fmt.Printf("Moonrise: %s\n", moon.Rise.Format(time.Kitchen))
 	fmt.Printf("Moonset:  %s\n", moon.Set.Format(time.Kitchen))
 }
 ```
