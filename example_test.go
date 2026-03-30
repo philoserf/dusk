@@ -1,11 +1,65 @@
 package dusk_test
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/philoserf/dusk/v3"
 )
+
+func ExampleNewObserver() {
+	// Valid observer
+	_, err := dusk.NewObserver(40.7128, -74.006, time.UTC)
+	if err != nil {
+		fmt.Println("unexpected error:", err)
+		return
+	}
+	fmt.Println("OK")
+
+	// Invalid: latitude out of range
+	_, err = dusk.NewObserver(91, 0, time.UTC)
+	fmt.Println(err)
+
+	// Invalid: NaN
+	_, err = dusk.NewObserver(math.NaN(), 0, time.UTC)
+	fmt.Println(err)
+	// Output:
+	// OK
+	// dusk: latitude must be in [-90, 90] and longitude in [-180, 180]
+	// dusk: coordinates must be finite (NaN and Inf are not allowed)
+}
+
+func ExampleSunriseSunset_polar() {
+	loc, err := time.LoadLocation("Europe/Oslo")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	obs, err := dusk.NewObserver(69.65, 18.96, loc)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+
+	// Tromsø on June 21 — midnight sun
+	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
+	_, err = dusk.SunriseSunset(date, obs)
+	if errors.Is(err, dusk.ErrCircumpolar) {
+		fmt.Println("Midnight sun — no sunrise or sunset")
+	}
+
+	// Tromsø on December 21 — polar night
+	date = time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
+	_, err = dusk.SunriseSunset(date, obs)
+	if errors.Is(err, dusk.ErrNeverRises) {
+		fmt.Println("Polar night — sun never rises")
+	}
+	// Output:
+	// Midnight sun — no sunrise or sunset
+	// Polar night — sun never rises
+}
 
 func ExampleSunriseSunset() {
 	loc, err := time.LoadLocation("America/Chicago")
