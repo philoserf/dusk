@@ -12,7 +12,7 @@ func FuzzSunriseSunset(f *testing.F) {
 	f.Add(69.65, 18.96, int64(1718928000))     // Tromsø summer
 	f.Add(-0.18, -78.47, int64(1710892800))    // Quito
 
-	f.Fuzz(func(t *testing.T, lat, lon float64, unix int64) {
+	f.Fuzz(func(_ *testing.T, lat, lon float64, unix int64) {
 		date := time.Unix(unix, 0).UTC()
 		if date.Year() < 1800 || date.Year() > 2200 {
 			return
@@ -54,7 +54,7 @@ func FuzzMoonriseMoonset(f *testing.F) {
 	f.Add(40.7128, -74.006, int64(1705276800)) // NYC 2024-01-15
 	f.Add(-33.87, 151.21, int64(1705276800))   // Sydney
 
-	f.Fuzz(func(t *testing.T, lat, lon float64, unix int64) {
+	f.Fuzz(func(_ *testing.T, lat, lon float64, unix int64) {
 		date := time.Unix(unix, 0).UTC()
 		if date.Year() < 1800 || date.Year() > 2200 {
 			return
