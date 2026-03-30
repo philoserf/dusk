@@ -246,8 +246,8 @@ func TestCivilTwilight(t *testing.T) {
 		t.Errorf("Dawn = %v, want %v (±%v, diff=%v)", event.Dawn.Format("15:04:05"), wantDawn.Format("15:04"), tolerance, diff)
 	}
 
-	if event.Duration <= 0 {
-		t.Errorf("Duration = %v, want > 0", event.Duration)
+	if event.NightDuration <= 0 {
+		t.Errorf("NightDuration = %v, want > 0", event.NightDuration)
 	}
 }
 
@@ -280,8 +280,8 @@ func TestNauticalTwilight(t *testing.T) {
 		t.Errorf("Nautical dawn %v should be before civil dawn %v", nautical.Dawn.Format("15:04:05"), civil.Dawn.Format("15:04:05"))
 	}
 
-	if nautical.Duration <= 0 {
-		t.Errorf("Duration = %v, want > 0", nautical.Duration)
+	if nautical.NightDuration <= 0 {
+		t.Errorf("NightDuration = %v, want > 0", nautical.NightDuration)
 	}
 }
 
@@ -314,8 +314,8 @@ func TestAstronomicalTwilight(t *testing.T) {
 		t.Errorf("Astronomical dawn %v should be before nautical dawn %v", astro.Dawn.Format("15:04:05"), nautical.Dawn.Format("15:04:05"))
 	}
 
-	if astro.Duration <= 0 {
-		t.Errorf("Duration = %v, want > 0", astro.Duration)
+	if astro.NightDuration <= 0 {
+		t.Errorf("NightDuration = %v, want > 0", astro.NightDuration)
 	}
 }
 
@@ -344,14 +344,14 @@ func TestTwilight_Equatorial(t *testing.T) {
 
 	// Civil twilight duration (darkness period) should be less than 12 hours
 	// at the equator, where twilight transitions are rapid.
-	if civil.Duration >= 12*time.Hour {
-		t.Errorf("civil twilight Duration = %v, want < 12h near equator", civil.Duration)
+	if civil.NightDuration >= 12*time.Hour {
+		t.Errorf("civil twilight NightDuration = %v, want < 12h near equator", civil.NightDuration)
 	}
-	if civil.Duration <= 0 {
-		t.Errorf("civil twilight Duration = %v, want > 0", civil.Duration)
+	if civil.NightDuration <= 0 {
+		t.Errorf("civil twilight NightDuration = %v, want > 0", civil.NightDuration)
 	}
 
-	t.Logf("Quito civil twilight: dusk=%v dawn=%v duration=%v", civil.Dusk, civil.Dawn, civil.Duration)
+	t.Logf("Quito civil twilight: dusk=%v dawn=%v duration=%v", civil.Dusk, civil.Dawn, civil.NightDuration)
 }
 
 func TestTwilight_PolarDay(t *testing.T) {
