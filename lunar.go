@@ -84,25 +84,28 @@ func lunarEclipticPosition(t time.Time) ecliptic {
 	}
 }
 
-// LunarPhase returns the lunar phase for the given instant.
+// LunarPhase returns the lunar phase at the given instant.
+//
+// Unlike SunriseSunset and MoonriseMoonset which use only the calendar date,
+// LunarPhase uses the exact time — the phase changes continuously.
 //
 // The phase angle uses the Meeus approach: solar ecliptic longitude from the
 // mean-anomaly method, lunar ecliptic position from Chapter 47 tables.
 //
 // An error is returned if the date is out of the valid Julian date range.
-func LunarPhase(t time.Time) (LunarPhaseInfo, error) {
-	if err := validJulianDateRange(t); err != nil {
+func LunarPhase(date time.Time) (LunarPhaseInfo, error) {
+	if err := validJulianDateRange(date); err != nil {
 		return LunarPhaseInfo{}, err
 	}
 
-	ec := lunarEclipticPosition(t)
+	ec := lunarEclipticPosition(date)
 
-	J := julianDate(t) - j2000
+	J := julianDate(date) - j2000
 	Msol := solarMeanAnomaly(J)
 	C := solarEquationOfCenter(Msol)
 	sunLon := solarEclipticLongitude(Msol, C)
 
-	T := julianCentury(t)
+	T := julianCentury(date)
 	Mp := lunarMeanAnomaly(T)
 
 	// elongation (0-360°, waxing = 0-180, waning = 180-360)
@@ -137,6 +140,10 @@ func lunarPosition(t time.Time) equatorial {
 
 // MoonriseMoonset computes the moonrise and moonset times for the given date
 // at the specified observer position and timezone.
+// The date is converted to the observer's timezone to determine the local
+// calendar day, then the function scans that local day (midnight to midnight)
+// for rise/set events. This means the same time.Time can produce different
+// results for observers in different timezones.
 //
 // The algorithm scans minute-by-minute through the day to detect altitude
 // sign changes. This is slow by design (~1440 ecliptic-position evaluations).

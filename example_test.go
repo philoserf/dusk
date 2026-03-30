@@ -33,8 +33,8 @@ func ExampleSunriseSunset() {
 }
 
 func ExampleLunarPhase() {
-	t := time.Date(2024, 1, 25, 18, 0, 0, 0, time.UTC)
-	phase, err := dusk.LunarPhase(t)
+	date := time.Date(2024, 1, 25, 18, 0, 0, 0, time.UTC)
+	phase, err := dusk.LunarPhase(date)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return
