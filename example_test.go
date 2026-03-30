@@ -34,7 +34,11 @@ func ExampleSunriseSunset() {
 
 func ExampleLunarPhase() {
 	t := time.Date(2024, 1, 25, 18, 0, 0, 0, time.UTC)
-	phase := dusk.LunarPhase(t)
+	phase, err := dusk.LunarPhase(t)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		return
+	}
 	fmt.Printf("Phase: %s\n", phase.Name)
 	fmt.Printf("Illumination: %.0f%%\n", phase.Illumination)
 	// Output:

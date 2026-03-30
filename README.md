@@ -38,7 +38,7 @@ func main() {
 ### Lunar phase
 
 ```go
-phase := dusk.LunarPhase(time.Date(2024, 1, 18, 3, 0, 0, 0, time.UTC))
+phase, _ := dusk.LunarPhase(time.Date(2024, 1, 18, 3, 0, 0, 0, time.UTC))
 fmt.Printf("%s (%.0f%% illuminated, waxing: %t)\n", phase.Name, phase.Illumination, phase.Waxing)
 ```
 
