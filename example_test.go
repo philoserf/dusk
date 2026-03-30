@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/philoserf/dusk/v2"
+	"github.com/philoserf/dusk/v3"
 )
 
 func ExampleSunriseSunset() {
