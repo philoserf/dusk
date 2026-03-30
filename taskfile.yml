@@ -10,6 +10,17 @@ tasks:
       - task: lint:check
       - task: test
 
+  all:
+    desc: Run all checks, coverage, benchmarks, and fuzz tests
+    cmds:
+      - task: fmt:check
+      - task: vet
+      - task: lint:check
+      - task: test
+      - task: cover
+      - task: bench
+      - task: fuzz
+
   fix:
     desc: Run all fixes
     cmds:
@@ -51,3 +62,22 @@ tasks:
     desc: Run all tests
     cmds:
       - go test -race -count=1 ./...
+
+  cover:
+    desc: Run tests with coverage
+    cmds:
+      - go test -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out | tail -1
+      - rm coverage.out
+
+  bench:
+    desc: Run benchmarks
+    cmds:
+      - go test -bench=. -benchmem ./...
+
+  fuzz:
+    desc: Run all fuzz tests (10s each)
+    cmds:
+      - go test -fuzz=FuzzSunriseSunset -fuzztime=10s ./...
+      - go test -fuzz=FuzzLunarPhase -fuzztime=10s ./...
+      - go test -fuzz=FuzzMoonriseMoonset -fuzztime=10s ./...
