@@ -132,8 +132,14 @@ func EquatorialToHorizontal(t time.Time, obs Observer, eq Equatorial) Horizontal
 	}
 }
 
-// HourAngle computes the hour angle in degrees from right ascension (degrees)
-// and local sidereal time (hours).
+// HourAngle computes the hour angle in degrees.
+//
+// Parameters use mixed units:
+//   - ra: right ascension in degrees (0-360)
+//   - lst: local sidereal time in hours (0-24)
+//
+// The conversion lst*15 is applied internally, so callers must not
+// pre-convert LST to degrees.
 func HourAngle(ra, lst float64) float64 {
 	return mod360(lst*15 - ra)
 }
