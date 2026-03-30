@@ -5,15 +5,15 @@ import (
 	"time"
 )
 
-// benchEDT is a fixed UTC-5 zone used by benchmarks to avoid depending on the
+// benchEST is a fixed UTC-5 zone used by benchmarks to avoid depending on the
 // system timezone database.
-var benchEDT = time.FixedZone("EDT", -5*3600)
+var benchEST = time.FixedZone("EST", -5*3600)
 
 // benchObs is a pre-validated observer for benchmark use.
-var benchObs, _ = NewObserver(40.7128, -74.006, benchEDT)
+var benchObs, _ = NewObserver(40.7128, -74.006, benchEST)
 
 func BenchmarkMoonriseMoonset(b *testing.B) {
-	date := time.Date(2024, 1, 15, 0, 0, 0, 0, benchEDT)
+	date := time.Date(2024, 1, 15, 0, 0, 0, 0, benchEST)
 
 	for b.Loop() {
 		MoonriseMoonset(date, benchObs) //nolint:errcheck
@@ -21,7 +21,7 @@ func BenchmarkMoonriseMoonset(b *testing.B) {
 }
 
 func BenchmarkSunriseSunset(b *testing.B) {
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, benchEDT)
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, benchEST)
 
 	for b.Loop() {
 		SunriseSunset(date, benchObs) //nolint:errcheck

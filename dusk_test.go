@@ -56,6 +56,21 @@ func TestNewObserver(t *testing.T) {
 	}
 }
 
+func TestZeroObserverReturnsError(t *testing.T) {
+	var zero Observer
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, time.UTC)
+
+	if _, err := SunriseSunset(date, zero); err == nil {
+		t.Error("SunriseSunset: expected error for zero Observer")
+	}
+	if _, err := CivilTwilight(date, zero); err == nil {
+		t.Error("CivilTwilight: expected error for zero Observer")
+	}
+	if _, err := MoonriseMoonset(date, zero); err == nil {
+		t.Error("MoonriseMoonset: expected error for zero Observer")
+	}
+}
+
 func TestSunEventString(t *testing.T) {
 	loc := time.FixedZone("TEST", -5*3600)
 	s := SunEvent{

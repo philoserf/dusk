@@ -37,6 +37,15 @@ var errNilLocation = errors.New("dusk: location must not be nil")
 
 var errInvalidCoord = errors.New("dusk: latitude must be in [-90, 90] and longitude in [-180, 180]")
 
+// validObserver returns an error if obs was not constructed via NewObserver
+// (i.e., is a zero-value Observer with a nil location).
+func validObserver(obs Observer) error {
+	if obs.loc == nil {
+		return errNilLocation
+	}
+	return nil
+}
+
 // Observer represents a geographic position on Earth used as the viewpoint
 // for all astronomical calculations.
 type Observer struct {

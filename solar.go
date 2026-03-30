@@ -31,6 +31,9 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 // The algorithm follows the NOAA solar calculator method (derived from Meeus,
 // Astronomical Algorithms).
 func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
+	if err := validObserver(obs); err != nil {
+		return SunEvent{}, err
+	}
 	if err := validJulianDateRange(date); err != nil {
 		return SunEvent{}, err
 	}
@@ -169,6 +172,9 @@ func AstronomicalTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
 // angle (evening boundary) and Dawn is tomorrow's "rise" at the depression
 // angle (morning boundary).
 func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, error) {
+	if err := validObserver(obs); err != nil {
+		return TwilightEvent{}, err
+	}
 	if err := validJulianDateRange(date); err != nil {
 		return TwilightEvent{}, err
 	}
@@ -183,6 +189,9 @@ func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, 
 
 	// Tomorrow's "rise" at this depression = twilight dawn.
 	tomorrow := date.AddDate(0, 0, 1)
+	if err := validJulianDateRange(tomorrow); err != nil {
+		return TwilightEvent{}, err
+	}
 	sp2 := computeSolarParams(tomorrow, obs.lon)
 	omega2, err2 := solarHourAngle(sp2.delta, depression, obs.lat)
 	if err2 != nil {
