@@ -27,6 +27,8 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 
 // SunriseSunset computes sunrise, solar noon, and sunset for the given date
 // and observer position. The observer must be constructed via [NewObserver].
+// Only the calendar date (in UTC) is used; the time-of-day is ignored.
+// Output times are converted to the observer's timezone.
 //
 // The algorithm follows the NOAA solar calculator method (derived from Meeus,
 // Astronomical Algorithms).
