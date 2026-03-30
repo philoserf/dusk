@@ -123,8 +123,7 @@ func LunarPhase(t time.Time) LunarPhaseInfo {
 
 	K := 100 * (1 + cosx(PA)) / 2
 
-	frac := (1 - cosx(d)) / 2
-	days := frac * lunarMonthDays
+	days := d / 360 * lunarMonthDays
 
 	return LunarPhaseInfo{
 		Illumination: K,
