@@ -147,8 +147,11 @@ func LunarPosition(t time.Time) Equatorial {
 //
 // The algorithm scans minute-by-minute through the day to detect altitude
 // sign changes. This is slow by design (~1440 ecliptic-position evaluations).
-// Callers computing moonrise/moonset for many dates (e.g., monthly calendars)
-// should expect proportional cost.
+// A single call takes approximately 1-2 ms on modern hardware (Apple M-series
+// or equivalent; see BenchmarkMoonriseMoonset). Callers computing
+// moonrise/moonset for many dates (e.g., a 30-day calendar ≈ 30-60 ms)
+// should expect proportional cost and may benefit from caching or
+// parallelization.
 //
 // Observer elevation (obs.Elev) is not used; it only affects sunrise/sunset
 // and twilight calculations.
