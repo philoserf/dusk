@@ -13,41 +13,34 @@ go test -v -run TestName ./...  # Run single test
 
 ## Architecture
 
-Single package at the repo root. Zero dependencies. Module path: `github.com/philoserf/dusk/v2`.
+Single package at the repo root. Zero dependencies. Module path: `github.com/philoserf/dusk/v3`.
 
-| File              | Domain                                                                   |
-| ----------------- | ------------------------------------------------------------------------ |
-| `trig.go`         | Degree-based trig wrappers, `clamp`, `mod360`/`mod24` normalization      |
-| `epoch.go`        | Julian dates, sidereal time, nutation, obliquity, `ValidJulianDateRange` |
-| `coord.go`        | Coordinate types, validation, ecliptic/equatorial/horizontal conversions |
-| `solar.go`        | Sun position, sunrise/sunset, `computeSolarParams` shared helper         |
-| `lunar.go`        | Moon position (Meeus tables), moonrise/moonset, phase                    |
-| `lunar_tables.go` | Meeus Table 47.A/B coefficients                                          |
-| `transit.go`      | Object rise/set/transit (analytical maximum) for equatorial coordinates  |
-| `twilight.go`     | Civil, nautical, astronomical twilight (uses `computeSolarParams`)       |
-| `stringer.go`     | `fmt.Stringer` implementations for all exported result types             |
-| `doc.go`          | Package documentation                                                    |
+| File       | Domain                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------ |
+| `dusk.go`  | Package doc, `Observer`/`NewObserver`, event types, sentinel errors, `String()` methods    |
+| `solar.go` | `SunriseSunset`, civil/nautical/astronomical twilight, all unexported solar helpers        |
+| `lunar.go` | `MoonriseMoonset`, `LunarPhase`, unexported lunar helpers, Meeus Table 47.A/B coefficients |
+| `epoch.go` | Julian dates, sidereal time, nutation, obliquity, coordinate conversions (all unexported)  |
+| `trig.go`  | Degree-based trig wrappers, `clamp`, `mod360`/`mod24` normalization                        |
 
 ## Key Conventions
 
 - All angles in **degrees** (trig helpers in `trig.go` handle conversion)
 - Angle normalization via `mod360()` and `mod24()` helpers
 - Meeus algorithms preferred; `solarMeanAnomaly(J)` takes days, not centuries
-- `*time.Location` parameter for functions that produce local times
+- `Observer` constructed via `NewObserver` — validates once at creation, fields unexported
 - Zero-value `time.Time` signals "event did not occur" — check with `.IsZero()`
-- `(float64, bool)` returns for calculations that may not apply
-- `error` returns for bad input (nil location, out-of-range coordinates)
+- `ErrCircumpolar` / `ErrNeverRises` for geometrically impossible events (polar)
+- `error` returns for date out of range (validated at public entry points)
 - Table-driven tests everywhere, expected values from USNO/Stellarium/Meeus
 
 ## Gotchas
 
-- `Transit` uses zero-value `time.Time` (not pointers) — check `.IsZero()` not `!= nil`
 - Moonrise/moonset iterates minute-by-minute (1440 iterations) — slow by design
 - `solarHourAngle` returns `(float64, error)` — returns `ErrCircumpolar` (midnight sun) or `ErrNeverRises` (polar night)
 - `solarHourAngle` takes `depression` (positive degrees below horizon) for twilight reuse; pass 0 for sunrise/sunset
-- `AngularSeparation` takes `(ra1, dec1, ra2, dec2)` — RA-first to match `Equatorial{RA, Dec}` field order
-- `LunarPhaseInfo.Waxing` distinguishes waxing (elongation 0-180) from waning; `DaysApprox` is symmetric
-- `Observer.Elev` only affects sunrise/sunset and twilight — not moonrise or `ObjectTransit`
+- `LunarPhaseInfo.Waxing` distinguishes waxing (elongation 0-180) from waning; `DaysApprox` is a linear approximation
+- `eclipticToEquatorial` applies full nutation (Δψ + Δε); `solarDeclination` uses mean obliquity only (intentional asymmetry — NOAA simplified method for sunrise/sunset)
 
 ## Dependencies
 

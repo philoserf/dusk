@@ -1,5 +1,27 @@
 # Changelog
 
+## v3.0.0 — 2026-03-30
+
+### Breaking changes
+
+- **Module path** changed from `github.com/philoserf/dusk/v2` to `github.com/philoserf/dusk/v3`
+- **`NewObserver` constructor** replaces direct struct construction — validates at creation, rejects NaN/Inf/nil
+- **`Observer` fields unexported** — `Lat`/`Lon`/`Loc` → `lat`/`lon`/`loc`; use `NewObserver` to construct
+- **Elevation removed** — `Observer.Elev` field deleted; elevation correction (~0.5' for typical altitudes) dropped from `solarHourAngle` for simplicity
+- **Public API surface reduced** — removed `ObjectTransit`, `Transit`, `SolarPosition`, `LunarPosition`, `LunarEclipticPosition`, `EclipticToEquatorial`, `EquatorialToHorizontal`, `HourAngle`, `AngularSeparation`, `JulianDate`, `ValidJulianDateRange`, `LocalSiderealTime`, `ErrDateOutOfRange`
+- **Coordinate types unexported** — `Equatorial`, `Horizontal`, `Ecliptic` → `equatorial`, `horizontal`, `ecliptic`
+
+### Improvements
+
+- `eclipticToEquatorial` now applies full nutation (both Δψ and Δε), improving RA accuracy by up to ~17"
+- Observer validation (NaN/Inf rejection) happens once at construction, not repeated in every function call
+- Date range validation (`validJulianDateRange`) at all public entry points
+- Lunar table loops include `default` panic for unexpected M values (compile-time safety net)
+
+### File consolidation
+
+10 source files → 5: `dusk.go`, `solar.go`, `lunar.go`, `epoch.go`, `trig.go`. Twilight merged into solar, lunar tables merged into lunar, coordinate conversions merged into epoch, types/stringers/errors consolidated into dusk.
+
 ## v2.2.0 — 2026-03-30
 
 ### Bug fixes
