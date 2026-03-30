@@ -186,6 +186,79 @@ func TestLunarPhase(t *testing.T) {
 	}
 }
 
+func TestMoonriseMoonset_AboveHorizon(t *testing.T) {
+	tests := []struct {
+		name         string
+		lat, lon     float64
+		loc          string
+		date         time.Time
+		wantAbove    bool
+		wantRiseZero bool
+		wantSetZero  bool
+	}{
+		{
+			name:         "NYC normal day — Moon rises and sets",
+			lat:          40.7128,
+			lon:          -74.006,
+			loc:          "America/New_York",
+			date:         time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+			wantAbove:    false,
+			wantRiseZero: false,
+			wantSetZero:  false,
+		},
+		{
+			name:         "high arctic winter — Moon above horizon all day",
+			lat:          78,
+			lon:          16,
+			loc:          "UTC",
+			date:         time.Date(2024, 12, 18, 0, 0, 0, 0, time.UTC),
+			wantAbove:    true,
+			wantRiseZero: true,
+			wantSetZero:  true,
+		},
+		{
+			name:         "high arctic summer — Moon below horizon all day",
+			lat:          78,
+			lon:          16,
+			loc:          "UTC",
+			date:         time.Date(2024, 6, 22, 0, 0, 0, 0, time.UTC),
+			wantAbove:    false,
+			wantRiseZero: true,
+			wantSetZero:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var loc *time.Location
+			if tt.loc == "UTC" {
+				loc = time.UTC
+			} else {
+				var err error
+				loc, err = time.LoadLocation(tt.loc)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			obs := Observer{lat: tt.lat, lon: tt.lon, loc: loc}
+			evt, err := MoonriseMoonset(tt.date, obs)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if evt.AboveHorizon != tt.wantAbove {
+				t.Errorf("AboveHorizon = %v, want %v", evt.AboveHorizon, tt.wantAbove)
+			}
+			if evt.Rise.IsZero() != tt.wantRiseZero {
+				t.Errorf("Rise.IsZero() = %v, want %v", evt.Rise.IsZero(), tt.wantRiseZero)
+			}
+			if evt.Set.IsZero() != tt.wantSetZero {
+				t.Errorf("Set.IsZero() = %v, want %v", evt.Set.IsZero(), tt.wantSetZero)
+			}
+		})
+	}
+}
+
 func TestMoonriseMoonset(t *testing.T) {
 	// NYC 2024-01-15
 	loc, err := time.LoadLocation("America/New_York")

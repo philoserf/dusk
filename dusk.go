@@ -73,9 +73,10 @@ type SunEvent struct {
 // MoonEvent holds the rise and set times for the Moon on a given day, along
 // with the duration between rise and set.
 type MoonEvent struct {
-	Rise     time.Time     // zero value if the Moon does not rise
-	Set      time.Time     // zero value if the Moon does not set
-	Duration time.Duration // zero if Rise or Set is missing
+	Rise         time.Time     // zero value if the Moon does not rise
+	Set          time.Time     // zero value if the Moon does not set
+	Duration     time.Duration // zero if Rise or Set is missing
+	AboveHorizon bool          // true if Moon was above the horizon at start of day
 }
 
 // TwilightEvent holds the dusk and dawn times of a twilight period.
