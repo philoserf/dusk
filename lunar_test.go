@@ -240,7 +240,7 @@ func TestMoonriseMoonset_AboveHorizon(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			obs := Observer{lat: tt.lat, lon: tt.lon, loc: loc}
+			obs := mustObserver(t, tt.lat, tt.lon, loc)
 			evt, err := MoonriseMoonset(tt.date, obs)
 			if err != nil {
 				t.Fatal(err)
@@ -267,7 +267,7 @@ func TestMoonriseMoonset(t *testing.T) {
 	}
 
 	date := time.Date(2024, 1, 15, 0, 0, 0, 0, loc)
-	obs := Observer{lat: 40.7128, lon: -74.0060, loc: loc}
+	obs := mustObserver(t, 40.7128, -74.0060, loc)
 
 	evt, err := MoonriseMoonset(date, obs)
 	if err != nil {
@@ -308,7 +308,7 @@ func TestMoonriseMoonset_SouthernHemisphere(t *testing.T) {
 	}
 
 	date := time.Date(2024, 1, 15, 0, 0, 0, 0, loc)
-	obs := Observer{lat: -33.87, lon: 151.21, loc: loc}
+	obs := mustObserver(t, -33.87, 151.21, loc)
 
 	evt, err := MoonriseMoonset(date, obs)
 	if err != nil {

@@ -298,7 +298,7 @@ func TestEquatorialToHorizontal(t *testing.T) {
 	// Sirius observed from NYC on 2024-01-16 02:00 UTC (~9pm EST).
 	// Sirius transits ~00:40 local in mid-January; at 9pm it is well up in the SE.
 	dt := time.Date(2024, 1, 16, 2, 0, 0, 0, time.UTC)
-	obs := Observer{lat: 40.7128, lon: -74.006, loc: time.UTC}
+	obs := mustObserver(t, 40.7128, -74.006, time.UTC)
 	sirius := equatorial{ra: 101.287, dec: -16.716}
 
 	h := equatorialToHorizontal(dt, obs, sirius)
@@ -317,7 +317,7 @@ func TestEquatorialToHorizontal(t *testing.T) {
 func TestEquatorialToHorizontal_Pole(t *testing.T) {
 	// Observer at the North Pole — cosAltCosLat guard triggers, azimuth defaults to 0.
 	dt := time.Date(2024, 1, 16, 12, 0, 0, 0, time.UTC)
-	obs := Observer{lat: 90.0, lon: 0, loc: time.UTC}
+	obs := mustObserver(t, 90.0, 0, time.UTC)
 	star := equatorial{ra: 0, dec: 45}
 
 	h := equatorialToHorizontal(dt, obs, star)

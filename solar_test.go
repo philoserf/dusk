@@ -19,7 +19,7 @@ func TestSunriseSunset(t *testing.T) {
 
 	tolerance := 3 * time.Minute
 
-	obs := Observer{lat: 40.7128, lon: -74.006, loc: nyc}
+	obs := mustObserver(t, 40.7128, -74.006, nyc)
 	event, err := SunriseSunset(date, obs)
 	if err != nil {
 		t.Fatalf("SunriseSunset() returned error: %v", err)
@@ -56,7 +56,7 @@ func TestSunriseSunset_Equatorial(t *testing.T) {
 
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc) // June solstice
 
-	obs := Observer{lat: -0.18, lon: -78.47, loc: loc}
+	obs := mustObserver(t, -0.18, -78.47, loc)
 	event, err := SunriseSunset(date, obs)
 	if err != nil {
 		t.Fatalf("SunriseSunset() returned error: %v", err)
@@ -91,7 +91,7 @@ func TestSunriseSunset_SouthernHemisphere(t *testing.T) {
 
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
 
-	obs := Observer{lat: -33.87, lon: 151.21, loc: loc}
+	obs := mustObserver(t, -33.87, 151.21, loc)
 	event, err := SunriseSunset(date, obs)
 	if err != nil {
 		t.Fatalf("SunriseSunset() returned error: %v", err)
@@ -121,7 +121,7 @@ func TestSunriseSunset_PolarDay(t *testing.T) {
 	}
 
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
-	obs := Observer{lat: 69.65, lon: 18.96, loc: loc}
+	obs := mustObserver(t, 69.65, 18.96, loc)
 
 	_, err = SunriseSunset(date, obs)
 	if !errors.Is(err, ErrCircumpolar) {
@@ -137,7 +137,7 @@ func TestSunriseSunset_PolarNight(t *testing.T) {
 	}
 
 	date := time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
-	obs := Observer{lat: 69.65, lon: 18.96, loc: loc}
+	obs := mustObserver(t, 69.65, 18.96, loc)
 
 	_, err = SunriseSunset(date, obs)
 	if !errors.Is(err, ErrNeverRises) {
@@ -228,7 +228,7 @@ func TestCivilTwilight(t *testing.T) {
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
 	tolerance := 5 * time.Minute
 
-	obs := Observer{lat: 40.7128, lon: -74.006, loc: nyc}
+	obs := mustObserver(t, 40.7128, -74.006, nyc)
 	event, err := CivilTwilight(date, obs)
 	if err != nil {
 		t.Fatalf("CivilTwilight() returned error: %v", err)
@@ -259,7 +259,7 @@ func TestNauticalTwilight(t *testing.T) {
 
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
 
-	obs := Observer{lat: 40.7128, lon: -74.006, loc: nyc}
+	obs := mustObserver(t, 40.7128, -74.006, nyc)
 	civil, err := CivilTwilight(date, obs)
 	if err != nil {
 		t.Fatalf("CivilTwilight() returned error: %v", err)
@@ -293,7 +293,7 @@ func TestAstronomicalTwilight(t *testing.T) {
 
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
 
-	obs := Observer{lat: 40.7128, lon: -74.006, loc: nyc}
+	obs := mustObserver(t, 40.7128, -74.006, nyc)
 	nautical, err := NauticalTwilight(date, obs)
 	if err != nil {
 		t.Fatalf("NauticalTwilight() returned error: %v", err)
@@ -329,7 +329,7 @@ func TestTwilight_Equatorial(t *testing.T) {
 
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, loc)
 
-	obs := Observer{lat: -0.18, lon: -78.47, loc: loc}
+	obs := mustObserver(t, -0.18, -78.47, loc)
 	civil, err := CivilTwilight(date, obs)
 	if err != nil {
 		t.Fatalf("CivilTwilight() returned error: %v", err)
@@ -362,7 +362,7 @@ func TestTwilight_PolarDay(t *testing.T) {
 	}
 
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
-	obs := Observer{lat: 69.65, lon: 18.96, loc: loc}
+	obs := mustObserver(t, 69.65, 18.96, loc)
 
 	_, err = AstronomicalTwilight(date, obs)
 	if !errors.Is(err, ErrCircumpolar) {
@@ -375,7 +375,7 @@ func TestTwilight_PolarNight(t *testing.T) {
 	// At this latitude the sun is far enough below the horizon that even
 	// astronomical twilight (18° depression) does not occur.
 	loc := time.UTC
-	obs := Observer{lat: 87.0, lon: 0, loc: loc}
+	obs := mustObserver(t, 87.0, 0, loc)
 
 	date := time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
 
@@ -393,7 +393,7 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 	}
 
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
-	obs := Observer{lat: 40.7128, lon: -74.006, loc: nyc}
+	obs := mustObserver(t, 40.7128, -74.006, nyc)
 	tolerance := 10 * time.Minute
 
 	nautical, err := NauticalTwilight(date, obs)
@@ -416,7 +416,7 @@ func TestTwilight_PolarTransition(t *testing.T) {
 	// At 75°N, civil twilight succeeds on Nov 25 but fails on Nov 26,
 	// exercising the polar-transition branch in twilight().
 	loc := time.UTC
-	obs := Observer{lat: 75.0, lon: 25.0, loc: loc}
+	obs := mustObserver(t, 75.0, 25.0, loc)
 
 	before := time.Date(2024, 11, 25, 0, 0, 0, 0, loc)
 	after := time.Date(2024, 11, 26, 0, 0, 0, 0, loc)

@@ -31,7 +31,7 @@ Single package at the repo root. Zero dependencies. Module path: `github.com/phi
 - `Observer` constructed via `NewObserver` — validates once at creation, fields unexported
 - Zero-value `time.Time` signals "event did not occur" — check with `.IsZero()`
 - `ErrCircumpolar` / `ErrNeverRises` for geometrically impossible events (polar)
-- `error` returns for date out of range (validated at public entry points)
+- `error` returns for date out of range (validated at public entry points, except `LunarPhase` — no error return since it cannot fail geometrically)
 - Table-driven tests everywhere, expected values from USNO/Stellarium/Meeus
 
 ## Gotchas

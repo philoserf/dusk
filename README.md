@@ -63,7 +63,7 @@ fmt.Printf("Dawn:  %s\n", tw.Dawn.Format(time.Kitchen))
 ### Lunar
 
 - `LunarPhase` — illumination, elongation, approximate age, waxing/waning, phase angle, and name
-- `MoonriseMoonset` — moonrise and moonset times
+- `MoonriseMoonset` — moonrise/moonset times and whether the Moon was above the horizon at the start of the day
 
 ### Twilight
 
