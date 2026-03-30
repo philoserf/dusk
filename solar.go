@@ -1,18 +1,8 @@
 package dusk
 
 import (
-	"math"
 	"time"
 )
-
-// SunEvent holds the times of sunrise, solar noon, sunset, and the duration
-// of daylight for a single day.
-type SunEvent struct {
-	Rise     time.Time
-	Noon     time.Time
-	Set      time.Time
-	Duration time.Duration
-}
 
 // solarParams holds intermediate solar position values computed from a date
 // and longitude. Used by SunriseSunset and twilight to avoid repeating the
@@ -38,18 +28,18 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 // SunriseSunset computes sunrise, solar noon, and sunset for the given date
 // and observer position.
 //
-// Longitude is east-positive, west-negative. An error is returned if obs.Loc is nil.
+// Longitude is east-positive, west-negative. An error is returned if obs.loc is nil.
 //
 // The algorithm follows the NOAA solar calculator method (derived from Meeus,
 // Astronomical Algorithms).
 func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
-	if err := validateObserver(obs); err != nil {
+	if err := validJulianDateRange(date); err != nil {
 		return SunEvent{}, err
 	}
 
-	sp := computeSolarParams(date, obs.Lon)
+	sp := computeSolarParams(date, obs.lon)
 
-	omega, err := solarHourAngle(sp.delta, 0, obs.Lat, obs.Elev)
+	omega, err := solarHourAngle(sp.delta, 0, obs.lat)
 	if err != nil {
 		return SunEvent{}, err
 	}
@@ -57,9 +47,9 @@ func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
 	Jrise := sp.jTransit - omega/360.0
 	Jset := sp.jTransit + omega/360.0
 
-	rise := universalTimeFromJD(Jrise).In(obs.Loc)
-	noon := universalTimeFromJD(sp.jTransit).In(obs.Loc)
-	set := universalTimeFromJD(Jset).In(obs.Loc)
+	rise := universalTimeFromJD(Jrise).In(obs.loc)
+	noon := universalTimeFromJD(sp.jTransit).In(obs.loc)
+	set := universalTimeFromJD(Jset).In(obs.loc)
 
 	return SunEvent{
 		Rise:     rise,
@@ -69,13 +59,13 @@ func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
 	}, nil
 }
 
-// SolarPosition returns the equatorial coordinates (RA, Dec) of the Sun for
+// solarPosition returns the equatorial coordinates (RA, Dec) of the Sun for
 // a given instant, using the Meeus mean anomaly + equation of center method.
 //
 // Unlike SunriseSunset (which rounds J to an integer for the NOAA method),
 // this function uses continuous Julian days for precise position at any instant.
-func SolarPosition(t time.Time) Equatorial {
-	JD := JulianDate(t)
+func solarPosition(t time.Time) equatorial {
+	JD := julianDate(t)
 	J := JD - j2000
 
 	M := solarMeanAnomaly(J)
@@ -83,7 +73,7 @@ func SolarPosition(t time.Time) Equatorial {
 	lambda := solarEclipticLongitude(M, C)
 
 	// The Sun lies on the ecliptic (latitude = 0).
-	return EclipticToEquatorial(t, lambda, 0)
+	return eclipticToEquatorial(t, lambda, 0)
 }
 
 // solarMeanAnomaly returns the Sun's mean anomaly in degrees.
@@ -117,24 +107,23 @@ func solarDeclination(lambda, T float64) float64 {
 }
 
 // solarHourAngle returns the hour angle in degrees for the Sun at the given
-// declination, observer latitude, elevation (meters), and depression angle
-// (degrees below the geometric horizon, positive downward). For standard
-// sunrise/sunset, pass depression = 0. For civil twilight, pass 6, etc.
+// declination, observer latitude, and depression angle (degrees below the
+// geometric horizon, positive downward). For standard sunrise/sunset, pass
+// depression = 0.
 //
-// For sunrise/sunset (depression=0), includes a −0.83° correction for
+// For sunrise/sunset (depression=0), includes a -0.83 degree correction for
 // atmospheric refraction and solar semidiameter. For twilight, uses the
 // depression angle directly per IAU/USNO convention.
 //
 // Returns ErrCircumpolar when the Sun never sets (midnight sun) or
 // ErrNeverRises when the Sun never rises (polar night) at this latitude
 // and depression angle.
-func solarHourAngle(delta, depression, lat, elev float64) (float64, error) {
+func solarHourAngle(delta, depression, lat float64) (float64, error) {
 	var h0 float64
 	if depression == 0 {
-		elevCorr := 2.076 * math.Sqrt(math.Max(0, elev)) / 60
-		h0 = -(0.83 - elevCorr)
+		h0 = -0.83
 	} else {
-		h0 = -depression // elevation excluded per USNO convention
+		h0 = -depression
 	}
 	num := sinx(h0) - sinx(lat)*sinx(delta)
 	den := cosx(lat) * cosx(delta)
@@ -151,4 +140,61 @@ func solarHourAngle(delta, depression, lat, elev float64) (float64, error) {
 // solarTransitJD returns the Julian date of solar transit (solar noon).
 func solarTransitJD(J, M, lambda float64) float64 {
 	return j2000 + J + 0.0053*sinx(M) - 0.0069*sinx(2*lambda)
+}
+
+// ---------------------------------------------------------------------------
+// Twilight (moved from twilight.go)
+// ---------------------------------------------------------------------------
+
+// CivilTwilight computes the evening civil twilight period (Sun 6 degrees below the
+// horizon) for the given date and observer position. Dusk is tonight's civil
+// dusk; Dawn is tomorrow morning's civil dawn.
+func CivilTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
+	return twilight(date, obs, 6)
+}
+
+// NauticalTwilight computes the evening nautical twilight period (Sun 12
+// degrees below the horizon) for the given date and observer position.
+func NauticalTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
+	return twilight(date, obs, 12)
+}
+
+// AstronomicalTwilight computes the evening astronomical twilight period (Sun
+// 18 degrees below the horizon) for the given date and observer position.
+func AstronomicalTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
+	return twilight(date, obs, 18)
+}
+
+// twilight computes the twilight period for a given depression angle (positive
+// degrees below the geometric horizon). Only the calendar date is used; the
+// time-of-day is ignored. The returned Dusk is today's "set" at the depression
+// angle (evening boundary) and Dawn is tomorrow's "rise" at the depression
+// angle (morning boundary).
+func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, error) {
+	if err := validJulianDateRange(date); err != nil {
+		return TwilightEvent{}, err
+	}
+
+	// Evening twilight: sunset at the given depression angle for today.
+	sp := computeSolarParams(date, obs.lon)
+	omega, err := solarHourAngle(sp.delta, depression, obs.lat)
+	if err != nil {
+		return TwilightEvent{}, err
+	}
+	dusk := universalTimeFromJD(sp.jTransit + omega/360).In(obs.loc)
+
+	// Tomorrow's "rise" at this depression = twilight dawn.
+	tomorrow := date.AddDate(0, 0, 1)
+	sp2 := computeSolarParams(tomorrow, obs.lon)
+	omega2, err2 := solarHourAngle(sp2.delta, depression, obs.lat)
+	if err2 != nil {
+		return TwilightEvent{}, err2
+	}
+	dawn := universalTimeFromJD(sp2.jTransit - omega2/360).In(obs.loc)
+
+	return TwilightEvent{
+		Dusk:     dusk,
+		Dawn:     dawn,
+		Duration: dawn.Sub(dusk),
+	}, nil
 }

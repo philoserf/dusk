@@ -1,26 +1,9 @@
 package dusk
 
-import "time"
-
-// LunarPhaseInfo holds lunar phase information: illumination percentage,
-// elongation in degrees, approximate age in days, phase angle, and the
-// common phase name.
-type LunarPhaseInfo struct {
-	Illumination float64 // percentage 0-100
-	Elongation   float64 // degrees 0-360
-	Angle        float64 // phase angle in degrees (may be negative per Meeus formula)
-	DaysApprox   float64 // rough days into lunation (linear estimate from elongation)
-	Waxing       bool    // true from New Moon to Full Moon (elongation 0-180)
-	Name         string  // "New Moon", "Waxing Crescent", etc.
-}
-
-// MoonEvent holds the rise and set times for the Moon on a given day, along
-// with the duration between rise and set.
-type MoonEvent struct {
-	Rise     time.Time     // zero value if the Moon does not rise
-	Set      time.Time     // zero value if the Moon does not set
-	Duration time.Duration // zero if Rise or Set is missing
-}
+import (
+	"fmt"
+	"time"
+)
 
 const lunarMonthDays = 29.53059
 
@@ -32,11 +15,11 @@ const lunarHorizonDepression = 0.833
 // Exported functions
 // ---------------------------------------------------------------------------
 
-// LunarEclipticPosition returns the geocentric ecliptic longitude, latitude
+// lunarEclipticPosition returns the geocentric ecliptic longitude, latitude
 // (degrees), and distance (km) of the Moon for the given instant.
 //
 // The algorithm is from Meeus, Astronomical Algorithms, Chapter 47.
-func LunarEclipticPosition(t time.Time) Ecliptic {
+func lunarEclipticPosition(t time.Time) ecliptic {
 	T := julianCentury(t)
 
 	D := lunarMeanElongation(T)
@@ -72,6 +55,8 @@ func LunarEclipticPosition(t time.Time) Ecliptic {
 		case 2, -2:
 			Sl += r.Σl * sa * E2
 			Sr += r.Σr * ca * E2
+		default:
+			panic(fmt.Sprintf("dusk: unexpected M value %v in lunar table", r.M))
 		}
 	}
 
@@ -87,13 +72,15 @@ func LunarEclipticPosition(t time.Time) Ecliptic {
 			Sb += r.Σb * sb * E
 		case 2, -2:
 			Sb += r.Σb * sb * E2
+		default:
+			panic(fmt.Sprintf("dusk: unexpected M value %v in lunar table", r.M))
 		}
 	}
 
-	return Ecliptic{
-		Lon:  mod360(Lp + Sl/1e6),
-		Lat:  Sb / 1e6,
-		Dist: 385000.56 + Sr/1000,
+	return ecliptic{
+		lon:  mod360(Lp + Sl/1e6),
+		lat:  Sb / 1e6,
+		dist: 385000.56 + Sr/1000,
 	}
 }
 
@@ -102,9 +89,9 @@ func LunarEclipticPosition(t time.Time) Ecliptic {
 // The phase angle uses the Meeus approach: solar ecliptic longitude from the
 // mean-anomaly method, lunar ecliptic position from Chapter 47 tables.
 func LunarPhase(t time.Time) LunarPhaseInfo {
-	ec := LunarEclipticPosition(t)
+	ec := lunarEclipticPosition(t)
 
-	J := JulianDate(t) - j2000
+	J := julianDate(t) - j2000
 	Msol := solarMeanAnomaly(J)
 	C := solarEquationOfCenter(Msol)
 	sunLon := solarEclipticLongitude(Msol, C)
@@ -113,8 +100,8 @@ func LunarPhase(t time.Time) LunarPhaseInfo {
 	Mp := lunarMeanAnomaly(T)
 
 	// elongation (0-360°, waxing = 0-180, waning = 180-360)
-	d := acosx(cosx(ec.Lon-sunLon) * cosx(ec.Lat))
-	if mod360(ec.Lon-sunLon) > 180 {
+	d := acosx(cosx(ec.lon-sunLon) * cosx(ec.lat))
+	if mod360(ec.lon-sunLon) > 180 {
 		d = 360 - d
 	}
 
@@ -135,11 +122,11 @@ func LunarPhase(t time.Time) LunarPhaseInfo {
 	}
 }
 
-// LunarPosition returns the equatorial coordinates (RA, Dec) of the Moon for
+// lunarPosition returns the equatorial coordinates (RA, Dec) of the Moon for
 // a given instant, using the Meeus ecliptic position converted to equatorial.
-func LunarPosition(t time.Time) Equatorial {
-	ec := LunarEclipticPosition(t)
-	return EclipticToEquatorial(t, ec.Lon, ec.Lat)
+func lunarPosition(t time.Time) equatorial {
+	ec := lunarEclipticPosition(t)
+	return eclipticToEquatorial(t, ec.lon, ec.lat)
 }
 
 // MoonriseMoonset computes the moonrise and moonset times for the given date
@@ -153,44 +140,41 @@ func LunarPosition(t time.Time) Equatorial {
 // should expect proportional cost and may benefit from caching or
 // parallelization.
 //
-// Observer elevation (obs.Elev) is not used; it only affects sunrise/sunset
-// and twilight calculations.
-//
-// An error is returned if obs.Loc is nil.
+// An error is returned if the date is out of the valid Julian date range.
 func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
-	if err := validateObserver(obs); err != nil {
+	if err := validJulianDateRange(date); err != nil {
 		return MoonEvent{}, err
 	}
 
-	localDate := date.In(obs.Loc)
-	d := time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, obs.Loc).UTC()
-	nextMidnight := time.Date(localDate.Year(), localDate.Month(), localDate.Day()+1, 0, 0, 0, 0, obs.Loc).UTC()
+	localDate := date.In(obs.loc)
+	d := time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, obs.loc).UTC()
+	nextMidnight := time.Date(localDate.Year(), localDate.Month(), localDate.Day()+1, 0, 0, 0, 0, obs.loc).UTC()
 	scanMinutes := int(nextMidnight.Sub(d).Minutes())
 
 	var rise, set time.Time
 
-	ec0 := LunarEclipticPosition(d)
-	eq0 := EclipticToEquatorial(d, ec0.Lon, ec0.Lat)
-	prevAlt := EquatorialToHorizontal(d, obs, eq0).Alt
+	ec0 := lunarEclipticPosition(d)
+	eq0 := eclipticToEquatorial(d, ec0.lon, ec0.lat)
+	prevAlt := equatorialToHorizontal(d, obs, eq0).alt
 
 	for i := 1; i <= scanMinutes; i++ {
 		cur := d.Add(time.Duration(i) * time.Minute)
 
-		ec := LunarEclipticPosition(cur)
-		eq := EclipticToEquatorial(cur, ec.Lon, ec.Lat)
-		hz := EquatorialToHorizontal(cur, obs, eq)
+		ec := lunarEclipticPosition(cur)
+		eq := eclipticToEquatorial(cur, ec.lon, ec.lat)
+		hz := equatorialToHorizontal(cur, obs, eq)
 
-		if rise.IsZero() && hz.Alt > -lunarHorizonDepression && prevAlt <= -lunarHorizonDepression {
-			rise = cur.In(obs.Loc)
+		if rise.IsZero() && hz.alt > -lunarHorizonDepression && prevAlt <= -lunarHorizonDepression {
+			rise = cur.In(obs.loc)
 		}
-		if set.IsZero() && hz.Alt < -lunarHorizonDepression && prevAlt >= -lunarHorizonDepression {
-			set = cur.In(obs.Loc)
+		if set.IsZero() && hz.alt < -lunarHorizonDepression && prevAlt >= -lunarHorizonDepression {
+			set = cur.In(obs.loc)
 		}
 		if !rise.IsZero() && !set.IsZero() {
 			break
 		}
 
-		prevAlt = hz.Alt
+		prevAlt = hz.alt
 	}
 
 	var dur time.Duration
@@ -256,4 +240,174 @@ func lunarPhaseName(age float64) string {
 	default:
 		return "Waning Crescent"
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Meeus Table 47.A/B coefficients (moved from lunar_tables.go)
+// ---------------------------------------------------------------------------
+
+// Meeus Table 47.A — Periodic terms for the longitude (Σl) and distance (Σr)
+// of the Moon.
+//
+// See Meeus, Astronomical Algorithms, p. 339.
+type lunarLongDistCoeff struct{ D, M, Mʹ, F, Σl, Σr float64 }
+
+// Meeus Table 47.B — Periodic terms for the latitude (Σb) of the Moon.
+//
+// See Meeus, Astronomical Algorithms, p. 341.
+type lunarLatCoeff struct{ D, M, Mʹ, F, Σb float64 }
+
+var tableLongDist = [...]lunarLongDistCoeff{
+	{0, 0, 1, 0, 6288774, -20905355},
+	{2, 0, -1, 0, 1274027, -3699111},
+	{2, 0, 0, 0, 658314, -2955968},
+	{0, 0, 2, 0, 213618, -569925},
+
+	{0, 1, 0, 0, -185116, 48888},
+	{0, 0, 0, 2, -114332, -3149},
+	{2, 0, -2, 0, 58793, 246158},
+	{2, -1, -1, 0, 57066, -152138},
+
+	{2, 0, 1, 0, 53322, -170733},
+	{2, -1, 0, 0, 45758, -204586},
+	{0, 1, -1, 0, -40923, -129620},
+	{1, 0, 0, 0, -34720, 108743},
+
+	{0, 1, 1, 0, -30383, 104755},
+	{2, 0, 0, -2, 15327, 10321},
+	{0, 0, 1, 2, -12528, 0},
+	{0, 0, 1, -2, 10980, 79661},
+
+	{4, 0, -1, 0, 10675, -34782},
+	{0, 0, 3, 0, 10034, -23210},
+	{4, 0, -2, 0, 8548, -21636},
+	{2, 1, -1, 0, -7888, 24208},
+
+	{2, 1, 0, 0, -6766, 30824},
+	{1, 0, -1, 0, -5163, -8379},
+	{1, 1, 0, 0, 4987, -16675},
+	{2, -1, 1, 0, 4036, -12831},
+
+	{2, 0, 2, 0, 3994, -10445},
+	{4, 0, 0, 0, 3861, -11650},
+	{2, 0, -3, 0, 3665, 14403},
+	{0, 1, -2, 0, -2689, -7003},
+
+	{2, 0, -1, 2, -2602, 0},
+	{2, -1, -2, 0, 2390, 10056},
+	{1, 0, 1, 0, -2348, 6322},
+	{2, -2, 0, 0, 2236, -9884},
+
+	{0, 1, 2, 0, -2120, 5751},
+	{0, 2, 0, 0, -2069, 0},
+	{2, -2, -1, 0, 2048, -4950},
+	{2, 0, 1, -2, -1773, 4130},
+
+	{2, 0, 0, 2, -1595, 0},
+	{4, -1, -1, 0, 1215, -3958},
+	{0, 0, 2, 2, -1110, 0},
+	{3, 0, -1, 0, -892, 3258},
+
+	{2, 1, 1, 0, -810, 2616},
+	{4, -1, -2, 0, 759, -1897},
+	{0, 2, -1, 0, -713, -2117},
+	{2, 2, -1, 0, -700, 2354},
+
+	{2, 1, -2, 0, 691, 0},
+	{2, -1, 0, -2, 596, 0},
+	{4, 0, 1, 0, 549, -1423},
+	{0, 0, 4, 0, 537, -1117},
+
+	{4, -1, 0, 0, 520, -1571},
+	{1, 0, -2, 0, -487, -1739},
+	{2, 1, 0, -2, -399, 0},
+	{0, 0, 2, -2, -381, -4421},
+
+	{1, 1, 1, 0, 351, 0},
+	{3, 0, -2, 0, -340, 0},
+	{4, 0, -3, 0, 330, 0},
+	{2, -1, 2, 0, 327, 0},
+
+	{0, 2, 1, 0, -323, 1165},
+	{1, 1, -1, 0, 299, 0},
+	{2, 0, 3, 0, 294, 0},
+	{2, 0, -1, -2, 0, 8752},
+}
+
+var tableLat = [...]lunarLatCoeff{
+	{0, 0, 0, 1, 5128122},
+	{0, 0, 1, 1, 280602},
+	{0, 0, 1, -1, 277693},
+	{2, 0, 0, -1, 173237},
+
+	{2, 0, -1, 1, 55413},
+	{2, 0, -1, -1, 46271},
+	{2, 0, 0, 1, 32573},
+	{0, 0, 2, 1, 17198},
+
+	{2, 0, 1, -1, 9266},
+	{0, 0, 2, -1, 8822},
+	{2, -1, 0, -1, 8216},
+	{2, 0, -2, -1, 4324},
+
+	{2, 0, 1, 1, 4200},
+	{2, 1, 0, -1, -3359},
+	{2, -1, -1, 1, 2463},
+	{2, -1, 0, 1, 2211},
+
+	{2, -1, -1, -1, 2065},
+	{0, 1, -1, -1, -1870},
+	{4, 0, -1, -1, 1828},
+	{0, 1, 0, 1, -1794},
+
+	{0, 0, 0, 3, -1749},
+	{0, 1, -1, 1, -1565},
+	{1, 0, 0, 1, -1491},
+	{0, 1, 1, 1, -1475},
+
+	{0, 1, 1, -1, -1410},
+	{0, 1, 0, -1, -1344},
+	{1, 0, 0, -1, -1335},
+	{0, 0, 3, 1, 1107},
+
+	{4, 0, 0, -1, 1021},
+	{4, 0, -1, 1, 833},
+
+	{0, 0, 1, -3, 777},
+	{4, 0, -2, 1, 671},
+	{2, 0, 0, -3, 607},
+	{2, 0, 2, -1, 596},
+
+	{2, -1, 1, -1, 491},
+	{2, 0, -2, 1, -451},
+	{0, 0, 3, -1, 439},
+	{2, 0, 2, 1, 422},
+
+	{2, 0, -3, -1, 421},
+	{2, 1, -1, 1, -366},
+	{2, 1, 0, 1, -351},
+	{4, 0, 0, 1, 331},
+
+	{2, -1, 1, 1, 315},
+	{2, -2, 0, -1, 302},
+	{0, 0, 1, 3, -283},
+	{2, 1, 1, -1, -229},
+
+	{1, 1, 0, -1, 223},
+	{1, 1, 0, 1, 223},
+	{0, 1, -2, -1, -220},
+	{2, 1, -1, -1, -220},
+
+	{1, 0, 1, 1, -185},
+	{2, -1, -2, -1, 181},
+	{0, 1, 2, 1, -177},
+	{4, 0, -2, -1, 176},
+
+	{4, -1, -1, -1, 166},
+	{1, 0, 1, -1, -164},
+	{4, 0, 1, -1, 132},
+	{1, 0, -1, -1, -119},
+
+	{4, -1, 0, -1, 115},
+	{2, -2, 0, 1, 107},
 }

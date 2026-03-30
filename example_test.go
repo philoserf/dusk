@@ -14,7 +14,11 @@ func ExampleSunriseSunset() {
 		return
 	}
 	date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
-	obs := dusk.Observer{Lat: 42.9634, Lon: -85.6681, Elev: 188.0, Loc: loc}
+	obs, err := dusk.NewObserver(42.9634, -85.6681, loc)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 
 	sun, err := dusk.SunriseSunset(date, obs)
 	if err != nil {
@@ -24,8 +28,8 @@ func ExampleSunriseSunset() {
 	fmt.Printf("Sunrise: %s\n", sun.Rise.Format("15:04"))
 	fmt.Printf("Sunset:  %s\n", sun.Set.Format("15:04"))
 	// Output:
-	// Sunrise: 05:06
-	// Sunset:  20:22
+	// Sunrise: 05:03
+	// Sunset:  20:25
 }
 
 func ExampleLunarPhase() {
@@ -45,7 +49,11 @@ func ExampleCivilTwilight() {
 		return
 	}
 	date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
-	obs := dusk.Observer{Lat: 47.6062, Lon: -122.3321, Elev: 58.0, Loc: loc}
+	obs, err := dusk.NewObserver(47.6062, -122.3321, loc)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 
 	tw, err := dusk.CivilTwilight(date, obs)
 	if err != nil {
@@ -59,16 +67,6 @@ func ExampleCivilTwilight() {
 	// Dawn: 04:31
 }
 
-func ExampleSolarPosition() {
-	t := time.Date(2024, 6, 21, 12, 0, 0, 0, time.UTC)
-	pos := dusk.SolarPosition(t)
-	fmt.Printf("RA: %.1f°\n", pos.RA)
-	fmt.Printf("Dec: %.1f°\n", pos.Dec)
-	// Output:
-	// RA: 90.2°
-	// Dec: 23.4°
-}
-
 func ExampleMoonriseMoonset() {
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
@@ -76,7 +74,11 @@ func ExampleMoonriseMoonset() {
 		return
 	}
 	date := time.Date(2024, 1, 15, 0, 0, 0, 0, loc)
-	obs := dusk.Observer{Lat: 40.7128, Lon: -74.0060, Loc: loc}
+	obs, err := dusk.NewObserver(40.7128, -74.0060, loc)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 
 	evt, err := dusk.MoonriseMoonset(date, obs)
 	if err != nil {
@@ -92,25 +94,4 @@ func ExampleMoonriseMoonset() {
 	// Output:
 	// Moonrise: 10:06
 	// Moonset:  22:13
-}
-
-func ExampleObjectTransit() {
-	loc, err := time.LoadLocation("America/Los_Angeles")
-	if err != nil {
-		fmt.Println("error:", err)
-		return
-	}
-	date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
-	obs := dusk.Observer{Lat: 47.6062, Lon: -122.3321, Elev: 58.0, Loc: loc}
-
-	// Betelgeuse: RA 88.7929°, Dec 7.4071°
-	betelgeuse := dusk.Equatorial{RA: 88.7929, Dec: 7.4071}
-	tr, err := dusk.ObjectTransit(date, betelgeuse, obs)
-	if err != nil {
-		fmt.Printf("Error: %v\n", err) // e.g., ErrCircumpolar or ErrNeverRises
-		return
-	}
-	fmt.Printf("Rise: %s\n", tr.Rise.Format("15:04"))
-	// Output:
-	// Rise: 06:31
 }
