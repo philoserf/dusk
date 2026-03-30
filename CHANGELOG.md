@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.2.0 — 2026-03-30
+
+### Bug fixes
+
+- `DaysApprox` now uses a linear elongation-to-days formula matching the "days into lunation" documentation (#36)
+- `solarHourAngle` no longer applies elevation correction to twilight calculations, per USNO convention (#39)
+- Example tests handle errors from `time.LoadLocation` and computation functions instead of discarding (#43)
+
+### Testing
+
+- Fuzz tests assert error returns for out-of-range coordinates instead of silently skipping (#37)
+- `TestLunarPhase` now asserts on `Angle` and `Elongation` ranges for all 8 phase test cases (#41)
+
+### CI
+
+- Enforce `gofumpt` formatting via `golangci-lint` formatters config (#38)
+
+### Documentation
+
+- `HourAngle` doc comment clarifies mixed-unit parameters (RA in degrees, LST in hours) (#40)
+- `MoonriseMoonset` doc comment notes ~1-2 ms wall-clock cost per call (#42)
+
 ## v2.1.0 — 2026-03-10
 
 ### New features

@@ -23,11 +23,11 @@ find . -name "*.go" -not -name "*_test.go" | sort | while read f; do echo "$(wc 
 ```
 
 ```output
-154 lines  ./coord.go
+160 lines  ./coord.go
 17 lines  ./doc.go
 139 lines  ./epoch.go
 167 lines  ./lunar_tables.go
-257 lines  ./lunar.go
+259 lines  ./lunar.go
 154 lines  ./solar.go
 71 lines  ./stringer.go
 141 lines  ./transit.go
@@ -486,11 +486,11 @@ func EquatorialToHorizontal(t time.Time, obs Observer, eq Equatorial) Horizontal
 	}
 }
 
-// HourAngle computes the hour angle in degrees from right ascension (degrees)
-// and local sidereal time (hours).
-func HourAngle(ra, lst float64) float64 {
-	return mod360(lst*15 - ra)
-}
+// HourAngle computes the hour angle in degrees.
+//
+// Parameters use mixed units:
+//   - ra: right ascension in degrees (0-360)
+//   - lst: local sidereal time in hours (0-24)
 ```
 
 This converts sky coordinates (RA/Dec) to what you actually see: altitude above the horizon and compass direction (azimuth). The hour angle bridges the gap — it's how far the object has rotated past your meridian.
@@ -504,6 +504,12 @@ sed -n "141,155p" coord.go
 ```
 
 ```output
+// The conversion lst*15 is applied internally, so callers must not
+// pre-convert LST to degrees.
+func HourAngle(ra, lst float64) float64 {
+	return mod360(lst*15 - ra)
+}
+
 // AngularSeparation returns the angular distance in degrees between two
 // positions given as (ra, dec) pairs in degrees. Works for any spherical
 // coordinate system (equatorial, ecliptic, geographic).
@@ -513,11 +519,6 @@ func AngularSeparation(ra1, dec1, ra2, dec2 float64) float64 {
 	dra := ra2 - ra1
 
 	x := cosx(dec1)*sinx(dec2) - sinx(dec1)*cosx(dec2)*cosx(dra)
-	y := cosx(dec2) * sinx(dra)
-	z := sinx(dec1)*sinx(dec2) + cosx(dec1)*cosx(dec2)*cosx(dra)
-
-	return atan2x(math.Sqrt(x*x+y*y), z)
-}
 ```
 
 The `atan2` formula is more numerically stable than the simpler `acos(dot product)` approach, which loses precision near 0° and 180° separation. Parameter order is RA-first to match the `Equatorial{RA, Dec}` field order.
@@ -632,12 +633,12 @@ sed -n "119,155p" solar.go
 // ErrNeverRises when the Sun never rises (polar night) at this latitude
 // and depression angle.
 func solarHourAngle(delta, depression, lat, elev float64) (float64, error) {
-	elevCorr := 2.076 * math.Sqrt(math.Max(0, elev)) / 60
 	var h0 float64
 	if depression == 0 {
+		elevCorr := 2.076 * math.Sqrt(math.Max(0, elev)) / 60
 		h0 = -(0.83 - elevCorr)
 	} else {
-		h0 = -(depression - elevCorr)
+		h0 = -depression // elevation excluded per USNO convention
 	}
 	num := sinx(h0) - sinx(lat)*sinx(delta)
 	den := cosx(lat) * cosx(delta)
@@ -869,8 +870,7 @@ func LunarPhase(t time.Time) LunarPhaseInfo {
 
 	K := 100 * (1 + cosx(PA)) / 2
 
-	frac := (1 - cosx(d)) / 2
-	days := frac * lunarMonthDays
+	days := d / 360 * lunarMonthDays
 
 	return LunarPhaseInfo{
 		Illumination: K,
@@ -881,6 +881,7 @@ func LunarPhase(t time.Time) LunarPhaseInfo {
 		Name:         lunarPhaseName(d),
 	}
 }
+
 ```
 
 The phase calculation combines the Sun's ecliptic longitude (simple formula) with the Moon's ecliptic position (full Chapter 47 calculation). The elongation is the angular distance between Sun and Moon as seen from Earth:
@@ -899,13 +900,15 @@ sed -n "146,204p" lunar.go
 ```
 
 ```output
-// MoonriseMoonset computes the moonrise and moonset times for the given date
 // at the specified observer position and timezone.
 //
 // The algorithm scans minute-by-minute through the day to detect altitude
 // sign changes. This is slow by design (~1440 ecliptic-position evaluations).
-// Callers computing moonrise/moonset for many dates (e.g., monthly calendars)
-// should expect proportional cost.
+// A single call takes approximately 1-2 ms on modern hardware (Apple M-series
+// or equivalent; see BenchmarkMoonriseMoonset). Callers computing
+// moonrise/moonset for many dates (e.g., a 30-day calendar ≈ 30-60 ms)
+// should expect proportional cost and may benefit from caching or
+// parallelization.
 //
 // Observer elevation (obs.Elev) is not used; it only affects sunrise/sunset
 // and twilight calculations.
@@ -956,8 +959,6 @@ func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
 		Rise:     rise,
 		Set:      set,
 		Duration: dur,
-	}, nil
-}
 ```
 
 Unlike the Sun (where rise/set can be computed analytically), moonrise/moonset requires brute-force scanning because the Moon moves significantly (~13°/day) during the day. The scan detects altitude crossing the horizon depression threshold (−0.833° for refraction + semidiameter).
@@ -1412,6 +1413,14 @@ linters:
     gocritic:
       disabled-checks:
         - captLocal # Meeus convention: T (century), M (anomaly), J (day), etc.
+
+formatters:
+  enable:
+    - gofumpt
+
+  settings:
+    gofumpt:
+      extra-rules: true
 ```
 
 ```bash
@@ -1450,4 +1459,3 @@ The `captLocal` gocritic check is disabled because Meeus algorithms use single-l
 5. **Meeus table transcription** — The 120 rows of lunar coefficients are transcribed from the book. While validated against independent sources, any single-digit transcription error would produce subtle inaccuracies that might only show up for specific dates.
 
 Overall, the library follows Go community standards well. The code is clean, well-tested, well-documented, and zero-dependency — it does one thing (astronomical calculations) and does it thoroughly.
-
