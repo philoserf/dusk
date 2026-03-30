@@ -24,9 +24,8 @@ func julianDate(t time.Time) float64 {
 }
 
 // errDateOutOfRange is returned when a date falls outside the valid range
-// for [julianDate] (the int64 nanosecond bounds, approximately
-// 1677-09-21 to 2262-04-11).
-var errDateOutOfRange = errors.New("dusk: date outside valid range (1677-09-21 to 2262-04-11) for julianDate")
+// (the int64 nanosecond bounds, approximately 1677-09-21 to 2262-04-11).
+var errDateOutOfRange = errors.New("dusk: date outside valid range (1677-09-21 to 2262-04-11)")
 
 // julianDateMin and julianDateMax are the bounds of the int64 UnixNano range.
 var (

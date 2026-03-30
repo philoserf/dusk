@@ -26,9 +26,7 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 }
 
 // SunriseSunset computes sunrise, solar noon, and sunset for the given date
-// and observer position.
-//
-// Longitude is east-positive, west-negative. An error is returned if obs.loc is nil.
+// and observer position. The observer must be constructed via [NewObserver].
 //
 // The algorithm follows the NOAA solar calculator method (derived from Meeus,
 // Astronomical Algorithms).

@@ -351,3 +351,22 @@ func TestHourAngle(t *testing.T) {
 		})
 	}
 }
+
+func TestNutationInLongitude(t *testing.T) {
+	// Meeus p. 148, Example 22.a: 1987-04-10 0h TT
+	// Δψ ≈ -3.788" = -0.001052°
+	dt := time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
+	T := julianCentury(dt)
+	L := solarMeanLongitude(T)
+	l := lunarMeanLongitude(T)
+	omega := lunarAscendingNode(T)
+
+	dpsi := nutationInLongitude(L, l, omega)
+
+	// Meeus gives Δψ = -3.788" ≈ -0.001052°. This simplified formula
+	// (4-term) agrees to ~1" (~0.0003°).
+	const want = -0.001052
+	if math.Abs(dpsi-want) > 0.0004 {
+		t.Errorf("nutationInLongitude = %.6f°, want ~%.6f° (within 0.0004°)", dpsi, want)
+	}
+}
