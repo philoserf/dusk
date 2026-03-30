@@ -35,6 +35,8 @@ var ErrNeverRises = errors.New("dusk: object never rises at this latitude")
 
 var errNilLocation = errors.New("dusk: location must not be nil")
 
+var errNonFiniteCoord = errors.New("dusk: coordinates must be finite (NaN and Inf are not allowed)")
+
 var errInvalidCoord = errors.New("dusk: latitude must be in [-90, 90] and longitude in [-180, 180]")
 
 // validObserver returns an error if obs was not constructed via NewObserver
@@ -62,7 +64,7 @@ func NewObserver(lat, lon float64, loc *time.Location) (Observer, error) {
 		return Observer{}, errNilLocation
 	}
 	if math.IsNaN(lat) || math.IsInf(lat, 0) || math.IsNaN(lon) || math.IsInf(lon, 0) {
-		return Observer{}, errInvalidCoord
+		return Observer{}, errNonFiniteCoord
 	}
 	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
 		return Observer{}, errInvalidCoord

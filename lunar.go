@@ -88,7 +88,13 @@ func lunarEclipticPosition(t time.Time) ecliptic {
 //
 // The phase angle uses the Meeus approach: solar ecliptic longitude from the
 // mean-anomaly method, lunar ecliptic position from Chapter 47 tables.
-func LunarPhase(t time.Time) LunarPhaseInfo {
+//
+// An error is returned if the date is out of the valid Julian date range.
+func LunarPhase(t time.Time) (LunarPhaseInfo, error) {
+	if err := validJulianDateRange(t); err != nil {
+		return LunarPhaseInfo{}, err
+	}
+
 	ec := lunarEclipticPosition(t)
 
 	J := julianDate(t) - j2000
@@ -119,7 +125,7 @@ func LunarPhase(t time.Time) LunarPhaseInfo {
 		DaysApprox:   days,
 		Waxing:       d < 180,
 		Name:         lunarPhaseName(d),
-	}
+	}, nil
 }
 
 // lunarPosition returns the equatorial coordinates (RA, Dec) of the Moon for

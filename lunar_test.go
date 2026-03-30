@@ -158,7 +158,10 @@ func TestLunarPhase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := LunarPhase(tt.date)
+			p, err := LunarPhase(tt.date)
+			if err != nil {
+				t.Fatalf("LunarPhase() returned error: %v", err)
+			}
 
 			if p.Illumination < tt.wantLow || p.Illumination > tt.wantHigh {
 				t.Errorf("illumination = %.2f%%, want [%.0f, %.0f]",
