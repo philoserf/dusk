@@ -9,20 +9,21 @@ import (
 // system timezone database.
 var benchEDT = time.FixedZone("EDT", -5*3600)
 
+// benchObs is a pre-validated observer for benchmark use.
+var benchObs, _ = NewObserver(40.7128, -74.006, benchEDT)
+
 func BenchmarkMoonriseMoonset(b *testing.B) {
 	date := time.Date(2024, 1, 15, 0, 0, 0, 0, benchEDT)
-	obs := Observer{lat: 40.7128, lon: -74.006, loc: benchEDT}
 
 	for b.Loop() {
-		MoonriseMoonset(date, obs) //nolint:errcheck
+		MoonriseMoonset(date, benchObs) //nolint:errcheck
 	}
 }
 
 func BenchmarkSunriseSunset(b *testing.B) {
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, benchEDT)
-	obs := Observer{lat: 40.7128, lon: -74.006, loc: benchEDT}
 
 	for b.Loop() {
-		SunriseSunset(date, obs) //nolint:errcheck
+		SunriseSunset(date, benchObs) //nolint:errcheck
 	}
 }

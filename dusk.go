@@ -141,10 +141,11 @@ func (s SunEvent) String() string {
 
 // String returns a human-readable representation of the moon event.
 func (m MoonEvent) String() string {
-	return fmt.Sprintf("Rise=%s Set=%s Duration=%s",
+	return fmt.Sprintf("Rise=%s Set=%s Duration=%s AboveHorizon=%v",
 		formatTime(m.Rise),
 		formatTime(m.Set),
-		m.Duration)
+		m.Duration,
+		m.AboveHorizon)
 }
 
 // String returns a human-readable representation of the lunar phase.

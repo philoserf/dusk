@@ -6,6 +6,16 @@ import (
 	"time"
 )
 
+// mustObserver constructs an Observer, failing the test on invalid input.
+func mustObserver(t *testing.T, lat, lon float64, loc *time.Location) Observer {
+	t.Helper()
+	obs, err := NewObserver(lat, lon, loc)
+	if err != nil {
+		t.Fatalf("mustObserver(%v, %v): %v", lat, lon, err)
+	}
+	return obs
+}
+
 func TestNewObserver(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -75,7 +85,21 @@ func TestMoonEventString(t *testing.T) {
 		Set:      time.Date(2024, 1, 15, 20, 30, 0, 0, loc),
 		Duration: 12*time.Hour + 15*time.Minute,
 	}
-	want := "Rise=08:15 Set=20:30 Duration=12h15m0s"
+	want := "Rise=08:15 Set=20:30 Duration=12h15m0s AboveHorizon=false"
+	if got := m.String(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestMoonEventString_AboveHorizon(t *testing.T) {
+	loc := time.FixedZone("TEST", 0)
+	m := MoonEvent{
+		Rise:         time.Date(2024, 1, 15, 8, 15, 0, 0, loc),
+		Set:          time.Date(2024, 1, 15, 20, 30, 0, 0, loc),
+		Duration:     12*time.Hour + 15*time.Minute,
+		AboveHorizon: true,
+	}
+	want := "Rise=08:15 Set=20:30 Duration=12h15m0s AboveHorizon=true"
 	if got := m.String(); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -83,7 +107,7 @@ func TestMoonEventString(t *testing.T) {
 
 func TestMoonEventString_Zero(t *testing.T) {
 	m := MoonEvent{}
-	want := "Rise=--:-- Set=--:-- Duration=0s"
+	want := "Rise=--:-- Set=--:-- Duration=0s AboveHorizon=false"
 	if got := m.String(); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
