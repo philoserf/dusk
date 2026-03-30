@@ -36,9 +36,9 @@ func TestJulianDate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := JulianDate(tt.time)
+			got := julianDate(tt.time)
 			if math.Abs(got-tt.want) > tt.epsilon {
-				t.Errorf("JulianDate() = %f, want %f (±%f)", got, tt.want, tt.epsilon)
+				t.Errorf("julianDate() = %f, want %f (±%f)", got, tt.want, tt.epsilon)
 			}
 		})
 	}
@@ -65,9 +65,9 @@ func TestValidJulianDateRange(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidJulianDateRange(tt.time)
-			if tt.wantErr && !errors.Is(err, ErrDateOutOfRange) {
-				t.Errorf("expected ErrDateOutOfRange, got %v", err)
+			err := validJulianDateRange(tt.time)
+			if tt.wantErr && !errors.Is(err, errDateOutOfRange) {
+				t.Errorf("expected errDateOutOfRange, got %v", err)
 			}
 			if !tt.wantErr && err != nil {
 				t.Errorf("expected nil, got %v", err)
@@ -151,9 +151,9 @@ func TestLocalSiderealTime(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := LocalSiderealTime(tt.time, tt.longitude)
+			got := localSiderealTime(tt.time, tt.longitude)
 			if math.Abs(got-tt.want) > tt.epsilon {
-				t.Errorf("LocalSiderealTime() = %f, want %f (±%f)", got, tt.want, tt.epsilon)
+				t.Errorf("localSiderealTime() = %f, want %f (±%f)", got, tt.want, tt.epsilon)
 			}
 		})
 	}
@@ -161,8 +161,8 @@ func TestLocalSiderealTime(t *testing.T) {
 	// Verify that longitude shifts LST by the expected amount.
 	t.Run("longitude offset shifts LST", func(t *testing.T) {
 		dt := time.Date(1987, 4, 10, 0, 0, 0, 0, time.UTC)
-		lst0 := LocalSiderealTime(dt, 0.0)
-		lst15 := LocalSiderealTime(dt, 15.0)
+		lst0 := localSiderealTime(dt, 0.0)
+		lst15 := localSiderealTime(dt, 15.0)
 		diff := lst15 - lst0
 		if diff < 0 {
 			diff += 24
@@ -246,6 +246,107 @@ func TestJulianCentury(t *testing.T) {
 			got := julianCentury(tt.time)
 			if math.Abs(got-tt.want) > tt.epsilon {
 				t.Errorf("julianCentury() = %f, want %f (±%f)", got, tt.want, tt.epsilon)
+			}
+		})
+	}
+}
+
+func TestEclipticToEquatorial(t *testing.T) {
+	tests := []struct {
+		name    string
+		dt      time.Time
+		lon     float64
+		lat     float64
+		wantRA  float64
+		wantDec float64
+		eps     float64
+	}{
+		{
+			name:    "Meeus p.342: Moon 1992-04-12",
+			dt:      time.Date(1992, 4, 12, 0, 0, 0, 0, time.UTC),
+			lon:     133.162655,
+			lat:     -3.229126,
+			wantRA:  134.7,
+			wantDec: 13.8,
+			eps:     0.15,
+		},
+		{
+			name:    "ecliptic lon=90 lat=0 (solstice geometry)",
+			dt:      time.Date(2024, 6, 20, 12, 0, 0, 0, time.UTC),
+			lon:     90.0,
+			lat:     0.0,
+			wantRA:  90.0,
+			wantDec: 23.44,
+			eps:     0.5,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			eq := eclipticToEquatorial(tt.dt, tt.lon, tt.lat)
+			if math.Abs(eq.ra-tt.wantRA) > tt.eps {
+				t.Errorf("RA = %.4f, want ~%.1f (within %.2f°)", eq.ra, tt.wantRA, tt.eps)
+			}
+			if math.Abs(eq.dec-tt.wantDec) > tt.eps {
+				t.Errorf("Dec = %.4f, want ~%.2f (within %.2f°)", eq.dec, tt.wantDec, tt.eps)
+			}
+		})
+	}
+}
+
+func TestEquatorialToHorizontal(t *testing.T) {
+	// Sirius observed from NYC on 2024-01-16 02:00 UTC (~9pm EST).
+	// Sirius transits ~00:40 local in mid-January; at 9pm it is well up in the SE.
+	dt := time.Date(2024, 1, 16, 2, 0, 0, 0, time.UTC)
+	obs := Observer{lat: 40.7128, lon: -74.006, loc: time.UTC}
+	sirius := equatorial{ra: 101.287, dec: -16.716}
+
+	h := equatorialToHorizontal(dt, obs, sirius)
+
+	// Algorithm-computed reference: Sirius from NYC at 2024-01-16 02:00 UTC.
+	// Alt ~26°, Az ~147° (SE sky, still rising toward transit).
+	const eps = 1.0
+	if math.Abs(h.alt-26.06) > eps {
+		t.Errorf("alt = %.4f, want ~26.06° (within %.0f°)", h.alt, eps)
+	}
+	if math.Abs(h.az-147.49) > eps {
+		t.Errorf("az = %.4f, want ~147.49° (within %.0f°)", h.az, eps)
+	}
+}
+
+func TestEquatorialToHorizontal_Pole(t *testing.T) {
+	// Observer at the North Pole — cosAltCosLat guard triggers, azimuth defaults to 0.
+	dt := time.Date(2024, 1, 16, 12, 0, 0, 0, time.UTC)
+	obs := Observer{lat: 90.0, lon: 0, loc: time.UTC}
+	star := equatorial{ra: 0, dec: 45}
+
+	h := equatorialToHorizontal(dt, obs, star)
+	if h.az != 0 {
+		t.Errorf("az = %.4f, want 0 at pole (guard branch)", h.az)
+	}
+	// Altitude should equal declination at the pole.
+	if math.Abs(h.alt-45.0) > 0.5 {
+		t.Errorf("alt = %.4f, want ~45° at North Pole for Dec=45°", h.alt)
+	}
+}
+
+func TestHourAngle(t *testing.T) {
+	tests := []struct {
+		name   string
+		ra     float64
+		lst    float64
+		wantHA float64
+	}{
+		{"object on meridian", 90, 6, 0},
+		{"RA=90 LST=0h", 90, 0, 270},
+		{"RA=0 LST=6h", 0, 6, 90},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ha := hourAngle(tt.ra, tt.lst)
+			if math.Abs(ha-tt.wantHA) > 1e-9 {
+				t.Errorf("hourAngle(%v, %v) = %v, want %v", tt.ra, tt.lst, ha, tt.wantHA)
 			}
 		})
 	}

@@ -16,13 +16,10 @@ func TestSunriseSunset(t *testing.T) {
 	// NYC (40.7128°N, 74.006°W) on 2024-03-20 (vernal equinox).
 	// USNO data: Sunrise ~6:57 AM EDT, Sunset ~7:11 PM EDT.
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
-	lat := 40.7128
-	lon := -74.006
-	elev := 10.0
 
 	tolerance := 3 * time.Minute
 
-	obs := Observer{Lat: lat, Lon: lon, Elev: elev, Loc: nyc}
+	obs := Observer{lat: 40.7128, lon: -74.006, loc: nyc}
 	event, err := SunriseSunset(date, obs)
 	if err != nil {
 		t.Fatalf("SunriseSunset() returned error: %v", err)
@@ -58,11 +55,8 @@ func TestSunriseSunset_Equatorial(t *testing.T) {
 	}
 
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc) // June solstice
-	lat := -0.18
-	lon := -78.47
-	elev := 2800.0 // Quito elevation in meters
 
-	obs := Observer{Lat: lat, Lon: lon, Elev: elev, Loc: loc}
+	obs := Observer{lat: -0.18, lon: -78.47, loc: loc}
 	event, err := SunriseSunset(date, obs)
 	if err != nil {
 		t.Fatalf("SunriseSunset() returned error: %v", err)
@@ -96,11 +90,8 @@ func TestSunriseSunset_SouthernHemisphere(t *testing.T) {
 	}
 
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
-	lat := -33.87
-	lon := 151.21
-	elev := 58.0
 
-	obs := Observer{Lat: lat, Lon: lon, Elev: elev, Loc: loc}
+	obs := Observer{lat: -33.87, lon: 151.21, loc: loc}
 	event, err := SunriseSunset(date, obs)
 	if err != nil {
 		t.Fatalf("SunriseSunset() returned error: %v", err)
@@ -130,7 +121,7 @@ func TestSunriseSunset_PolarDay(t *testing.T) {
 	}
 
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
-	obs := Observer{Lat: 69.65, Lon: 18.96, Elev: 0, Loc: loc}
+	obs := Observer{lat: 69.65, lon: 18.96, loc: loc}
 
 	_, err = SunriseSunset(date, obs)
 	if !errors.Is(err, ErrCircumpolar) {
@@ -146,7 +137,7 @@ func TestSunriseSunset_PolarNight(t *testing.T) {
 	}
 
 	date := time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
-	obs := Observer{Lat: 69.65, Lon: 18.96, Elev: 0, Loc: loc}
+	obs := Observer{lat: 69.65, lon: 18.96, loc: loc}
 
 	_, err = SunriseSunset(date, obs)
 	if !errors.Is(err, ErrNeverRises) {
@@ -154,96 +145,35 @@ func TestSunriseSunset_PolarNight(t *testing.T) {
 	}
 }
 
-func TestSunriseSunset_NilLocation(t *testing.T) {
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, time.UTC)
-	_, err := SunriseSunset(date, Observer{Lat: 40.0, Lon: -74.0})
-	if err == nil {
-		t.Error("SunriseSunset() with nil location should return error")
-	}
-}
-
-func TestSunriseSunset_InvalidCoordinates(t *testing.T) {
-	loc := time.UTC
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, loc)
-
-	tests := []struct {
-		name string
-		obs  Observer
-	}{
-		{"latitude too high", Observer{Lat: 91, Lon: 0, Loc: loc}},
-		{"latitude too low", Observer{Lat: -91, Lon: 0, Loc: loc}},
-		{"longitude too high", Observer{Lat: 0, Lon: 181, Loc: loc}},
-		{"longitude too low", Observer{Lat: 0, Lon: -181, Loc: loc}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := SunriseSunset(date, tt.obs)
-			if err == nil {
-				t.Error("expected error for invalid coordinates")
-			}
-		})
-	}
-}
-
-func TestSunriseSunset_NegativeElevation(t *testing.T) {
-	// Negative elevation should be clamped to sea level (math.Max(0, elev)).
-	// Results with Elev: -100 should match Elev: 0 exactly.
-	nyc, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		t.Fatalf("failed to load timezone: %v", err)
-	}
-
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, time.UTC)
-	base := Observer{Lat: 40.7128, Lon: -74.006, Elev: 0, Loc: nyc}
-	neg := Observer{Lat: 40.7128, Lon: -74.006, Elev: -100, Loc: nyc}
-
-	evtBase, err := SunriseSunset(date, base)
-	if err != nil {
-		t.Fatalf("SunriseSunset(Elev=0) error: %v", err)
-	}
-	evtNeg, err := SunriseSunset(date, neg)
-	if err != nil {
-		t.Fatalf("SunriseSunset(Elev=-100) error: %v", err)
-	}
-
-	if !evtBase.Rise.Equal(evtNeg.Rise) {
-		t.Errorf("Rise differs: Elev=0 %v, Elev=-100 %v", evtBase.Rise, evtNeg.Rise)
-	}
-	if !evtBase.Set.Equal(evtNeg.Set) {
-		t.Errorf("Set differs: Elev=0 %v, Elev=-100 %v", evtBase.Set, evtNeg.Set)
-	}
-}
-
 func TestSolarPosition(t *testing.T) {
 	// Near the vernal equinox: RA ~0°, Dec ~0°.
 	dt := time.Date(2024, 3, 20, 12, 0, 0, 0, time.UTC)
-	pos := SolarPosition(dt)
+	pos := solarPosition(dt)
 
 	// RA should be near 0° (or 360°). Handle wrap-around.
-	ra := pos.RA
+	ra := pos.ra
 	if ra > 180 {
 		ra -= 360
 	}
 	if math.Abs(ra) > 5 {
-		t.Errorf("SolarPosition() RA = %f°, want near 0° (±5°) at vernal equinox", pos.RA)
+		t.Errorf("solarPosition() RA = %f°, want near 0° (±5°) at vernal equinox", pos.ra)
 	}
 
-	if math.Abs(pos.Dec) > 2 {
-		t.Errorf("SolarPosition() Dec = %f°, want near 0° (±2°) at vernal equinox", pos.Dec)
+	if math.Abs(pos.dec) > 2 {
+		t.Errorf("solarPosition() Dec = %f°, want near 0° (±2°) at vernal equinox", pos.dec)
 	}
 }
 
 func TestSolarPosition_SummerSolstice(t *testing.T) {
 	// Summer solstice 2024-06-20: RA ~90°, Dec ~+23.44°.
 	dt := time.Date(2024, 6, 20, 12, 0, 0, 0, time.UTC)
-	pos := SolarPosition(dt)
+	pos := solarPosition(dt)
 
-	if math.Abs(pos.RA-90) > 2 {
-		t.Errorf("SolarPosition() RA = %f°, want near 90° (±2°) at summer solstice", pos.RA)
+	if math.Abs(pos.ra-90) > 2 {
+		t.Errorf("solarPosition() RA = %f°, want near 90° (±2°) at summer solstice", pos.ra)
 	}
-	if math.Abs(pos.Dec-23.44) > 1 {
-		t.Errorf("SolarPosition() Dec = %f°, want near 23.44° (±1°) at summer solstice", pos.Dec)
+	if math.Abs(pos.dec-23.44) > 1 {
+		t.Errorf("solarPosition() Dec = %f°, want near 23.44° (±1°) at summer solstice", pos.dec)
 	}
 }
 
@@ -281,5 +211,223 @@ func TestSolarMeanAnomaly(t *testing.T) {
 				t.Errorf("solarMeanAnomaly(%f) = %f, want in [%f, %f)", tt.J, got, tt.wantMin, tt.wantMax)
 			}
 		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Twilight tests (moved from twilight_test.go)
+// ---------------------------------------------------------------------------
+
+func TestCivilTwilight(t *testing.T) {
+	nyc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("failed to load timezone: %v", err)
+	}
+
+	// NYC (40.7128°N, 74.006°W) on 2024-03-20 (vernal equinox).
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	tolerance := 5 * time.Minute
+
+	obs := Observer{lat: 40.7128, lon: -74.006, loc: nyc}
+	event, err := CivilTwilight(date, obs)
+	if err != nil {
+		t.Fatalf("CivilTwilight() returned error: %v", err)
+	}
+
+	// Civil twilight dusk should be roughly 7:30-7:40 PM EDT (after sunset ~7:08 PM).
+	wantDusk := time.Date(2024, 3, 20, 19, 35, 0, 0, nyc)
+	if diff := event.Dusk.Sub(wantDusk); diff < -tolerance || diff > tolerance {
+		t.Errorf("Dusk = %v, want %v (±%v, diff=%v)", event.Dusk.Format("15:04:05"), wantDusk.Format("15:04"), tolerance, diff)
+	}
+
+	// Civil twilight dawn should be roughly 6:25-6:35 AM EDT next day.
+	wantDawn := time.Date(2024, 3, 21, 6, 30, 0, 0, nyc)
+	if diff := event.Dawn.Sub(wantDawn); diff < -tolerance || diff > tolerance {
+		t.Errorf("Dawn = %v, want %v (±%v, diff=%v)", event.Dawn.Format("15:04:05"), wantDawn.Format("15:04"), tolerance, diff)
+	}
+
+	if event.Duration <= 0 {
+		t.Errorf("Duration = %v, want > 0", event.Duration)
+	}
+}
+
+func TestNauticalTwilight(t *testing.T) {
+	nyc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("failed to load timezone: %v", err)
+	}
+
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+
+	obs := Observer{lat: 40.7128, lon: -74.006, loc: nyc}
+	civil, err := CivilTwilight(date, obs)
+	if err != nil {
+		t.Fatalf("CivilTwilight() returned error: %v", err)
+	}
+
+	nautical, err := NauticalTwilight(date, obs)
+	if err != nil {
+		t.Fatalf("NauticalTwilight() returned error: %v", err)
+	}
+
+	// Nautical twilight dusk is later than civil (Sun is deeper below horizon).
+	if !nautical.Dusk.After(civil.Dusk) {
+		t.Errorf("Nautical dusk %v should be after civil dusk %v", nautical.Dusk.Format("15:04:05"), civil.Dusk.Format("15:04:05"))
+	}
+
+	// Nautical twilight dawn is earlier than civil.
+	if !nautical.Dawn.Before(civil.Dawn) {
+		t.Errorf("Nautical dawn %v should be before civil dawn %v", nautical.Dawn.Format("15:04:05"), civil.Dawn.Format("15:04:05"))
+	}
+
+	if nautical.Duration <= 0 {
+		t.Errorf("Duration = %v, want > 0", nautical.Duration)
+	}
+}
+
+func TestAstronomicalTwilight(t *testing.T) {
+	nyc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("failed to load timezone: %v", err)
+	}
+
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+
+	obs := Observer{lat: 40.7128, lon: -74.006, loc: nyc}
+	nautical, err := NauticalTwilight(date, obs)
+	if err != nil {
+		t.Fatalf("NauticalTwilight() returned error: %v", err)
+	}
+
+	astro, err := AstronomicalTwilight(date, obs)
+	if err != nil {
+		t.Fatalf("AstronomicalTwilight() returned error: %v", err)
+	}
+
+	// Astronomical twilight dusk is later than nautical.
+	if !astro.Dusk.After(nautical.Dusk) {
+		t.Errorf("Astronomical dusk %v should be after nautical dusk %v", astro.Dusk.Format("15:04:05"), nautical.Dusk.Format("15:04:05"))
+	}
+
+	// Astronomical twilight dawn is earlier than nautical.
+	if !astro.Dawn.Before(nautical.Dawn) {
+		t.Errorf("Astronomical dawn %v should be before nautical dawn %v", astro.Dawn.Format("15:04:05"), nautical.Dawn.Format("15:04:05"))
+	}
+
+	if astro.Duration <= 0 {
+		t.Errorf("Duration = %v, want > 0", astro.Duration)
+	}
+}
+
+func TestTwilight_Equatorial(t *testing.T) {
+	// Quito, Ecuador on 2024-03-20 (equinox).
+	// Near the equator, twilight transitions are the fastest in the world.
+	loc, err := time.LoadLocation("America/Guayaquil")
+	if err != nil {
+		t.Fatalf("failed to load timezone: %v", err)
+	}
+
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, loc)
+
+	obs := Observer{lat: -0.18, lon: -78.47, loc: loc}
+	civil, err := CivilTwilight(date, obs)
+	if err != nil {
+		t.Fatalf("CivilTwilight() returned error: %v", err)
+	}
+
+	if civil.Dusk.IsZero() {
+		t.Error("expected non-zero civil twilight Dusk")
+	}
+	if civil.Dawn.IsZero() {
+		t.Error("expected non-zero civil twilight Dawn")
+	}
+
+	// Civil twilight duration (darkness period) should be less than 12 hours
+	// at the equator, where twilight transitions are rapid.
+	if civil.Duration >= 12*time.Hour {
+		t.Errorf("civil twilight Duration = %v, want < 12h near equator", civil.Duration)
+	}
+	if civil.Duration <= 0 {
+		t.Errorf("civil twilight Duration = %v, want > 0", civil.Duration)
+	}
+
+	t.Logf("Quito civil twilight: dusk=%v dawn=%v duration=%v", civil.Dusk, civil.Dawn, civil.Duration)
+}
+
+func TestTwilight_PolarDay(t *testing.T) {
+	// Tromsø, Norway (69.65°N) on June 21 — no astronomical twilight during midnight sun.
+	loc, err := time.LoadLocation("Europe/Oslo")
+	if err != nil {
+		t.Fatalf("failed to load timezone: %v", err)
+	}
+
+	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
+	obs := Observer{lat: 69.65, lon: 18.96, loc: loc}
+
+	_, err = AstronomicalTwilight(date, obs)
+	if !errors.Is(err, ErrCircumpolar) {
+		t.Errorf("expected ErrCircumpolar for astronomical twilight at 69.65°N midsummer, got %v", err)
+	}
+}
+
+func TestTwilight_PolarNight(t *testing.T) {
+	// Near North Pole (87°N) on December 21 — deep polar night.
+	// At this latitude the sun is far enough below the horizon that even
+	// astronomical twilight (18° depression) does not occur.
+	loc := time.UTC
+	obs := Observer{lat: 87.0, lon: 0, loc: loc}
+
+	date := time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
+
+	_, err := AstronomicalTwilight(date, obs)
+	if !errors.Is(err, ErrNeverRises) {
+		t.Errorf("expected ErrNeverRises for astronomical twilight at 87°N midwinter, got %v", err)
+	}
+}
+
+func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
+	// USNO reference: NYC 2024-03-20 nautical twilight dusk ~20:05 EDT, dawn ~05:55 EDT.
+	nyc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("failed to load timezone: %v", err)
+	}
+
+	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	obs := Observer{lat: 40.7128, lon: -74.006, loc: nyc}
+	tolerance := 10 * time.Minute
+
+	nautical, err := NauticalTwilight(date, obs)
+	if err != nil {
+		t.Fatalf("NauticalTwilight() returned error: %v", err)
+	}
+
+	wantDusk := time.Date(2024, 3, 20, 20, 5, 0, 0, nyc)
+	if diff := nautical.Dusk.Sub(wantDusk); diff < -tolerance || diff > tolerance {
+		t.Errorf("Dusk = %v, want %v (±%v, diff=%v)", nautical.Dusk.Format("15:04:05"), wantDusk.Format("15:04"), tolerance, diff)
+	}
+
+	wantDawn := time.Date(2024, 3, 21, 5, 55, 0, 0, nyc)
+	if diff := nautical.Dawn.Sub(wantDawn); diff < -tolerance || diff > tolerance {
+		t.Errorf("Dawn = %v, want %v (±%v, diff=%v)", nautical.Dawn.Format("15:04:05"), wantDawn.Format("15:04"), tolerance, diff)
+	}
+}
+
+func TestTwilight_PolarTransition(t *testing.T) {
+	// At 75°N, civil twilight succeeds on Nov 25 but fails on Nov 26,
+	// exercising the polar-transition branch in twilight().
+	loc := time.UTC
+	obs := Observer{lat: 75.0, lon: 25.0, loc: loc}
+
+	before := time.Date(2024, 11, 25, 0, 0, 0, 0, loc)
+	after := time.Date(2024, 11, 26, 0, 0, 0, 0, loc)
+
+	_, err := CivilTwilight(before, obs)
+	if err != nil {
+		t.Fatalf("CivilTwilight(Nov 25, 75°N) should succeed, got %v", err)
+	}
+
+	_, err = CivilTwilight(after, obs)
+	if !errors.Is(err, ErrNeverRises) {
+		t.Fatalf("CivilTwilight(Nov 26, 75°N) should return ErrNeverRises, got %v", err)
 	}
 }

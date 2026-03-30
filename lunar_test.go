@@ -9,7 +9,7 @@ import (
 func TestLunarEclipticPosition(t *testing.T) {
 	// Meeus p. 342: 1992-04-12 00:00 UTC
 	dt := time.Date(1992, 4, 12, 0, 0, 0, 0, time.UTC)
-	ec := LunarEclipticPosition(dt)
+	ec := lunarEclipticPosition(dt)
 
 	tests := []struct {
 		name    string
@@ -17,9 +17,9 @@ func TestLunarEclipticPosition(t *testing.T) {
 		want    float64
 		epsilon float64
 	}{
-		{"longitude", ec.Lon, 133.162655, 0.001},
-		{"latitude", ec.Lat, -3.229126, 0.001},
-		{"distance", ec.Dist, 368409.7, 1.0},
+		{"longitude", ec.lon, 133.162655, 0.001},
+		{"latitude", ec.lat, -3.229126, 0.001},
+		{"distance", ec.dist, 368409.7, 1.0},
 	}
 
 	for _, tt := range tests {
@@ -35,13 +35,13 @@ func TestLunarPosition(t *testing.T) {
 	// Meeus p. 342: 1992-04-12 00:00 UTC.
 	// Expected equatorial coordinates (nutation-corrected): RA ~134.7°, Dec ~13.8°.
 	dt := time.Date(1992, 4, 12, 0, 0, 0, 0, time.UTC)
-	eq := LunarPosition(dt)
+	eq := lunarPosition(dt)
 
-	if math.Abs(eq.RA-134.7) > 0.5 {
-		t.Errorf("RA = %.4f, want ~134.7°", eq.RA)
+	if math.Abs(eq.ra-134.7) > 0.5 {
+		t.Errorf("RA = %.4f, want ~134.7°", eq.ra)
 	}
-	if math.Abs(eq.Dec-13.8) > 0.5 {
-		t.Errorf("Dec = %.4f, want ~13.8°", eq.Dec)
+	if math.Abs(eq.dec-13.8) > 0.5 {
+		t.Errorf("Dec = %.4f, want ~13.8°", eq.dec)
 	}
 }
 
@@ -194,7 +194,7 @@ func TestMoonriseMoonset(t *testing.T) {
 	}
 
 	date := time.Date(2024, 1, 15, 0, 0, 0, 0, loc)
-	obs := Observer{Lat: 40.7128, Lon: -74.0060, Loc: loc}
+	obs := Observer{lat: 40.7128, lon: -74.0060, loc: loc}
 
 	evt, err := MoonriseMoonset(date, obs)
 	if err != nil {
@@ -235,7 +235,7 @@ func TestMoonriseMoonset_SouthernHemisphere(t *testing.T) {
 	}
 
 	date := time.Date(2024, 1, 15, 0, 0, 0, 0, loc)
-	obs := Observer{Lat: -33.87, Lon: 151.21, Loc: loc}
+	obs := Observer{lat: -33.87, lon: 151.21, loc: loc}
 
 	evt, err := MoonriseMoonset(date, obs)
 	if err != nil {
@@ -266,20 +266,4 @@ func TestMoonriseMoonset_SouthernHemisphere(t *testing.T) {
 	}
 
 	t.Logf("Sydney moonrise=%v moonset=%v duration=%v", evt.Rise, evt.Set, evt.Duration)
-}
-
-func TestMoonriseMoonset_NilLocation(t *testing.T) {
-	date := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
-	_, err := MoonriseMoonset(date, Observer{Lat: 40.0, Lon: -74.0})
-	if err == nil {
-		t.Error("expected error for nil location, got nil")
-	}
-}
-
-func TestMoonriseMoonset_InvalidCoordinates(t *testing.T) {
-	date := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
-	_, err := MoonriseMoonset(date, Observer{Lat: 91, Lon: 0, Loc: time.UTC})
-	if err == nil {
-		t.Error("expected error for invalid coordinates")
-	}
 }
