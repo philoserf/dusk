@@ -9,7 +9,7 @@ type LunarPhaseInfo struct {
 	Illumination float64 // percentage 0-100
 	Elongation   float64 // degrees 0-360
 	Angle        float64 // phase angle in degrees (may be negative per Meeus formula)
-	DaysApprox   float64 // approximate days into lunation (linear from elongation, ±1 day)
+	DaysApprox   float64 // rough days into lunation (linear estimate from elongation)
 	Waxing       bool    // true from New Moon to Full Moon (elongation 0-180)
 	Name         string  // "New Moon", "Waxing Crescent", etc.
 }
