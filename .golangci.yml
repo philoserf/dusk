@@ -23,3 +23,11 @@ linters:
     gocritic:
       disabled-checks:
         - captLocal # Meeus convention: T (century), M (anomaly), J (day), etc.
+
+formatters:
+  enable:
+    - gofumpt
+
+  settings:
+    gofumpt:
+      extra-rules: true
