@@ -39,8 +39,8 @@ func ExampleCivilTwilight() {
 	fmt.Printf("Dusk: %s\n", tw.Dusk.Format("15:04"))
 	fmt.Printf("Dawn: %s\n", tw.Dawn.Format("15:04"))
 	// Output:
-	// Dusk: 21:49
-	// Dawn: 04:33
+	// Dusk: 21:51
+	// Dawn: 04:31
 }
 
 func ExampleSolarPosition() {

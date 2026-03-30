@@ -129,12 +129,14 @@ func solarDeclination(lambda, T float64) float64 {
 // ErrNeverRises when the Sun never rises (polar night) at this latitude
 // and depression angle.
 func solarHourAngle(delta, depression, lat, elev float64) (float64, error) {
-	elevCorr := 2.076 * math.Sqrt(math.Max(0, elev)) / 60
 	var h0 float64
 	if depression == 0 {
+		elevCorr := 2.076 * math.Sqrt(math.Max(0, elev)) / 60
 		h0 = -(0.83 - elevCorr)
 	} else {
-		h0 = -(depression - elevCorr)
+		// Twilight: depression is from the geometric horizon per USNO
+		// convention; observer elevation does not apply.
+		h0 = -depression
 	}
 	num := sinx(h0) - sinx(lat)*sinx(delta)
 	den := cosx(lat) * cosx(delta)
