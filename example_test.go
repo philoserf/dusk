@@ -8,11 +8,19 @@ import (
 )
 
 func ExampleSunriseSunset() {
-	loc, _ := time.LoadLocation("America/Chicago")
+	loc, err := time.LoadLocation("America/Chicago")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 	date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
 	obs := dusk.Observer{Lat: 42.9634, Lon: -85.6681, Elev: 188.0, Loc: loc}
 
-	sun, _ := dusk.SunriseSunset(date, obs)
+	sun, err := dusk.SunriseSunset(date, obs)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 	fmt.Printf("Sunrise: %s\n", sun.Rise.Format("15:04"))
 	fmt.Printf("Sunset:  %s\n", sun.Set.Format("15:04"))
 	// Output:
@@ -31,11 +39,19 @@ func ExampleLunarPhase() {
 }
 
 func ExampleCivilTwilight() {
-	loc, _ := time.LoadLocation("America/Los_Angeles")
+	loc, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 	date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
 	obs := dusk.Observer{Lat: 47.6062, Lon: -122.3321, Elev: 58.0, Loc: loc}
 
-	tw, _ := dusk.CivilTwilight(date, obs)
+	tw, err := dusk.CivilTwilight(date, obs)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 	fmt.Printf("Dusk: %s\n", tw.Dusk.Format("15:04"))
 	fmt.Printf("Dawn: %s\n", tw.Dawn.Format("15:04"))
 	// Output:
@@ -54,11 +70,19 @@ func ExampleSolarPosition() {
 }
 
 func ExampleMoonriseMoonset() {
-	loc, _ := time.LoadLocation("America/New_York")
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 	date := time.Date(2024, 1, 15, 0, 0, 0, 0, loc)
 	obs := dusk.Observer{Lat: 40.7128, Lon: -74.0060, Loc: loc}
 
-	evt, _ := dusk.MoonriseMoonset(date, obs)
+	evt, err := dusk.MoonriseMoonset(date, obs)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 	if !evt.Rise.IsZero() {
 		fmt.Printf("Moonrise: %s\n", evt.Rise.Format("15:04"))
 	}
@@ -71,7 +95,11 @@ func ExampleMoonriseMoonset() {
 }
 
 func ExampleObjectTransit() {
-	loc, _ := time.LoadLocation("America/Los_Angeles")
+	loc, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 	date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
 	obs := dusk.Observer{Lat: 47.6062, Lon: -122.3321, Elev: 58.0, Loc: loc}
 
