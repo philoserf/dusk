@@ -202,8 +202,8 @@ func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, 
 	dawn := universalTimeFromJD(sp2.jTransit - omega2/360).In(obs.loc)
 
 	return TwilightEvent{
-		Dusk:     dusk,
-		Dawn:     dawn,
-		Duration: dawn.Sub(dusk),
+		Dusk:          dusk,
+		Dawn:          dawn,
+		NightDuration: dawn.Sub(dusk),
 	}, nil
 }

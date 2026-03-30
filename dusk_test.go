@@ -151,11 +151,11 @@ func TestLunarPhaseInfoString_Zero(t *testing.T) {
 func TestTwilightEventString(t *testing.T) {
 	loc := time.FixedZone("TEST", 0)
 	tw := TwilightEvent{
-		Dusk:     time.Date(2024, 1, 15, 18, 30, 0, 0, loc),
-		Dawn:     time.Date(2024, 1, 16, 6, 15, 0, 0, loc),
-		Duration: 11*time.Hour + 45*time.Minute,
+		Dusk:          time.Date(2024, 1, 15, 18, 30, 0, 0, loc),
+		Dawn:          time.Date(2024, 1, 16, 6, 15, 0, 0, loc),
+		NightDuration: 11*time.Hour + 45*time.Minute,
 	}
-	want := "Dusk=18:30 Dawn=06:15 Duration=11h45m0s"
+	want := "Dusk=18:30 Dawn=06:15 NightDuration=11h45m0s"
 	if got := tw.String(); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -163,7 +163,7 @@ func TestTwilightEventString(t *testing.T) {
 
 func TestTwilightEventString_Zero(t *testing.T) {
 	tw := TwilightEvent{}
-	want := "Dusk=--:-- Dawn=--:-- Duration=0s"
+	want := "Dusk=--:-- Dawn=--:-- NightDuration=0s"
 	if got := tw.String(); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}

@@ -95,9 +95,9 @@ type MoonEvent struct {
 // Dawn is tomorrow morning's boundary (sun passes above the depression angle).
 // To get this morning's dawn, call with yesterday's date.
 type TwilightEvent struct {
-	Dusk     time.Time     // evening boundary (today)
-	Dawn     time.Time     // morning boundary (tomorrow)
-	Duration time.Duration // time from Dusk to Dawn (overnight period below the depression angle)
+	Dusk          time.Time     // evening boundary (today)
+	Dawn          time.Time     // morning boundary (tomorrow)
+	NightDuration time.Duration // time from Dusk to Dawn (overnight darkness)
 }
 
 // LunarPhaseInfo describes the Moon's current phase.
@@ -170,8 +170,8 @@ func (l LunarPhaseInfo) String() string {
 
 // String returns a human-readable representation of the twilight event.
 func (tw TwilightEvent) String() string {
-	return fmt.Sprintf("Dusk=%s Dawn=%s Duration=%s",
+	return fmt.Sprintf("Dusk=%s Dawn=%s NightDuration=%s",
 		formatTime(tw.Dusk),
 		formatTime(tw.Dawn),
-		tw.Duration)
+		tw.NightDuration)
 }
