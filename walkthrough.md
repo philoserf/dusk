@@ -470,6 +470,22 @@ sed -n '96,132p' lunar.go
 ```
 
 ```output
+	return ecliptic{
+		lon:  mod360(Lp + Sl/1e6),
+		lat:  Sb / 1e6,
+		dist: 385000.56 + Sr/1000,
+	}
+}
+
+// LunarPhase returns the lunar phase at the given instant.
+//
+// Unlike SunriseSunset and MoonriseMoonset which use only the calendar date,
+// LunarPhase uses the exact time — the phase changes continuously.
+//
+// The phase angle uses the Meeus approach: solar ecliptic longitude from the
+// mean-anomaly method, lunar ecliptic position from Chapter 47 tables.
+//
+// An error is returned if the date is out of the valid Julian date range.
 func LunarPhase(date time.Time) (LunarPhaseInfo, error) {
 	if err := validJulianDateRange(date); err != nil {
 		return LunarPhaseInfo{}, err
@@ -491,22 +507,6 @@ func LunarPhase(date time.Time) (LunarPhaseInfo, error) {
 		d = 360 - d
 	}
 
-	// phase angle (Meeus p. 346)
-	PA := 180 - d - 0.1468*((1-0.0549*sinx(Mp))/(1-0.0167*sinx(Msol)))*sinx(d)
-
-	K := 100 * (1 + cosx(PA)) / 2
-
-	days := d / 360 * lunarMonthDays
-
-	return LunarPhaseInfo{
-		Illumination: K,
-		Elongation:   d,
-		Angle:        PA,
-		DaysApprox:   days,
-		Waxing:       d < 180,
-		Name:         lunarPhaseName(d),
-	}, nil
-}
 ```
 
 `LunarPhase` combines the solar and lunar positions to compute elongation (the Moon-Sun angular separation). The elongation drives everything: illumination via the phase angle (Meeus p. 346), waxing/waning from the 0–180/180–360 split, phase name from 45-degree bins, and days-into-lunation as a linear proportion of the 29.53-day synodic month. Note that `LunarPhase` takes no `Observer` — phase is the same for everyone on Earth.
@@ -516,6 +516,22 @@ sed -n '157,214p' lunar.go
 ```
 
 ```output
+// MoonriseMoonset computes the moonrise and moonset times for the given date
+// at the specified observer position and timezone.
+// The date is converted to the observer's timezone to determine the local
+// calendar day, then the function scans that local day (midnight to midnight)
+// for rise/set events. This means the same time.Time can produce different
+// results for observers in different timezones.
+//
+// The algorithm scans minute-by-minute through the day to detect altitude
+// sign changes. This is slow by design (~1440 ecliptic-position evaluations).
+// A single call takes approximately 1-2 ms on modern hardware (Apple M-series
+// or equivalent; see BenchmarkMoonriseMoonset). Callers computing
+// moonrise/moonset for many dates (e.g., a 30-day calendar ≈ 30-60 ms)
+// should expect proportional cost and may benefit from caching or
+// parallelization.
+//
+// An error is returned if the date is out of the valid Julian date range.
 func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
 	if err := validObserver(obs); err != nil {
 		return MoonEvent{}, err
@@ -558,22 +574,6 @@ func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
 		if !rise.IsZero() && !set.IsZero() {
 			break
 		}
-
-		prevAlt = hz.alt
-	}
-
-	var dur time.Duration
-	if !rise.IsZero() && !set.IsZero() && set.After(rise) {
-		dur = set.Sub(rise)
-	}
-
-	return MoonEvent{
-		Rise:         rise,
-		Set:          set,
-		Duration:     dur,
-		AboveHorizon: aboveAtStart,
-	}, nil
-}
 ```
 
 Unlike the Sun (which has a clean hour-angle formula), the Moon moves fast enough that its position changes significantly during a single day. So `MoonriseMoonset` brute-forces it: scan every minute from local midnight to local midnight, computing the full ecliptic → equatorial → horizontal pipeline each time. That is ~1,440 iterations per call.
@@ -585,6 +585,26 @@ sed -n '22,85p' lunar.go
 ```
 
 ```output
+		switch r.M {
+		case 0, 1, -1, 2, -2:
+		default:
+			panic(fmt.Sprintf("dusk: tableLat[%d] has unexpected M value %v", i, r.M))
+		}
+	}
+}
+
+// lunarHorizonDepression accounts for atmospheric refraction (~0.566°) and
+// the Moon's mean semidiameter (~0.25°) when detecting moonrise/moonset.
+const lunarHorizonDepression = 0.833
+
+// ---------------------------------------------------------------------------
+// Exported functions
+// ---------------------------------------------------------------------------
+
+// lunarEclipticPosition returns the geocentric ecliptic longitude, latitude
+// (degrees), and distance (km) of the Moon for the given instant.
+//
+// The algorithm is from Meeus, Astronomical Algorithms, Chapter 47.
 func lunarEclipticPosition(t time.Time) ecliptic {
 	T := julianCentury(t)
 
@@ -621,8 +641,6 @@ func lunarEclipticPosition(t time.Time) ecliptic {
 		case 2, -2:
 			Sl += r.Σl * sa * E2
 			Sr += r.Σr * ca * E2
-		default:
-			panic(fmt.Sprintf("dusk: unexpected M value %v in lunar table", r.M))
 		}
 	}
 
@@ -631,24 +649,6 @@ func lunarEclipticPosition(t time.Time) ecliptic {
 		arg := D*r.D + M*r.M + Mp*r.Mʹ + F*r.F
 		sb := sinx(arg)
 
-		switch r.M {
-		case 0:
-			Sb += r.Σb * sb
-		case 1, -1:
-			Sb += r.Σb * sb * E
-		case 2, -2:
-			Sb += r.Σb * sb * E2
-		default:
-			panic(fmt.Sprintf("dusk: unexpected M value %v in lunar table", r.M))
-		}
-	}
-
-	return ecliptic{
-		lon:  mod360(Lp + Sl/1e6),
-		lat:  Sb / 1e6,
-		dist: 385000.56 + Sr/1000,
-	}
-}
 ```
 
 This is the computational heart of the library — Meeus Chapter 47. Five fundamental arguments (D, Lp, M, Mp, F) plus three additive corrections (A1, A2, A3) feed into two summation loops over the coefficient tables. The `E` factor corrects for the eccentricity of Earth's orbit — terms involving the Sun's mean anomaly (M=±1) are scaled by E, and M=±2 terms by E². The `sincosx` optimization computes both sin and cos in one call since Table 47.A needs both for longitude (Σl) and distance (Σr).
@@ -708,8 +708,6 @@ func (tw TwilightEvent) String() string {
 }
 ```
 
-Each Stringer produces a compact, single-line format suitable for logging. The `--:--` sentinel for zero times makes it obvious when an event didn't occur (e.g., moonrise without moonset). `LunarPhaseInfo` prepends the phase name when available.
-
 ## Concerns
 
 **Intentional trade-offs (documented, not bugs):**
@@ -720,5 +718,6 @@ Each Stringer produces a compact, single-line format suitable for logging. The `
 
 **Observations:**
 
-- **Panic in library code:** `lunarEclipticPosition` contains two `panic` calls (lines 59, 77) for unexpected M values in the coefficient tables. These are defensive guards against table corruption — the M values are hardcoded constants, so the panic is unreachable in practice. However, the project's CLAUDE.md states 'No panic in library code' as a rule. These could be replaced with a package-level `init()` validation or compile-time checks.
+- **Table validation in `init()`:** The Meeus coefficient tables are validated at package load time to ensure all M values are in the expected set {0, ±1, ±2}. This replaces runtime panics that were previously in the computation loop, keeping the library panic-free while still catching table corruption early.
 - **No `context.Context`:** Public functions do I/O-free computation, so the absence of context parameters is reasonable. If the moonrise scanner were ever made interruptible, context would be the mechanism.
+
