@@ -11,12 +11,12 @@ import (
 
 func ExampleNewObserver() {
 	// Valid observer
-	_, err := dusk.NewObserver(40.7128, -74.006, time.UTC)
+	obs, err := dusk.NewObserver(40.7128, -74.006, time.UTC)
 	if err != nil {
 		fmt.Println("unexpected error:", err)
 		return
 	}
-	fmt.Println("OK")
+	fmt.Println(obs)
 
 	// Invalid: latitude out of range
 	_, err = dusk.NewObserver(91, 0, time.UTC)
@@ -26,7 +26,7 @@ func ExampleNewObserver() {
 	_, err = dusk.NewObserver(math.NaN(), 0, time.UTC)
 	fmt.Println(err)
 	// Output:
-	// OK
+	// 40.7128°, -74.0060° (UTC)
 	// dusk: latitude must be in [-90, 90] and longitude in [-180, 180]
 	// dusk: coordinates must be finite (NaN and Inf are not allowed)
 }

@@ -46,20 +46,20 @@ sed -n '28,41p' dusk.go
 ```
 
 ```output
+// Unlike errors.New, these can be declared as constants.
+type errString string
+
+func (e errString) Error() string { return string(e) }
+
 // ErrCircumpolar is returned when a celestial object is circumpolar
 // (always above the horizon) at the given latitude.
-var ErrCircumpolar = errors.New("dusk: object is circumpolar (always above the horizon)")
+const ErrCircumpolar = errString("dusk: object is circumpolar (always above the horizon)")
 
 // ErrNeverRises is returned when a celestial object never rises above
 // the horizon at the given latitude.
-var ErrNeverRises = errors.New("dusk: object never rises at this latitude")
+const ErrNeverRises = errString("dusk: object never rises at this latitude")
 
-var errNilLocation = errors.New("dusk: location must not be nil")
-
-var errNonFiniteCoord = errors.New("dusk: coordinates must be finite (NaN and Inf are not allowed)")
-
-var errInvalidCoord = errors.New("dusk: latitude must be in [-90, 90] and longitude in [-180, 180]")
-
+// ErrNilLocation is returned when a nil *time.Location is passed to
 ```
 
 Two sentinel errors are exported: `ErrCircumpolar` (midnight sun — object never sets) and `ErrNeverRises` (polar night — object never rises). Three unexported errors handle invalid input: nil location, non-finite coordinates, and out-of-range lat/lon. This validates once at construction time so every downstream function can trust the observer.
@@ -69,6 +69,17 @@ sed -n '51,73p' dusk.go
 ```
 
 ```output
+const ErrInvalidCoord = errString("dusk: latitude must be in [-90, 90] and longitude in [-180, 180]")
+
+// validObserver returns an error if obs was not constructed via NewObserver
+// (i.e., is a zero-value Observer with a nil location).
+func validObserver(obs Observer) error {
+	if obs.loc == nil {
+		return ErrNilLocation
+	}
+	return nil
+}
+
 // Observer represents a geographic position on Earth used as the viewpoint
 // for all astronomical calculations.
 type Observer struct {
@@ -81,17 +92,6 @@ type Observer struct {
 // lat must be in [-90, 90], lon in [-180, 180], and loc must not be nil.
 // NaN and infinite values are rejected.
 func NewObserver(lat, lon float64, loc *time.Location) (Observer, error) {
-	if loc == nil {
-		return Observer{}, errNilLocation
-	}
-	if math.IsNaN(lat) || math.IsInf(lat, 0) || math.IsNaN(lon) || math.IsInf(lon, 0) {
-		return Observer{}, errNonFiniteCoord
-	}
-	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
-		return Observer{}, errInvalidCoord
-	}
-	return Observer{lat: lat, lon: lon, loc: loc}, nil
-}
 ```
 
 Validation is strict: nil location, NaN/Inf, and out-of-range coordinates all fail. The `validObserver` guard (line 44) checks for nil `loc`, catching zero-value observers that bypass `NewObserver`.
@@ -101,6 +101,35 @@ sed -n '76,118p' dusk.go
 ```
 
 ```output
+	}
+	if math.IsNaN(lat) || math.IsInf(lat, 0) || math.IsNaN(lon) || math.IsInf(lon, 0) {
+		return Observer{}, ErrNonFiniteCoord
+	}
+	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
+		return Observer{}, ErrInvalidCoord
+	}
+	return Observer{lat: lat, lon: lon, loc: loc}, nil
+}
+
+// Lat returns the observer's latitude in degrees.
+func (o Observer) Lat() float64 { return o.lat }
+
+// Lon returns the observer's longitude in degrees (east positive, west negative).
+func (o Observer) Lon() float64 { return o.lon }
+
+// Location returns the observer's timezone.
+func (o Observer) Location() *time.Location { return o.loc }
+
+// String returns a human-readable representation of the observer.
+func (o Observer) String() string {
+	locName := "nil"
+	if o.loc != nil {
+		locName = o.loc.String()
+	}
+	return fmt.Sprintf("%.4f°, %.4f° (%s)", o.lat, o.lon, locName)
+}
+
+// SunEvent holds the times of sunrise, solar noon, sunset, and the duration
 // of daylight for a single day.
 type SunEvent struct {
 	Rise     time.Time
@@ -112,38 +141,9 @@ type SunEvent struct {
 // MoonEvent holds the rise and set times for the Moon on a given day, along
 // with the duration between rise and set.
 type MoonEvent struct {
-	Rise         time.Time     // zero value if the Moon does not rise
-	Set          time.Time     // zero value if the Moon does not set
-	Duration     time.Duration // zero if Rise or Set is missing
-	AboveHorizon bool          // true if Moon was above the horizon at start of day
-}
-
-// TwilightEvent holds the dusk and dawn times of a twilight period.
-// Dusk is tonight's boundary (sun passes below the depression angle).
-// Dawn is tomorrow morning's boundary (sun passes above the depression angle).
-// To get this morning's dawn, call with yesterday's date.
-type TwilightEvent struct {
-	Dusk          time.Time     // evening boundary (today)
-	Dawn          time.Time     // morning boundary (tomorrow)
-	NightDuration time.Duration // time from Dusk to Dawn (overnight darkness)
-}
-
-// LunarPhaseInfo describes the Moon's current phase.
-type LunarPhaseInfo struct {
-	Illumination float64 // percentage 0-100
-	Elongation   float64 // degrees 0-360
-	Angle        float64 // phase angle in degrees (may be negative per Meeus formula)
-	DaysApprox   float64 // rough days into lunation (linear estimate from elongation)
-	Waxing       bool    // true from New Moon to Full Moon (elongation 0-180)
-	Name         string  // "New Moon", "Waxing Crescent", etc.
-}
-
-// equatorial represents right ascension and declination in degrees.
-// Used internally for coordinate conversions.
-type equatorial struct {
-	ra  float64
-	dec float64
-}
+	Rise         time.Time // zero value if the Moon does not rise
+	Set          time.Time // zero value if the Moon does not set
+	AboveHorizon bool      // true if Moon was above the horizon at start of day
 ```
 
 Four result types, each with a `String()` method. Key design choices: `MoonEvent.AboveHorizon` tracks whether the Moon was up at midnight (needed because moonrise/moonset don't always bracket a day neatly). `TwilightEvent` spans overnight — Dusk is today's evening, Dawn is tomorrow morning. `LunarPhaseInfo.DaysApprox` is a linear estimate from elongation, not a precise lunation clock.
@@ -208,7 +208,6 @@ sed -n '9,43p' epoch.go
 ```
 
 ```output
-const (
 	j1970 = 2440587.5
 	j2000 = 2451545.0
 )
@@ -225,9 +224,10 @@ func julianDate(t time.Time) float64 {
 	return float64(ms)/86400000.0 + j1970
 }
 
-// errDateOutOfRange is returned when a date falls outside the valid range
-// (the int64 nanosecond bounds, approximately 1677-09-21 to 2262-04-11).
-var errDateOutOfRange = errors.New("dusk: date outside valid range (1677-09-21 to 2262-04-11)")
+// ErrDateOutOfRange is returned when a date falls outside the valid range
+// for Julian date calculations (the int64 nanosecond bounds, approximately
+// 1677-09-21 to 2262-04-11).
+const ErrDateOutOfRange = errString("dusk: date outside valid range (1677-09-21 to 2262-04-11)")
 
 // julianDateMin and julianDateMax are the bounds of the int64 UnixNano range.
 var (
@@ -236,10 +236,10 @@ var (
 )
 
 // validJulianDateRange reports whether t falls within the valid range for
-// [julianDate]. Returns nil if valid, [errDateOutOfRange] otherwise.
+// [julianDate]. Returns nil if valid, [ErrDateOutOfRange] otherwise.
 func validJulianDateRange(t time.Time) error {
 	if t.Before(julianDateMin) || t.After(julianDateMax) {
-		return errDateOutOfRange
+		return ErrDateOutOfRange
 	}
 	return nil
 }
@@ -373,10 +373,9 @@ sed -n '37,65p' solar.go
 ```
 
 ```output
-func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
-	if err := validObserver(obs); err != nil {
 		return SunEvent{}, err
 	}
+	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	if err := validJulianDateRange(date); err != nil {
 		return SunEvent{}, err
 	}
@@ -402,6 +401,7 @@ func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
 		Duration: set.Sub(rise),
 	}, nil
 }
+
 ```
 
 The core formula: sunrise = transit - hourAngle/360, sunset = transit + hourAngle/360. The hour angle is symmetric around solar noon. `solarHourAngle` with depression=0 applies the standard -0.83 degree correction (atmospheric refraction + solar semidiameter).
@@ -411,7 +411,6 @@ sed -n '126,143p' solar.go
 ```
 
 ```output
-func solarHourAngle(delta, depression, lat float64) (float64, error) {
 	var h0 float64
 	if depression == 0 {
 		h0 = -0.83
@@ -429,6 +428,7 @@ func solarHourAngle(delta, depression, lat float64) (float64, error) {
 	}
 	return acosx(cosHA), nil
 }
+
 ```
 
 This is the polar edge-case gate. When `cosHA < -1`, the sun never dips below the threshold — circumpolar (midnight sun). When `cosHA > 1`, it never rises above it — polar night. The depression parameter enables twilight reuse: pass 6 for civil, 12 for nautical, 18 for astronomical.
@@ -438,7 +438,6 @@ sed -n '154,172p' solar.go
 ```
 
 ```output
-// CivilTwilight computes the evening civil twilight period (Sun 6 degrees below the
 // horizon) for the given date and observer position. Dusk is tonight's civil
 // dusk; Dawn is tomorrow morning's civil dawn.
 func CivilTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
@@ -457,6 +456,7 @@ func AstronomicalTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
 	return twilight(date, obs, 18)
 }
 
+// twilight computes the twilight period for a given depression angle (positive
 ```
 
 Three thin wrappers over a single `twilight` function, differing only in the depression angle. The unexported `twilight` (lines 178–211) computes today's dusk and tomorrow's dawn by running the solar pipeline twice — once for today, once for tomorrow — producing the overnight span.
@@ -557,15 +557,9 @@ sed -n '157,214p' lunar.go
 		prevAlt = hz.alt
 	}
 
-	var dur time.Duration
-	if !rise.IsZero() && !set.IsZero() && set.After(rise) {
-		dur = set.Sub(rise)
-	}
-
 	return MoonEvent{
 		Rise:         rise,
 		Set:          set,
-		Duration:     dur,
 		AboveHorizon: aboveAtStart,
 	}, nil
 }
@@ -574,6 +568,12 @@ sed -n '157,214p' lunar.go
 // Unexported helpers (Meeus Chapter 47)
 // ---------------------------------------------------------------------------
 
+// lunarMeanElongation returns the Moon's mean elongation in degrees.
+//
+// T is Julian centuries since J2000.0.
+// See Meeus eq. 47.2 p. 338.
+func lunarMeanElongation(T float64) float64 {
+	return mod360(297.8501921 + 445267.1114034*T - 0.0018819*T*T + T*T*T/545868 - T*T*T*T/113065000)
 ```
 
 Unlike the Sun (which has a clean hour-angle formula), the Moon moves fast enough that its position changes significantly during a single day. So `MoonriseMoonset` brute-forces it: scan every minute from local midnight to local midnight, computing the full ecliptic → equatorial → horizontal pipeline each time. That is ~1,440 iterations per call.
@@ -664,6 +664,34 @@ sed -n '136,177p' dusk.go
 ```
 
 ```output
+	DaysApprox   float64 // rough days into lunation (linear estimate from elongation)
+	Waxing       bool    // true from New Moon to Full Moon (elongation 0-180)
+	Name         string  // "New Moon", "Waxing Crescent", etc.
+}
+
+// equatorial represents right ascension and declination in degrees.
+// Used internally for coordinate conversions.
+type equatorial struct {
+	ra  float64
+	dec float64
+}
+
+// horizontal represents altitude and azimuth in degrees.
+// Used internally for coordinate conversions.
+type horizontal struct {
+	alt float64
+	az  float64
+}
+
+// ecliptic represents ecliptic coordinates: longitude and latitude in degrees,
+// and distance in kilometers.
+// Used internally for lunar position calculations.
+type ecliptic struct {
+	lon  float64
+	lat  float64
+	dist float64
+}
+
 // formatTime formats a time as "HH:MM", or "--:--" for the zero value.
 func formatTime(t time.Time) string {
 	if t.IsZero() {
@@ -678,34 +706,6 @@ func (s SunEvent) String() string {
 		formatTime(s.Rise),
 		formatTime(s.Noon),
 		formatTime(s.Set),
-		s.Duration)
-}
-
-// String returns a human-readable representation of the moon event.
-func (m MoonEvent) String() string {
-	return fmt.Sprintf("Rise=%s Set=%s Duration=%s AboveHorizon=%v",
-		formatTime(m.Rise),
-		formatTime(m.Set),
-		m.Duration,
-		m.AboveHorizon)
-}
-
-// String returns a human-readable representation of the lunar phase.
-func (l LunarPhaseInfo) String() string {
-	namePart := l.Name
-	if namePart != "" {
-		namePart += " "
-	}
-	return fmt.Sprintf("%s%.1f%% (day %.1f)", namePart, l.Illumination, l.DaysApprox)
-}
-
-// String returns a human-readable representation of the twilight event.
-func (tw TwilightEvent) String() string {
-	return fmt.Sprintf("Dusk=%s Dawn=%s NightDuration=%s",
-		formatTime(tw.Dusk),
-		formatTime(tw.Dawn),
-		tw.NightDuration)
-}
 ```
 
 ## Concerns
@@ -719,4 +719,3 @@ func (tw TwilightEvent) String() string {
 **Observations:**
 
 - **No `context.Context`:** Public functions do I/O-free computation, so the absence of context parameters is reasonable. If the moonrise scanner were ever made interruptible, context would be the mechanism.
-

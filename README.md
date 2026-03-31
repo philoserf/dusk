@@ -186,7 +186,7 @@ if errors.Is(err, dusk.ErrNeverRises) {
 All result types implement `fmt.Stringer`:
 
 - `SunEvent` — `Rise`, `Noon`, `Set` times and `Duration` (daylight)
-- `MoonEvent` — `Rise`, `Set` times, `Duration`, and `AboveHorizon`
+- `MoonEvent` — `Rise`, `Set` times and `AboveHorizon`
 - `TwilightEvent` — `Dusk`, `Dawn` times and `NightDuration` (overnight darkness)
 - `LunarPhaseInfo` — `Illumination`, `Elongation`, `Angle`, `DaysApprox`, `Waxing`, `Name`
 
@@ -194,6 +194,10 @@ All result types implement `fmt.Stringer`:
 
 - `ErrCircumpolar` — object always above the horizon (e.g., midnight sun)
 - `ErrNeverRises` — object never rises (e.g., polar night)
+- `ErrNilLocation` — nil timezone passed to `NewObserver`
+- `ErrNonFiniteCoord` — NaN or Inf coordinates
+- `ErrInvalidCoord` — latitude or longitude out of range
+- `ErrDateOutOfRange` — date outside supported Julian date range (~1677–2262)
 
 ## Conventions
 

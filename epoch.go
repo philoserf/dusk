@@ -1,7 +1,6 @@
 package dusk
 
 import (
-	"errors"
 	"math"
 	"time"
 )
@@ -23,9 +22,10 @@ func julianDate(t time.Time) float64 {
 	return float64(ms)/86400000.0 + j1970
 }
 
-// errDateOutOfRange is returned when a date falls outside the valid range
-// (the int64 nanosecond bounds, approximately 1677-09-21 to 2262-04-11).
-var errDateOutOfRange = errors.New("dusk: date outside valid range (1677-09-21 to 2262-04-11)")
+// ErrDateOutOfRange is returned when a date falls outside the valid range
+// for Julian date calculations (the int64 nanosecond bounds, approximately
+// 1677-09-21 to 2262-04-11).
+const ErrDateOutOfRange = errString("dusk: date outside valid range (1677-09-21 to 2262-04-11)")
 
 // julianDateMin and julianDateMax are the bounds of the int64 UnixNano range.
 var (
@@ -34,10 +34,10 @@ var (
 )
 
 // validJulianDateRange reports whether t falls within the valid range for
-// [julianDate]. Returns nil if valid, [errDateOutOfRange] otherwise.
+// [julianDate]. Returns nil if valid, [ErrDateOutOfRange] otherwise.
 func validJulianDateRange(t time.Time) error {
 	if t.Before(julianDateMin) || t.After(julianDateMax) {
-		return errDateOutOfRange
+		return ErrDateOutOfRange
 	}
 	return nil
 }

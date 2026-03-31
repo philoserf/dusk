@@ -27,10 +27,8 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 
 // SunriseSunset computes sunrise, solar noon, and sunset for the given date
 // and observer position. The observer must be constructed via [NewObserver].
-// Pass a date at midnight UTC for the desired day; the Julian day number
-// is derived by rounding, so times near midnight are safe but midday
-// offsets may shift to the adjacent day. Output times are converted to
-// the observer's timezone.
+// Only the calendar date (in UTC) is used; the time-of-day is ignored.
+// Output times are converted to the observer's timezone.
 //
 // The algorithm follows the NOAA solar calculator method (derived from Meeus,
 // Astronomical Algorithms).
@@ -38,6 +36,7 @@ func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
 	if err := validObserver(obs); err != nil {
 		return SunEvent{}, err
 	}
+	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	if err := validJulianDateRange(date); err != nil {
 		return SunEvent{}, err
 	}
@@ -175,10 +174,16 @@ func AstronomicalTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
 // time-of-day is ignored. The returned Dusk is today's "set" at the depression
 // angle (evening boundary) and Dawn is tomorrow's "rise" at the depression
 // angle (morning boundary).
+//
+// Because the calculation spans two calendar days (tonight and tomorrow morning),
+// an error is returned if twilight cannot be computed for either day. Near polar
+// transition dates, today's dusk may exist but tomorrow's dawn may not (or vice
+// versa).
 func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, error) {
 	if err := validObserver(obs); err != nil {
 		return TwilightEvent{}, err
 	}
+	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	if err := validJulianDateRange(date); err != nil {
 		return TwilightEvent{}, err
 	}

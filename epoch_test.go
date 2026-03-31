@@ -66,8 +66,8 @@ func TestValidJulianDateRange(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validJulianDateRange(tt.time)
-			if tt.wantErr && !errors.Is(err, errDateOutOfRange) {
-				t.Errorf("expected errDateOutOfRange, got %v", err)
+			if tt.wantErr && !errors.Is(err, ErrDateOutOfRange) {
+				t.Errorf("expected ErrDateOutOfRange, got %v", err)
 			}
 			if !tt.wantErr && err != nil {
 				t.Errorf("expected nil, got %v", err)

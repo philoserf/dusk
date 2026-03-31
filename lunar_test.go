@@ -283,10 +283,6 @@ func TestMoonriseMoonset(t *testing.T) {
 	if evt.Set.IsZero() {
 		t.Error("expected non-zero set time")
 	}
-	if evt.Duration <= 0 {
-		t.Error("expected positive duration")
-	}
-
 	// Regression reference: algorithm-computed values for NYC 2024-01-15.
 	// Note: simplified Meeus approach can differ from USNO by up to ~1.5h for the Moon.
 	tolerance := 5 * time.Minute
@@ -300,7 +296,7 @@ func TestMoonriseMoonset(t *testing.T) {
 		t.Errorf("Set = %v, want %v (±%v, diff=%v)", evt.Set.Format("15:04"), wantSet.Format("15:04"), tolerance, diff)
 	}
 
-	t.Logf("rise=%v set=%v duration=%v", evt.Rise, evt.Set, evt.Duration)
+	t.Logf("rise=%v set=%v", evt.Rise, evt.Set)
 }
 
 func TestMoonriseMoonset_SouthernHemisphere(t *testing.T) {
@@ -324,10 +320,6 @@ func TestMoonriseMoonset_SouthernHemisphere(t *testing.T) {
 	if evt.Set.IsZero() {
 		t.Error("expected non-zero set time for Sydney")
 	}
-	if evt.Duration <= 0 {
-		t.Error("expected positive duration for Sydney")
-	}
-
 	// Regression reference: algorithm-computed values for Sydney 2024-01-15.
 	// These are library-derived, not USNO; used to detect regressions.
 	tolerance := 20 * time.Minute
@@ -341,5 +333,5 @@ func TestMoonriseMoonset_SouthernHemisphere(t *testing.T) {
 		t.Errorf("Set = %v, want %v (±%v, diff=%v)", evt.Set.Format("15:04"), wantSet.Format("15:04"), tolerance, diff)
 	}
 
-	t.Logf("Sydney moonrise=%v moonset=%v duration=%v", evt.Rise, evt.Set, evt.Duration)
+	t.Logf("Sydney moonrise=%v moonset=%v", evt.Rise, evt.Set)
 }

@@ -19,31 +19,42 @@
 package dusk
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"time"
 )
 
+// errString is an immutable error type used for sentinel errors.
+// Unlike errors.New, these can be declared as constants.
+type errString string
+
+func (e errString) Error() string { return string(e) }
+
 // ErrCircumpolar is returned when a celestial object is circumpolar
 // (always above the horizon) at the given latitude.
-var ErrCircumpolar = errors.New("dusk: object is circumpolar (always above the horizon)")
+const ErrCircumpolar = errString("dusk: object is circumpolar (always above the horizon)")
 
 // ErrNeverRises is returned when a celestial object never rises above
 // the horizon at the given latitude.
-var ErrNeverRises = errors.New("dusk: object never rises at this latitude")
+const ErrNeverRises = errString("dusk: object never rises at this latitude")
 
-var errNilLocation = errors.New("dusk: location must not be nil")
+// ErrNilLocation is returned when a nil *time.Location is passed to
+// [NewObserver].
+const ErrNilLocation = errString("dusk: location must not be nil")
 
-var errNonFiniteCoord = errors.New("dusk: coordinates must be finite (NaN and Inf are not allowed)")
+// ErrNonFiniteCoord is returned when NaN or Inf coordinates are passed
+// to [NewObserver].
+const ErrNonFiniteCoord = errString("dusk: coordinates must be finite (NaN and Inf are not allowed)")
 
-var errInvalidCoord = errors.New("dusk: latitude must be in [-90, 90] and longitude in [-180, 180]")
+// ErrInvalidCoord is returned when latitude or longitude are outside
+// the valid range in [NewObserver].
+const ErrInvalidCoord = errString("dusk: latitude must be in [-90, 90] and longitude in [-180, 180]")
 
 // validObserver returns an error if obs was not constructed via NewObserver
 // (i.e., is a zero-value Observer with a nil location).
 func validObserver(obs Observer) error {
 	if obs.loc == nil {
-		return errNilLocation
+		return ErrNilLocation
 	}
 	return nil
 }
@@ -61,15 +72,33 @@ type Observer struct {
 // NaN and infinite values are rejected.
 func NewObserver(lat, lon float64, loc *time.Location) (Observer, error) {
 	if loc == nil {
-		return Observer{}, errNilLocation
+		return Observer{}, ErrNilLocation
 	}
 	if math.IsNaN(lat) || math.IsInf(lat, 0) || math.IsNaN(lon) || math.IsInf(lon, 0) {
-		return Observer{}, errNonFiniteCoord
+		return Observer{}, ErrNonFiniteCoord
 	}
 	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
-		return Observer{}, errInvalidCoord
+		return Observer{}, ErrInvalidCoord
 	}
 	return Observer{lat: lat, lon: lon, loc: loc}, nil
+}
+
+// Lat returns the observer's latitude in degrees.
+func (o Observer) Lat() float64 { return o.lat }
+
+// Lon returns the observer's longitude in degrees (east positive, west negative).
+func (o Observer) Lon() float64 { return o.lon }
+
+// Location returns the observer's timezone.
+func (o Observer) Location() *time.Location { return o.loc }
+
+// String returns a human-readable representation of the observer.
+func (o Observer) String() string {
+	locName := "nil"
+	if o.loc != nil {
+		locName = o.loc.String()
+	}
+	return fmt.Sprintf("%.4f°, %.4f° (%s)", o.lat, o.lon, locName)
 }
 
 // SunEvent holds the times of sunrise, solar noon, sunset, and the duration
@@ -84,10 +113,9 @@ type SunEvent struct {
 // MoonEvent holds the rise and set times for the Moon on a given day, along
 // with the duration between rise and set.
 type MoonEvent struct {
-	Rise         time.Time     // zero value if the Moon does not rise
-	Set          time.Time     // zero value if the Moon does not set
-	Duration     time.Duration // zero if Rise or Set is missing
-	AboveHorizon bool          // true if Moon was above the horizon at start of day
+	Rise         time.Time // zero value if the Moon does not rise
+	Set          time.Time // zero value if the Moon does not set
+	AboveHorizon bool      // true if Moon was above the horizon at start of day
 }
 
 // TwilightEvent holds the dusk and dawn times of a twilight period.
@@ -152,10 +180,9 @@ func (s SunEvent) String() string {
 
 // String returns a human-readable representation of the moon event.
 func (m MoonEvent) String() string {
-	return fmt.Sprintf("Rise=%s Set=%s Duration=%s AboveHorizon=%v",
+	return fmt.Sprintf("Rise=%s Set=%s AboveHorizon=%v",
 		formatTime(m.Rise),
 		formatTime(m.Set),
-		m.Duration,
 		m.AboveHorizon)
 }
 

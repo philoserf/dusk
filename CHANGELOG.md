@@ -9,16 +9,21 @@
 - **`Observer` fields unexported** — `Lat`/`Lon`/`Loc` → `lat`/`lon`/`loc`; use `NewObserver` to construct
 - **Elevation removed** — `Observer.Elev` field deleted; elevation correction (~0.5' for typical altitudes) dropped from `solarHourAngle` for simplicity
 - **`LunarPhase` returns `(LunarPhaseInfo, error)`** — now validates date range; callers must handle the error
-- **Public API surface reduced** — removed `ObjectTransit`, `Transit`, `SolarPosition`, `LunarPosition`, `LunarEclipticPosition`, `EclipticToEquatorial`, `EquatorialToHorizontal`, `HourAngle`, `AngularSeparation`, `JulianDate`, `ValidJulianDateRange`, `LocalSiderealTime`, `ErrDateOutOfRange`
+- **`MoonEvent.Duration` removed** — was incorrect when Moon set before rise; callers should compute from Rise/Set as needed
+- **Public API surface reduced** — removed `ObjectTransit`, `Transit`, `SolarPosition`, `LunarPosition`, `LunarEclipticPosition`, `EclipticToEquatorial`, `EquatorialToHorizontal`, `HourAngle`, `AngularSeparation`, `JulianDate`, `ValidJulianDateRange`, `LocalSiderealTime`
 - **Coordinate types unexported** — `Equatorial`, `Horizontal`, `Ecliptic` → `equatorial`, `horizontal`, `ecliptic`
 - **`TwilightEvent.Duration` renamed to `NightDuration`** — clarifies this is the overnight darkness period, not daylight
+- **Sentinel errors are now constants** — `ErrCircumpolar`, `ErrNeverRises` use an unexported `errString` type; immutable, no longer reassignable
+- **New exported errors** — `ErrNilLocation`, `ErrNonFiniteCoord`, `ErrInvalidCoord`, `ErrDateOutOfRange` for programmatic error matching
 
 ### Improvements
 
 - `eclipticToEquatorial` now applies full nutation (both Δψ and Δε), improving RA accuracy by up to ~17"
 - Observer validation (NaN/Inf rejection) happens once at construction, not repeated in every function call
 - Date range validation (`validJulianDateRange`) at all public entry points
-- Lunar table loops include `default` panic for unexpected M values (compile-time safety net)
+- `SunriseSunset` and `twilight` normalize input to UTC midnight — safe for any time-of-day
+- `Observer` has `Lat()`, `Lon()`, `Location()` accessors and `String()` method
+- Zero panics in library code
 
 ### File consolidation
 

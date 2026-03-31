@@ -195,15 +195,9 @@ func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
 		prevAlt = hz.alt
 	}
 
-	var dur time.Duration
-	if !rise.IsZero() && !set.IsZero() && set.After(rise) {
-		dur = set.Sub(rise)
-	}
-
 	return MoonEvent{
 		Rise:         rise,
 		Set:          set,
-		Duration:     dur,
 		AboveHorizon: aboveAtStart,
 	}, nil
 }
