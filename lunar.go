@@ -1,31 +1,10 @@
 package dusk
 
 import (
-	"fmt"
 	"time"
 )
 
 const lunarMonthDays = 29.53059
-
-// init validates that all M values in the Meeus coefficient tables are in the
-// expected set {0, ±1, ±2}. This catches table corruption at package load time
-// rather than at computation time, avoiding panics in library code.
-func init() {
-	for i, r := range tableLongDist {
-		switch r.M {
-		case 0, 1, -1, 2, -2:
-		default:
-			panic(fmt.Sprintf("dusk: tableLongDist[%d] has unexpected M value %v", i, r.M))
-		}
-	}
-	for i, r := range tableLat {
-		switch r.M {
-		case 0, 1, -1, 2, -2:
-		default:
-			panic(fmt.Sprintf("dusk: tableLat[%d] has unexpected M value %v", i, r.M))
-		}
-	}
-}
 
 // lunarHorizonDepression accounts for atmospheric refraction (~0.566°) and
 // the Moon's mean semidiameter (~0.25°) when detecting moonrise/moonset.
