@@ -14,7 +14,7 @@
 - **Coordinate types unexported** — `Equatorial`, `Horizontal`, `Ecliptic` → `equatorial`, `horizontal`, `ecliptic`
 - **`TwilightEvent.Duration` renamed to `NightDuration`** — clarifies this is the overnight darkness period, not daylight
 - **Sentinel errors are now constants** — `ErrCircumpolar`, `ErrNeverRises` use an unexported `errString` type; immutable, no longer reassignable
-- **New exported errors** — `ErrNilLocation`, `ErrNonFiniteCoord`, `ErrInvalidCoord`, `ErrDateOutOfRange` for programmatic error matching
+- **Newly exported errors** — `ErrNilLocation`, `ErrInvalidCoord` (were unexported in v2), `ErrNonFiniteCoord` (new, for NaN/Inf inputs); `ErrDateOutOfRange` remains exported but is now a constant
 
 ### Improvements
 
@@ -22,6 +22,7 @@
 - Observer validation (NaN/Inf rejection) happens once at construction, not repeated in every function call
 - Date range validation (`validJulianDateRange`) at all public entry points
 - `SunriseSunset` and `twilight` normalize input to UTC midnight — safe for any time-of-day
+- `MoonEvent.AboveHorizon` field indicates whether the Moon was above the horizon at start of day
 - `Observer` has `Lat()`, `Lon()`, `Location()` accessors and `String()` method
 - Zero panics in library code
 
