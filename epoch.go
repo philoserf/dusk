@@ -47,7 +47,10 @@ func validJulianDateRange(t time.Time) error {
 //
 // See Meeus, Astronomical Algorithms, eq. 12.4 p. 88.
 func greenwichMeanSiderealTime(t time.Time) float64 {
-	// Midnight UTC for the date.
+	// T is computed from midnight UTC, not from t. This matches Meeus's
+	// formulation: the polynomial terms use 0h UT for the date, while the
+	// linear term (360.985… × (JD − J2000)) uses the full Julian date to
+	// account for the fractional day. Do not "simplify" by passing t here.
 	d := datetimeZeroHour(t)
 	T := julianCentury(d)
 	JD := julianDate(t)

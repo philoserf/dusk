@@ -179,8 +179,10 @@ func AstronomicalTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
 //
 // Because the calculation spans two calendar days (tonight and tomorrow morning),
 // an error is returned if twilight cannot be computed for either day. Near polar
-// transition dates, today's dusk may exist but tomorrow's dawn may not (or vice
-// versa).
+// transition dates (latitudes ~65–70°), today's dusk may exist but tomorrow's
+// dawn may not (or vice versa). In that case the entire call returns an error;
+// callers needing partial results should compute each boundary separately using
+// the appropriate depression angle and [SunriseSunset]-style hour-angle logic.
 func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, error) {
 	if err := validObserver(obs); err != nil {
 		return TwilightEvent{}, err

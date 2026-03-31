@@ -82,7 +82,8 @@ func lunarEclipticPosition(t time.Time) ecliptic {
 // LunarPhase returns the lunar phase at the given instant.
 //
 // Unlike SunriseSunset and MoonriseMoonset which use only the calendar date,
-// LunarPhase uses the exact time — the phase changes continuously.
+// LunarPhase uses the exact time — the phase changes continuously. The result
+// depends on the UTC instant; timezone does not affect the calculation.
 //
 // The phase angle uses the Meeus approach: solar ecliptic longitude from the
 // mean-anomaly method, lunar ecliptic position from Chapter 47 tables.
@@ -148,6 +149,10 @@ func lunarPosition(t time.Time) equatorial {
 // should expect proportional cost and may benefit from caching or
 // parallelization.
 //
+// The one-minute resolution means events shorter than one minute may not be
+// detected. At polar or near-polar latitudes, the Moon can graze the horizon
+// briefly enough to fall within a single scan step.
+//
 // An error is returned if the date is out of the valid Julian date range.
 func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
 	if err := validObserver(obs); err != nil {
@@ -158,6 +163,8 @@ func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
 	}
 
 	localDate := date.In(obs.loc)
+	// Construct in local time then convert to UTC so DST is handled:
+	// spring-forward days are 23h, fall-back days are 25h.
 	d := time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, obs.loc).UTC()
 	nextMidnight := time.Date(localDate.Year(), localDate.Month(), localDate.Day()+1, 0, 0, 0, 0, obs.loc).UTC()
 	if err := validJulianDateRange(d); err != nil {
