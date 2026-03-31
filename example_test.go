@@ -67,7 +67,7 @@ func ExampleSunriseSunset() {
 		fmt.Println("error:", err)
 		return
 	}
-	date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
+	date := time.Date(2025, 6, 21, 0, 0, 0, 0, loc)
 	obs, err := dusk.NewObserver(42.9634, -85.6681, loc)
 	if err != nil {
 		fmt.Println("error:", err)
@@ -106,7 +106,7 @@ func ExampleCivilTwilight() {
 		fmt.Println("error:", err)
 		return
 	}
-	date := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
+	date := time.Date(2025, 6, 21, 0, 0, 0, 0, loc)
 	obs, err := dusk.NewObserver(47.6062, -122.3321, loc)
 	if err != nil {
 		fmt.Println("error:", err)

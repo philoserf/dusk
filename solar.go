@@ -27,7 +27,8 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 
 // SunriseSunset computes sunrise, solar noon, and sunset for the given date
 // and observer position. The observer must be constructed via [NewObserver].
-// Only the calendar date (in UTC) is used; the time-of-day is ignored.
+// The date is converted to the observer's timezone to determine the local
+// calendar day; the time-of-day is ignored.
 // Output times are converted to the observer's timezone.
 //
 // The algorithm follows the NOAA solar calculator method (derived from Meeus,
@@ -36,7 +37,8 @@ func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
 	if err := validObserver(obs); err != nil {
 		return SunEvent{}, err
 	}
-	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	localDate := date.In(obs.loc)
+	date = time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, time.UTC)
 	if err := validJulianDateRange(date); err != nil {
 		return SunEvent{}, err
 	}
@@ -183,7 +185,8 @@ func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, 
 	if err := validObserver(obs); err != nil {
 		return TwilightEvent{}, err
 	}
-	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	localDate := date.In(obs.loc)
+	date = time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, time.UTC)
 	if err := validJulianDateRange(date); err != nil {
 		return TwilightEvent{}, err
 	}
