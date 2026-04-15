@@ -1,6 +1,12 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Dusk
 
 Go library for astronomical calculations: twilight, lunar phase, rise/set times.
+
+Onboarding references: `THEORY.md` (Naur-style theory of the codebase) and `walkthrough.md` (linear code tour).
 
 ## Commands
 
@@ -8,7 +14,10 @@ Go library for astronomical calculations: twilight, lunar phase, rise/set times.
 task              # Run all checks (fmt, vet, lint, test)
 task fix          # Run all fixes (fmt, lint)
 task test         # Run tests only
-go test -v -run TestName ./...  # Run single test
+go test -v -run TestName ./...       # Run single test
+go test -race ./...                  # Race detector
+go test -bench=. -benchmem ./...     # Benchmarks (benchmark_test.go)
+go test -fuzz=FuzzName -fuzztime=30s # Fuzz (fuzz_test.go)
 ```
 
 ## Architecture
