@@ -22,5 +22,13 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "mcp__apple-eventkit__calendar_list_events",
+      "Bash(claude mcp list *)",
+      "Bash(task check*)",
+      "Bash(claude --version*)"
+    ]
   }
 }
