@@ -1,6 +1,16 @@
 version: "3"
 
 tasks:
+  setup:
+    desc: Install the development toolchain from the Brewfile
+    cmds:
+      - brew bundle install --file=Brewfile
+
+  deps:check:
+    desc: Verify the Brewfile toolchain is installed
+    cmds:
+      - brew bundle check --file=Brewfile --verbose
+
   default:
     desc: Run all checks
     aliases: [check]
