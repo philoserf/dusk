@@ -31,8 +31,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # The action itself stays pinned by digest; what is deliberately
-      # unpinned is the Go toolchain it installs.
+      # Every action in this file is pinned by commit digest, with the tag it
+      # came from in a trailing comment; a major-version tag is repointed on
+      # every release, so it is a moving reference to third-party code that
+      # runs in the runner. Dependabot updates digests the same way it updates
+      # tags. What is deliberately unpinned is the tooling the actions install
+      # -- the Go toolchain here, golangci-lint below -- which is the whole
+      # argument of the Taskfile preamble.
       - name: Go Setup
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
@@ -50,7 +55,7 @@ jobs:
       # working directory -- the one thing the "CI runs exactly `task`" rule
       # exists to prevent.
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           version: latest
           install-only: true
