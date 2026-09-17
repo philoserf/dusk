@@ -5,8 +5,8 @@
 // Functions that produce local times accept an [Observer] with a timezone.
 //
 // Two sentinel errors distinguish polar edge cases:
-// [ErrCircumpolar] (object always above the horizon) and
-// [ErrNeverRises] (object never rises).
+// [Horizon] on the solar result types (object always above or never above the
+// queried altitude).
 //
 // Zero-value [time.Time] in result structs signals "event did not occur"
 // for a specific day (e.g., the Moon rises but does not set before midnight).
@@ -29,14 +29,6 @@ import (
 type stringError string
 
 func (e stringError) Error() string { return string(e) }
-
-// ErrCircumpolar is returned when a celestial object is circumpolar
-// (always above the horizon) at the given latitude.
-const ErrCircumpolar = stringError("dusk: object is circumpolar (always above the horizon)")
-
-// ErrNeverRises is returned when a celestial object never rises above
-// the horizon at the given latitude.
-const ErrNeverRises = stringError("dusk: object never rises at this latitude")
 
 // ErrNilLocation is returned when a nil *time.Location is passed to
 // [NewObserver].
@@ -106,13 +98,35 @@ func (o Observer) String() string {
 	return fmt.Sprintf("%.4f°, %.4f° (%s)", o.lat, o.lon, locName)
 }
 
+// Horizon says whether the Sun reached the altitude a call asked about. It is
+// a value on the result rather than an error, because "the Sun did not set
+// today" is an answer to the question, not a failure to answer it.
+//
+// The names describe the geometry, not the sunrise case. At a depression angle
+// StaysAbove means the night never got that dark and StaysBelow means the day
+// never got that light -- the opposite of what "circumpolar" and "never rises"
+// suggested, which is why those names are gone.
+type Horizon int
+
+// The three outcomes of asking whether the Sun reached an altitude.
+const (
+	Crosses    Horizon = iota // the Sun reached the altitude; the times are real
+	StaysAbove                // the Sun never descended to it
+	StaysBelow                // the Sun never ascended to it
+)
+
 // SunEvent holds the times of sunrise, solar noon, sunset, and the duration
 // of daylight for a single day.
+//
+// Rise and Set are zero unless Horizon is [Crosses]. Noon is always set: solar
+// transit happens on every day at every latitude, including through the polar
+// night. Duration is 24h under the midnight sun and 0 through the polar night.
 type SunEvent struct {
-	Rise     time.Time
-	Noon     time.Time
-	Set      time.Time
+	Rise     time.Time // zero unless Horizon is Crosses
+	Noon     time.Time // always set
+	Set      time.Time // zero unless Horizon is Crosses
 	Duration time.Duration
+	Horizon  Horizon
 }
 
 // MoonEvent holds the rise and set times for the Moon on a given day, along
@@ -134,14 +148,15 @@ type MoonEvent struct {
 //
 // Both are on the same day. They are symmetric about solar transit, so a
 // TwilightEvent never carries one boundary without the other -- when the
-// geometry forbids the crossing, [Twilight] returns an error instead.
+// geometry forbids the crossing, both are zero and Horizon says which way.
 //
 // There is deliberately no night duration. Dusk-to-dawn spans two days, so it
 // is not this type's to hold; a caller wanting it subtracts today's Dusk from
 // tomorrow's Dawn.
 type TwilightEvent struct {
-	Dawn time.Time // morning boundary
-	Dusk time.Time // evening boundary
+	Dawn    time.Time // zero unless Horizon is Crosses
+	Dusk    time.Time // zero unless Horizon is Crosses
+	Horizon Horizon
 }
 
 // LunarPhaseInfo describes the Moon's current phase.

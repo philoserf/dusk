@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -10,30 +9,6 @@ import (
 
 // dateLayout is the only date format the CLI accepts, on input and output.
 const dateLayout = "2006-01-02"
-
-// horizonState says whether a crossing happened, or why the geometry forbade
-// it. The library signals this with two sentinel errors; carrying it as a value
-// lets the renderer compose its own prose instead of parsing ours.
-type horizonState int
-
-const (
-	stateCrosses    horizonState = iota // the times are real
-	stateStaysAbove                     // ErrCircumpolar at this angle
-	stateStaysBelow                     // ErrNeverRises at this angle
-)
-
-// stateOf maps the library's sentinels onto horizonState. Any other error is a
-// genuine failure and is reported as not-a-state.
-func stateOf(err error) (horizonState, bool) {
-	switch {
-	case errors.Is(err, dusk.ErrCircumpolar):
-		return stateStaysAbove, true
-	case errors.Is(err, dusk.ErrNeverRises):
-		return stateStaysBelow, true
-	default:
-		return stateCrosses, false
-	}
-}
 
 // Report is one observer's full day: sun, the three twilights, moon, and phase.
 //
@@ -62,7 +37,7 @@ type SunReport struct {
 	Daylight string    `json:"daylight,omitempty"`
 	Note     string    `json:"note,omitempty"`
 
-	state horizonState
+	horizon dusk.Horizon
 }
 
 // TwilightReport holds one twilight band. Dawn and Dusk are both today's, as
@@ -76,7 +51,7 @@ type TwilightReport struct {
 	Note  string    `json:"note,omitempty"`
 
 	degrees int
-	state   horizonState
+	horizon dusk.Horizon
 }
 
 // MoonReport holds moonrise and moonset.
@@ -99,24 +74,24 @@ type PhaseReport struct {
 // over an integer type needs a trailing return the compiler cannot prove is
 // unreachable, and that line can never be covered or tested.
 var (
-	solarNotes = map[horizonState]string{
-		stateStaysAbove: "midnight sun - the sun does not set today",
-		stateStaysBelow: "polar night - the sun does not rise today",
+	solarNotes = map[dusk.Horizon]string{
+		dusk.StaysAbove: "midnight sun - the sun does not set today",
+		dusk.StaysBelow: "polar night - the sun does not rise today",
 	}
 
-	// At a depression angle the two sentinels mean the opposite of what they
-	// mean at the horizon: staying above the angle means the night never gets
-	// that dark, staying below it means the day never gets that light.
-	twilightNotes = map[horizonState]string{
-		stateStaysAbove: "never gets this dark tonight - the sun stays above %d degrees",
-		stateStaysBelow: "this dark all day - the sun stays below %d degrees",
+	// StaysAbove and StaysBelow are named for the geometry, so they read the
+	// same way at any depression: above the angle is not yet dark, below it is
+	// not yet light.
+	twilightNotes = map[dusk.Horizon]string{
+		dusk.StaysAbove: "never gets this dark tonight - the sun stays above %d degrees",
+		dusk.StaysBelow: "this dark all day - the sun stays below %d degrees",
 	}
 )
 
 // twilightNote is the prose for a twilight band that never arrives, or that
 // never lifts.
-func twilightNote(state horizonState, degrees int) string {
-	format, ok := twilightNotes[state]
+func twilightNote(horizon dusk.Horizon, degrees int) string {
+	format, ok := twilightNotes[horizon]
 	if !ok {
 		return ""
 	}
@@ -163,19 +138,18 @@ func buildReport(obs dusk.Observer, date time.Time) (Report, error) {
 func sunReport(date time.Time, obs dusk.Observer) (SunReport, error) {
 	event, err := dusk.SunriseSunset(date, obs)
 	if err != nil {
-		state, ok := stateOf(err)
-		if !ok {
-			return SunReport{}, fmt.Errorf("sunrise/sunset: %w", err)
-		}
-
-		return SunReport{Note: solarNotes[state], state: state}, nil
+		return SunReport{}, fmt.Errorf("sunrise/sunset: %w", err)
 	}
 
+	// Rise and Set are zero when the geometry forbade them, and omitzero drops
+	// them. Noon and Daylight are real on every day, polar ones included.
 	return SunReport{
 		Rise:     toSecond(event.Rise),
 		Noon:     toSecond(event.Noon),
 		Set:      toSecond(event.Set),
 		Daylight: shortDuration(event.Duration),
+		Note:     solarNotes[event.Horizon],
+		horizon:  event.Horizon,
 	}, nil
 }
 
@@ -208,12 +182,12 @@ func twilightReports(date time.Time, obs dusk.Observer) ([]TwilightReport, error
 	var deepestDusk time.Time
 
 	for i, band := range twilightBands {
-		event, state, err := callTwilight(band.degrees, date, obs, band.name)
+		event, err := dusk.Twilight(date, obs, float64(band.degrees))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%s twilight: %w", band.name, err)
 		}
 
-		if state == stateCrosses {
+		if event.Horizon == dusk.Crosses {
 			deepest = i
 			deepestDusk = event.Dusk
 		}
@@ -222,9 +196,9 @@ func twilightReports(date time.Time, obs dusk.Observer) ([]TwilightReport, error
 			Name:    band.name,
 			Dawn:    toSecond(event.Dawn),
 			Dusk:    toSecond(event.Dusk),
-			Note:    twilightNote(state, band.degrees),
+			Note:    twilightNote(event.Horizon, band.degrees),
 			degrees: band.degrees,
-			state:   state,
+			horizon: event.Horizon,
 		})
 	}
 
@@ -234,36 +208,18 @@ func twilightReports(date time.Time, obs dusk.Observer) ([]TwilightReport, error
 
 	band := twilightBands[deepest]
 
-	tomorrow, state, err := callTwilight(band.degrees, date.AddDate(0, 0, 1), obs, band.name)
+	tomorrow, err := dusk.Twilight(date.AddDate(0, 0, 1), obs, float64(band.degrees))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s twilight: %w", band.name, err)
 	}
 
 	// A band that crosses today need not cross tomorrow: near a polar
 	// transition the night has no end to measure to, and the row is omitted.
-	if state == stateCrosses {
+	if tomorrow.Horizon == dusk.Crosses {
 		reports[deepest].Night = shortDuration(tomorrow.Dawn.Sub(deepestDusk))
 	}
 
 	return reports, nil
-}
-
-// callTwilight separates the library's three outcomes: a real event, an
-// expected polar-geometry state, or a genuine error worth failing on.
-func callTwilight(
-	degrees int, date time.Time, obs dusk.Observer, name string,
-) (dusk.TwilightEvent, horizonState, error) {
-	event, err := dusk.Twilight(date, obs, float64(degrees))
-	if err == nil {
-		return event, stateCrosses, nil
-	}
-
-	state, ok := stateOf(err)
-	if !ok {
-		return dusk.TwilightEvent{}, stateCrosses, fmt.Errorf("%s twilight: %w", name, err)
-	}
-
-	return dusk.TwilightEvent{}, state, nil
 }
 
 // moonReport computes moonrise and moonset for the day.

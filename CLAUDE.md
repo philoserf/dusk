@@ -72,7 +72,12 @@ out-of-range date (`unsupported date:`) exit 1, told apart by the message rather
   about transit — so either both exist or neither does. The v4 two-day shape, and the three
   named wrappers over it, are gone; overnight darkness is now two calls at the call site
 - Zero-value `time.Time` signals "event did not occur" — check with `.IsZero()`
-- `ErrCircumpolar` / `ErrNeverRises` for geometrically impossible events (polar)
+- **Polar geometry is a value, not an error.** `SunEvent.Horizon` / `TwilightEvent.Horizon`
+  are `Crosses` / `StaysAbove` / `StaysBelow`; `Rise`/`Set`/`Dawn`/`Dusk` are zero unless
+  `Crosses`. `Noon` is always set and `Duration` is 24h or 0. The names describe the geometry
+  because at a depression angle "circumpolar" and "never rises" meant the opposite of the
+  condition -- which is why those two sentinels are gone. `MoonEvent` is untouched:
+  `AboveHorizon` answers a different question
 - `error` returns for date out of range (validated at all public entry points)
 - **Sentinel errors are `const`, not `var`** — declared as the unexported `stringError` string type
   in `dusk.go` so they cannot be reassigned. New sentinels follow that pattern, not `errors.New`
@@ -121,7 +126,7 @@ adding another: count the findings, read them, and write down why they are wrong
 ## Gotchas
 
 - Moonrise/moonset iterates minute-by-minute (1440 iterations) — slow by design
-- `solarHourAngle` returns `(float64, error)` — returns `ErrCircumpolar` (midnight sun) or `ErrNeverRises` (polar night)
+- `solarHourAngle` returns `(float64, Horizon)` — the angle is zero and meaningless unless the Horizon is `Crosses`
 - `solarHourAngle` takes `depression` (positive degrees below horizon) for twilight reuse; pass 0 for sunrise/sunset
 - `LunarPhaseInfo.Waxing` distinguishes waxing (elongation 0-180) from waning; `DaysApprox` is a linear approximation
 - `eclipticToEquatorial` applies full nutation (Δψ + Δε); `solarDeclination` uses mean obliquity only (intentional asymmetry — NOAA simplified method for sunrise/sunset)

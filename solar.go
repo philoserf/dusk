@@ -34,10 +34,10 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 // This is the whole of what the two share. Each builds its own result from
 // jTransit and omega, because they answer different questions about the same
 // two instants.
-func solarCrossing(date time.Time, obs Observer, depression float64) (float64, float64, error) {
+func solarCrossing(date time.Time, obs Observer, depression float64) (float64, float64, Horizon, error) {
 	err := validObserver(obs)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, Crosses, err
 	}
 
 	localDate := date.In(obs.loc)
@@ -50,17 +50,14 @@ func solarCrossing(date time.Time, obs Observer, depression float64) (float64, f
 
 	err = validJulianDateRange(day)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, Crosses, err
 	}
 
 	sp := computeSolarParams(day, obs.lon)
 
-	omega, err := solarHourAngle(sp.delta, depression, obs.lat)
-	if err != nil {
-		return 0, 0, err
-	}
+	omega, horizon := solarHourAngle(sp.delta, depression, obs.lat)
 
-	return sp.jTransit, omega, nil
+	return sp.jTransit, omega, horizon, nil
 }
 
 // SunriseSunset computes sunrise, solar noon, and sunset for the given date
@@ -72,13 +69,25 @@ func solarCrossing(date time.Time, obs Observer, depression float64) (float64, f
 // The algorithm follows the NOAA solar calculator method (derived from Meeus,
 // Astronomical Algorithms).
 func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
-	jTransit, omega, err := solarCrossing(date, obs, 0)
+	jTransit, omega, horizon, err := solarCrossing(date, obs, 0)
 	if err != nil {
 		return SunEvent{}, err
 	}
 
-	rise := universalTimeFromJD(jTransit - omega/360.0).In(obs.loc)
 	noon := universalTimeFromJD(jTransit).In(obs.loc)
+
+	// Transit is defined on every day at every latitude, so Noon is always set
+	// -- including through the polar night, when the Sun reaches its highest
+	// point below the horizon and there is no rise or set to report.
+	if horizon != Crosses {
+		return SunEvent{
+			Noon:     noon,
+			Duration: daylightOf(horizon),
+			Horizon:  horizon,
+		}, nil
+	}
+
+	rise := universalTimeFromJD(jTransit - omega/360.0).In(obs.loc)
 	set := universalTimeFromJD(jTransit + omega/360.0).In(obs.loc)
 
 	return SunEvent{
@@ -86,7 +95,18 @@ func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
 		Noon:     noon,
 		Set:      set,
 		Duration: set.Sub(rise),
+		Horizon:  Crosses,
 	}, nil
+}
+
+// daylightOf gives the length of a day with no sunrise in it: a full day under
+// the midnight sun, and none at all through the polar night.
+func daylightOf(horizon Horizon) time.Duration {
+	if horizon == StaysAbove {
+		return 24 * time.Hour
+	}
+
+	return 0
 }
 
 // solarMeanAnomaly returns the Sun's mean anomaly in degrees.
@@ -123,10 +143,10 @@ func solarDeclination(lambda, T float64) float64 {
 // atmospheric refraction and solar semidiameter. For twilight, uses the
 // depression angle directly per IAU/USNO convention.
 //
-// Returns ErrCircumpolar when the Sun never sets (midnight sun) or
-// ErrNeverRises when the Sun never rises (polar night) at this latitude
-// and depression angle.
-func solarHourAngle(delta, depression, lat float64) (float64, error) {
+// The second return says whether the Sun reaches the queried altitude at all.
+// When it does not, the hour angle is meaningless and returned as zero: callers
+// must branch on the [Horizon] rather than use it.
+func solarHourAngle(delta, depression, lat float64) (float64, Horizon) {
 	var h0 float64
 	if depression == 0 {
 		h0 = -0.83
@@ -139,14 +159,14 @@ func solarHourAngle(delta, depression, lat float64) (float64, error) {
 
 	cosHA := num / den
 	if cosHA < -1 {
-		return 0, ErrCircumpolar
+		return 0, StaysAbove
 	}
 
 	if cosHA > 1 {
-		return 0, ErrNeverRises
+		return 0, StaysBelow
 	}
 
-	return acosx(cosHA), nil
+	return acosx(cosHA), Crosses
 }
 
 // solarTransitJD returns the Julian date of solar transit (solar noon).
@@ -173,13 +193,18 @@ func solarTransitJD(J, M, lambda float64) float64 {
 // Passing depression = 0 gives sunrise and sunset, refraction included, which
 // is what [SunriseSunset] returns.
 func Twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, error) {
-	jTransit, omega, err := solarCrossing(date, obs, depression)
+	jTransit, omega, horizon, err := solarCrossing(date, obs, depression)
 	if err != nil {
 		return TwilightEvent{}, err
 	}
 
+	if horizon != Crosses {
+		return TwilightEvent{Horizon: horizon}, nil
+	}
+
 	return TwilightEvent{
-		Dawn: universalTimeFromJD(jTransit - omega/360.0).In(obs.loc),
-		Dusk: universalTimeFromJD(jTransit + omega/360.0).In(obs.loc),
+		Dawn:    universalTimeFromJD(jTransit - omega/360.0).In(obs.loc),
+		Dusk:    universalTimeFromJD(jTransit + omega/360.0).In(obs.loc),
+		Horizon: Crosses,
 	}, nil
 }

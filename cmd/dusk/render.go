@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/philoserf/dusk/v5"
 )
 
 // clockLayout is how times of day are printed in the text report.
@@ -139,21 +141,21 @@ func conditions(report Report) []string {
 // twilight still arrives - otherwise "the sun does not rise" sits beside a
 // civil dawn with no explanation of how both are true.
 func sunCondition(report Report) string {
-	switch report.Sun.state {
-	case stateStaysAbove:
+	switch report.Sun.horizon {
+	case dusk.StaysAbove:
 		return "The sun does not set today (midnight sun)."
-	case stateStaysBelow:
+	case dusk.StaysBelow:
 		line := "The sun does not rise today (polar night)."
 
 		for _, band := range report.Twilight {
-			if band.state == stateCrosses {
+			if band.horizon == dusk.Crosses {
 				return line + " Twilight still reaches " +
 					strings.ToLower(band.Name) + " depth around midday."
 			}
 		}
 
 		return line
-	case stateCrosses:
+	case dusk.Crosses:
 	}
 
 	return ""
@@ -173,21 +175,20 @@ func twilightConditions(bands []TwilightReport) []string {
 	)
 
 	for _, band := range bands {
-		switch band.state {
-		case stateStaysAbove:
+		switch band.horizon {
+		case dusk.StaysAbove:
 			tooLight = append(tooLight, strings.ToLower(band.Name))
 			lightest = min(lightest, band.degrees)
-		case stateStaysBelow:
+		case dusk.StaysBelow:
 			tooDark = append(tooDark, strings.ToLower(band.Name))
 			deepest = max(deepest, band.degrees)
-		case stateCrosses:
+		case dusk.Crosses:
 		}
 	}
 
-	// Scoped to tonight, because a band's state is tonight's. On a transition
-	// day this morning's dawn came from yesterday's call and is real, so an
-	// unqualified "never drops 6° below the horizon" would sit directly above
-	// the dawn that disproves it.
+	// Scoped to tonight in the prose, though the geometry is now the whole
+	// day's: a same-day band either has both boundaries or neither, so there is
+	// no longer a real dawn for this sentence to contradict.
 	if len(tooLight) > 0 {
 		lines = append(lines, fmt.Sprintf(
 			"The sun never drops %d° below the horizon tonight, so %s twilight never arrives.",

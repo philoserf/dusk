@@ -1,7 +1,6 @@
 package dusk_test
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -51,21 +50,43 @@ func ExampleSunriseSunset_polar() {
 	// Tromsø on June 21 — midnight sun
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
 
-	_, err = dusk.SunriseSunset(date, obs)
-	if errors.Is(err, dusk.ErrCircumpolar) {
-		fmt.Println("Midnight sun — no sunrise or sunset")
+	summer, err := dusk.SunriseSunset(date, obs)
+	if err != nil {
+		fmt.Println("error:", err)
+
+		return
+	}
+
+	if summer.Horizon == dusk.StaysAbove {
+		fmt.Printf("Midnight sun — no sunrise or sunset, solar noon %s\n",
+			summer.Noon.Format("15:04"))
 	}
 
 	// Tromsø on December 21 — polar night
 	date = time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
 
-	_, err = dusk.SunriseSunset(date, obs)
-	if errors.Is(err, dusk.ErrNeverRises) {
-		fmt.Println("Polar night — sun never rises")
+	winter, err := dusk.SunriseSunset(date, obs)
+	if err != nil {
+		fmt.Println("error:", err)
+
+		return
 	}
+
+	// Noon is real on both days. Polar geometry is a property of the result,
+	// not a failure to produce one, so the rest of the day is still reported.
+	if winter.Horizon == dusk.StaysBelow {
+		fmt.Printf("Polar night — sun never rises, solar noon %s\n",
+			winter.Noon.Format("15:04"))
+	}
+	// USNO for Tromsø: Upper Transit 12:46 on 2024-06-21. It publishes no
+	// transit for 2024-12-21 (the Sun is continuously below the horizon), but it
+	// publishes civil twilight at 09:32 and 13:53, and transit bisects them by
+	// construction -- 11:42:30, which is the second value below. Both print a
+	// minute early through Format("15:04"), as elsewhere.
+
 	// Output:
-	// Midnight sun — no sunrise or sunset
-	// Polar night — sun never rises
+	// Midnight sun — no sunrise or sunset, solar noon 12:45
+	// Polar night — sun never rises, solar noon 11:42
 }
 
 func ExampleSunriseSunset() {
