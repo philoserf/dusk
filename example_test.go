@@ -179,7 +179,11 @@ func ExampleMoonriseMoonset() {
 	if !evt.Set.IsZero() {
 		fmt.Printf("Moonset:  %s\n", evt.Set.Format("15:04"))
 	}
+	// USNO publishes 10:11 and 22:07 for this date and place; the library computes
+	// 10:10:53 and 22:06:59. Format("15:04") truncates rather than rounds, so both
+	// print one minute early despite being within ten seconds of the reference.
+
 	// Output:
-	// Moonrise: 10:06
-	// Moonset:  22:13
+	// Moonrise: 10:10
+	// Moonset:  22:06
 }
