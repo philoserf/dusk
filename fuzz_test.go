@@ -12,7 +12,7 @@ func FuzzSunriseSunset(f *testing.F) {
 	f.Add(69.65, 18.96, int64(1718928000))     // Tromsø summer
 	f.Add(-0.18, -78.47, int64(1710892800))    // Quito
 
-	f.Fuzz(func(_ *testing.T, lat, lon float64, unix int64) {
+	f.Fuzz(func(t *testing.T, lat, lon float64, unix int64) {
 		date := time.Unix(unix, 0).UTC()
 		if date.Year() < 1800 || date.Year() > 2200 {
 			return
@@ -23,9 +23,37 @@ func FuzzSunriseSunset(f *testing.F) {
 			return // invalid coordinates rejected by NewObserver
 		}
 
-		_, err = SunriseSunset(date, obs)
+		sun, err := SunriseSunset(date, obs)
 		if err != nil {
 			return // circumpolar or never-rises is valid
+		}
+
+		// A non-error SunEvent means the Sun rose and set. clamp (trig.go) keeps
+		// NaN out of asin/acos by silently clamping, which its own comment
+		// concedes can mask an upstream bug; these checks are the sweep that
+		// fixed reference data cannot do.
+		for _, e := range []struct {
+			name string
+			at   time.Time
+		}{{"Rise", sun.Rise}, {"Noon", sun.Noon}, {"Set", sun.Set}} {
+			if e.at.IsZero() {
+				t.Errorf("%s is the zero time on a day with no error", e.name)
+			}
+		}
+
+		// cmd/dusk renders the day by sorting events on the clock, so an
+		// inversion would surface as a plausible report in the wrong order
+		// rather than as a crash.
+		if !sun.Noon.After(sun.Rise) {
+			t.Errorf("Noon %v is not after Rise %v", sun.Noon, sun.Rise)
+		}
+
+		if !sun.Set.After(sun.Noon) {
+			t.Errorf("Set %v is not after Noon %v", sun.Set, sun.Noon)
+		}
+
+		if sun.Duration <= 0 {
+			t.Errorf("Duration %v is not positive on a day the Sun rises and sets", sun.Duration)
 		}
 	})
 }
@@ -60,7 +88,7 @@ func FuzzMoonriseMoonset(f *testing.F) {
 	f.Add(40.7128, -74.006, int64(1705276800)) // NYC 2024-01-15
 	f.Add(-33.87, 151.21, int64(1705276800))   // Sydney
 
-	f.Fuzz(func(_ *testing.T, lat, lon float64, unix int64) {
+	f.Fuzz(func(t *testing.T, lat, lon float64, unix int64) {
 		date := time.Unix(unix, 0).UTC()
 		if date.Year() < 1800 || date.Year() > 2200 {
 			return
@@ -71,9 +99,30 @@ func FuzzMoonriseMoonset(f *testing.F) {
 			return // invalid coordinates rejected by NewObserver
 		}
 
-		_, err = MoonriseMoonset(date, obs)
+		moon, err := MoonriseMoonset(date, obs)
 		if err != nil {
 			return
+		}
+
+		// MoonEvent is documented as the rise and set times "on a given day", so
+		// a non-zero time outside the scanned local day is a defect. The scan
+		// length comes from the gap between local midnights, which is the part a
+		// DST boundary could plausibly get wrong.
+		local := date.In(obs.loc)
+		lo := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, obs.loc)
+		hi := time.Date(local.Year(), local.Month(), local.Day()+1, 0, 0, 0, 0, obs.loc)
+
+		for _, e := range []struct {
+			name string
+			at   time.Time
+		}{{"Rise", moon.Rise}, {"Set", moon.Set}} {
+			if e.at.IsZero() {
+				continue // the Moon need not rise or set on a given day
+			}
+
+			if e.at.Before(lo) || !e.at.Before(hi) {
+				t.Errorf("%s %v falls outside the scanned local day [%v, %v)", e.name, e.at, lo, hi)
+			}
 		}
 	})
 }
