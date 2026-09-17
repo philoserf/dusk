@@ -215,7 +215,7 @@ if errors.Is(err, dusk.ErrNeverRises) {
 ### Lunar
 
 - `MoonriseMoonset(date, obs)` — moonrise/moonset times and whether the Moon was above the horizon at the start of the day
-- `LunarPhase(date)` — illumination, elongation, approximate age, waxing/waning, phase angle, and name
+- `LunarPhase(date)` — illumination, elongation, approximate age, waxing/waning, and name
 
 ### Twilight
 
@@ -235,6 +235,10 @@ Plain data; format them however you need. `Observer` implements `fmt.Stringer`, 
 - `MoonEvent` — `Rise`, `Set` times and `AboveHorizon`
 - `TwilightEvent` — `Dusk`, `Dawn` times and `NightDuration` (overnight darkness)
 - `LunarPhaseInfo` — `Illumination`, `Elongation`, `DaysApprox`, `Waxing`, `Name`
+
+The Meeus phase angle was published as `LunarPhaseInfo.Angle` until v4.0.0 and removed as unused.
+`Illumination` is derived from it, so callers who want it back can recover it as
+`acos(2*Illumination/100 - 1)`, signed by `Waxing`.
 
 ### Errors
 
