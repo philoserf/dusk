@@ -44,6 +44,7 @@ tasks:
       - task: tidy
       - task: vet
       - task: lint
+      - task: docs
       - task: nilaway
       - task: test
       - task: ratchet
@@ -68,6 +69,23 @@ tasks:
       - golangci-lint config verify
       - golangci-lint run ./...
 
+  docs:
+    desc: prettier, the single definition of formatted for everything that is not Go
+    # The counterpart to `lint`. golangci-lint owns the Go files; prettier owns
+    # everything else this repository carries as prose or data. Declared here,
+    # with .prettierrc.json beside it, because formatting that lives only in an
+    # editor or an agent's hook is not reproducible by anyone else -- and
+    # prettier's default embeddedLanguageFormatting rewrites source inside
+    # fenced blocks, which is the one thing a repository of worked examples
+    # cannot have. .prettierignore records what is deliberately out of scope.
+    cmds:
+      - |
+        prettier --check . || {
+          echo "" >&2
+          echo "Markdown, JSON or YAML formatting differs: task fix" >&2
+          exit 1
+        }
+
   fix:
     desc: Apply every autofix the enabled formatters and linters offer
     # Not part of the gate: `lint` already reports everything this repairs.
@@ -75,6 +93,7 @@ tasks:
     # code rather than reformat it.
     cmds:
       - golangci-lint run ./... --fix
+      - prettier --write --log-level warn .
 
   nilaway:
     cmds:

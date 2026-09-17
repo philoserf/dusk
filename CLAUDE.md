@@ -7,8 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Go library for astronomical calculations: twilight, lunar phase, rise/set times.
 
 Onboarding references: `THEORY.md` (Naur-style theory of the codebase) and `WALKTHROUGH.md` (linear code tour).
-`THEORY.md` is hand-maintained prose — extend it when a load-bearing idea changes. `WALKTHROUGH.md` is a
-showboat document whose snippets are verified executable; keep them runnable, and re-verify before tagging.
+Both are hand-maintained prose — extend `THEORY.md` when a load-bearing idea changes, and regenerate
+`WALKTHROUGH.md` with the `code-walkthrough` skill when the code it quotes moves. Its snippets are quoted
+from the source by file and symbol, not by line range, and nothing in the gate checks them against the
+files they came from: re-read it before tagging.
 
 ## Commands
 
@@ -16,8 +18,8 @@ Run `task --list` for the current set.
 
 **CI runs exactly `task`.** Never add a check to CI that the local gate does not run,
 and never add a tool to the gate without also installing it in the workflow. The Go
-toolchain and golangci-lint are deliberately unpinned: a red gate on untouched code is
-the signal working — answer the finding rather than pinning the tool.
+toolchain, golangci-lint and prettier are deliberately unpinned: a red gate on untouched
+code is the signal working — answer the finding rather than pinning the tool.
 
 Coverage is held by a **ratchet**, not a percentage: `coverage.ratchet` records the
 count of uncovered statements per package, and `task ratchet` diffs the current counts
@@ -39,14 +41,14 @@ Library is a single package at the repo root, with a reference CLI under `cmd/du
 dependencies — nothing outside the standard library, and the Meeus coefficient tables are transcribed
 into the source rather than fetched. Module path: `github.com/philoserf/dusk/v4`.
 
-| File       | Domain                                                                                     |
-| ---------- | ------------------------------------------------------------------------------------------ |
-| `dusk.go`  | Package doc, `Observer`/`NewObserver`, event types, `stringError`, all sentinels but one    |
-| `solar.go` | `SunriseSunset`, civil/nautical/astronomical twilight, all unexported solar helpers        |
-| `lunar.go` | `MoonriseMoonset`, `LunarPhase`, unexported lunar helpers, Meeus Table 47.A/B coefficients |
-| `epoch.go` | Julian dates, sidereal time, nutation, obliquity, coordinate conversions — unexported apart from `ErrDateOutOfRange`, which lives beside the range check that returns it |
-| `trig.go`  | Degree-based trig wrappers, `clamp`, `mod360`/`mod24` normalization                        |
-| `cmd/dusk/` | Reference CLI over the public API: `main.go` (flags, errors), `report.go` (assembly), `render.go` (text/JSON) |
+| File        | Domain                                                                                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dusk.go`   | Package doc, `Observer`/`NewObserver`, event types, `stringError`, all sentinels but one                                                                                 |
+| `solar.go`  | `SunriseSunset`, civil/nautical/astronomical twilight, all unexported solar helpers                                                                                      |
+| `lunar.go`  | `MoonriseMoonset`, `LunarPhase`, unexported lunar helpers, Meeus Table 47.A/B coefficients                                                                               |
+| `epoch.go`  | Julian dates, sidereal time, nutation, obliquity, coordinate conversions — unexported apart from `ErrDateOutOfRange`, which lives beside the range check that returns it |
+| `trig.go`   | Degree-based trig wrappers, `clamp`, `mod360`/`mod24` normalization                                                                                                      |
+| `cmd/dusk/` | Reference CLI over the public API: `main.go` (flags, errors), `report.go` (assembly), `render.go` (text/JSON)                                                            |
 
 `cmd/dusk` is an executable specification, not a product: it calls every exported function, and every
 documented edge case is reachable with a single flag. Its exit contract is part of that — polar geometry
@@ -95,9 +97,17 @@ adding another: count the findings, read them, and write down why they are wrong
 - Terse Meeus notation (`T`, `M`, `Lp`, `Mp`, `h0`) is permitted by name in the `varnamelen`
   ignore list and by disabling `gocritic`'s `captLocal`; a new one-letter name needs an entry
 - gofumpt and goimports run **inside** golangci-lint, which is the single definition of formatted
-  this repo has. A `PostToolUse` hook in `.claude/settings.json` also runs `gofumpt -w` on Go
-  file writes — but the Brewfile does not install gofumpt, so on a fresh machine that hook fails
-  rather than formats (exit 127), and `task lint` is what catches the formatting
+  this repo has **for Go**. A `PostToolUse` hook in `.claude/settings.json` also runs `gofumpt -w`
+  on Go file writes — but the Brewfile does not install gofumpt, so on a fresh machine that hook
+  fails rather than formats (exit 127), and `task lint` is what catches the formatting
+- **prettier is the same thing for every file that is not Go** — Markdown, JSON and YAML — run
+  by `task docs` and configured by
+  `.prettierrc.json`. `embeddedLanguageFormatting: "off"` is the load-bearing setting: prettier's
+  default rewrites source inside fenced blocks, and this repository's documents quote their own
+  compiled examples. `.prettierignore` names what is out of scope and why — `.golangci.yml`
+  (prettier explodes the commented `varnamelen` flow sequence) and `.issues/` (hidden by the
+  global `core.excludesfile`, not by this repo's `.gitignore`, so git skips it and prettier
+  would not)
 
 ## Gotchas
 

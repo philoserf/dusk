@@ -58,11 +58,24 @@ jobs:
       # task and nilaway publish no action; `go install` is their supported
       # path. gofumpt is not installed at all: it runs inside golangci-lint
       # as a formatter, which is the single definition of formatted this
-      # repository has.
+      # repository has for Go.
+      #
+      # prettier is the same thing for Markdown, JSON and YAML, and `task docs` is
+      # what invokes it. Locally it comes from the Brewfile; the runner has
+      # Node and no Homebrew, so npm is the equivalent path. Unpinned, like
+      # every other tool here.
+      #
+      # Two channels for one tool is a deliberate acceptance, not an oversight.
+      # Homebrew's formula can lag npm by a release, and when it does this gate
+      # goes red on files nobody touched while `task` is green locally. That is
+      # rarer than pinning would be annoying, it resolves itself when the
+      # formula catches up, and `prettier --write` from either channel produces
+      # a tree both accept. Pin only if it starts costing more than it saves.
       - name: Install the rest of the gate's tools
         run: |
           go install github.com/go-task/task/v3/cmd/task@latest
           go install go.uber.org/nilaway/cmd/nilaway@latest
+          npm install -g prettier
 
       # CI runs exactly `task`. Never add a check here that the local gate
       # does not run, and never add a tool to the gate without also
