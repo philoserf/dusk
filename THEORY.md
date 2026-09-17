@@ -82,7 +82,7 @@ package scope and discard the error, and why the fuzz targets can treat a
 
 The parallel invariant on the time axis is `validJulianDateRange`. `julianDate` computes
 through `UnixNano`, which is undefined outside roughly 1677-2262 — and, as its comment
-is careful to say since issue #54, undefined means *an arbitrary wrong number*, not zero
+is careful to say since issue #54, undefined means _an arbitrary wrong number_, not zero
 and not a sentinel. So every public entry point range-checks before computing, and
 `MoonriseMoonset` checks three times: the caller's instant, and both derived local
 midnights, because the conversion can push a boundary date over the edge.
@@ -104,7 +104,7 @@ observer's zone rather than midnight for a second-order version of the same trap
 zones (`America/Santiago` in September, `America/Havana` in March) have no 00:00 on
 transition days, and Go resolves the missing hour backwards into the previous day.
 
-What happens *after* the calendar date is extracted is where the two halves of the
+What happens _after_ the calendar date is extracted is where the two halves of the
 package part company, and the split is principled rather than accidental:
 
 - **The solar path** rebuilds the day as UTC midnight:
@@ -116,7 +116,7 @@ package part company, and the split is principled rather than accidental:
 - **The lunar path** rebuilds the day as true local midnight in `obs.loc` and converts
   to UTC, and computes the next local midnight the same way. It needs real instants,
   because it is going to walk the day one minute at a time and ask for the Moon's
-  altitude at each. It also needs the real *length* of the day: the scan runs
+  altitude at each. It also needs the real _length_ of the day: the scan runs
   `int(nextMidnight.Sub(d).Minutes())` iterations, which is 1380 on a spring-forward
   day and 1500 on a fall-back day, not a hard-coded 1440.
 
@@ -126,8 +126,8 @@ warning about the same class of mistake one layer down.
 
 ### Two vocabularies for "this did not happen"
 
-The package distinguishes an event that is *geometrically impossible* from one that
-merely *did not fall inside this calendar day*, and it uses different mechanisms for
+The package distinguishes an event that is _geometrically impossible_ from one that
+merely _did not fall inside this calendar day_, and it uses different mechanisms for
 each, on purpose.
 
 **Sentinel errors** say the geometry forbids it. `solarHourAngle` computes the cosine of
@@ -150,18 +150,18 @@ exactly that distinction to choose between "stays above the horizon all day" and
 
 `CivilTwilight(date, obs)` returns **tonight's** dusk and **tomorrow morning's** dawn.
 It is not a symmetric bracket around the night you asked about; it is the night that
-*starts* on the date you asked about. To get this morning's dawn you call with
+_starts_ on the date you asked about. To get this morning's dawn you call with
 yesterday's date.
 
 The implementation makes this unavoidable rather than incidental: `twilight` computes
 solar parameters twice, once for `date` and once for `date.AddDate(0, 0, 1)`, and
-returns an error if *either* day's hour angle is impossible. Near 65-70°N there are
+returns an error if _either_ day's hour angle is impossible. Near 65-70°N there are
 transition dates where tonight's dusk is real and tomorrow's dawn is not, and the whole
 call fails.
 
 `cmd/dusk` is the worked example of living with this, and its comments are the clearest
 statement of the contract anywhere in the repository: each band is computed twice, dawn
-taken from yesterday's call and dusk from today's, with yesterday's *state* deliberately
+taken from yesterday's call and dusk from today's, with yesterday's _state_ deliberately
 discarded because it describes a night the report is not about. The v4 changelog records
 what happened when it was not discarded — a polar transition day printed "twilight never
 arrives" directly above a real civil dusk time.
@@ -227,7 +227,7 @@ types.
 What would require rethinking:
 
 **Sub-minute moonrise accuracy, or making it fast.** The minute-by-minute scan is not an
-implementation detail that can be optimised behind the same result; it *is* the
+implementation detail that can be optimised behind the same result; it _is_ the
 algorithm, and its resolution is its accuracy. A day where the Moon grazes the horizon
 for under a minute is invisible to it. Replacing it with interpolation between three
 positions (Meeus ch. 15, the standard approach) would change every moonrise time in the
@@ -288,14 +288,14 @@ Marked plainly, because these are inferences from code rather than recovered int
 
 ## Index
 
-| # | Severity | Issue | Primary location |
-| --- | --- | --- | --- |
-| 1 | medium | `moonevent-doc-promises-a-duration-field-removed-in-v3` | `dusk.go:118-119` |
-| 2 | medium | `readme-lists-a-phase-angle-that-v4-removed` | `README.md:218` |
-| 3 | medium | `readme-claims-go-1-24-while-go-mod-requires-1-27` | `README.md:264`, `go.mod:3` |
-| 4 | medium | `solarposition-has-no-production-caller` | `solar.go:74-89` |
-| 5 | medium | `sun-and-moon-fuzz-targets-assert-nothing` | `fuzz_test.go:15-30`, `63-78` |
-| 6 | low | `horizontal-azimuth-can-be-360-at-the-pole-guard` | `epoch.go:197-215` |
-| 7 | low | `claude-md-file-table-misplaces-the-date-range-sentinel` | `CLAUDE.md` Architecture table, `epoch.go:31` |
+| #   | Severity | Issue                                                    | Primary location                              |
+| --- | -------- | -------------------------------------------------------- | --------------------------------------------- |
+| 1   | medium   | `moonevent-doc-promises-a-duration-field-removed-in-v3`  | `dusk.go:118-119`                             |
+| 2   | medium   | `readme-lists-a-phase-angle-that-v4-removed`             | `README.md:218`                               |
+| 3   | medium   | `readme-claims-go-1-24-while-go-mod-requires-1-27`       | `README.md:264`, `go.mod:3`                   |
+| 4   | medium   | `solarposition-has-no-production-caller`                 | `solar.go:74-89`                              |
+| 5   | medium   | `sun-and-moon-fuzz-targets-assert-nothing`               | `fuzz_test.go:15-30`, `63-78`                 |
+| 6   | low      | `horizontal-azimuth-can-be-360-at-the-pole-guard`        | `epoch.go:197-215`                            |
+| 7   | low      | `claude-md-file-table-misplaces-the-date-range-sentinel` | `CLAUDE.md` Architecture table, `epoch.go:31` |
 
 **Total: 7 issues (0 critical, 0 high, 5 medium, 2 low)**

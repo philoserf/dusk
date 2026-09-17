@@ -1,0 +1,17 @@
+# Showboat's output. WALKTHROUGH.md is generated, and its fenced blocks are
+# re-executed and diffed against captured output, so the file is rewritten
+# wholesale on every regeneration. Formatting it here only means prettier and
+# showboat take turns owning the same bytes.
+WALKTHROUGH.md
+
+# The varnamelen ignore list is a YAML flow sequence with comments grouping the
+# names into three annotated categories -- which is how anyone adding a
+# one-letter name knows where to put it. Prettier explodes a flow sequence to
+# one entry per line, and the grouping stops meaning anything.
+.golangci.yml
+
+# Local scratch written by the code-* skills. Prettier reads this repo's
+# .gitignore but not the global core.excludesfile, and `.issues` is ignored
+# through the latter -- so git hides it and prettier would not. Without this
+# line the gate fails on files the repository does not carry.
+.issues/

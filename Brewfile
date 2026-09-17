@@ -5,3 +5,4 @@ brew "go"            # Go compiler and toolchain
 brew "go-task"       # task runner (Taskfile.yml)
 brew "golangci-lint" # the gate's linter, and the single definition of formatted
                      # this repo has: gofumpt and goimports run inside it
+brew "prettier"      # the same, for Markdown, JSON and YAML: the gate's `task docs`
