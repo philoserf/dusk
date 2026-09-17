@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 // at builds a time on the report's day, in UTC, for readable fixtures.
@@ -396,19 +397,32 @@ func TestJoin(t *testing.T) {
 	}
 }
 
-// TestWrapAt checks that a long condition breaks into indented lines.
+// TestWrapAt checks that a long condition breaks into indented lines, that the
+// width holds on every line including the first, and that the indent is applied
+// uniformly -- the off-by-two this replaced let the first line run two columns
+// past its continuations.
 func TestWrapAt(t *testing.T) {
 	t.Parallel()
 
-	got := wrapAt("the quick brown fox jumps over the lazy dog", 20, "  ")
+	const (
+		text   = "the quick brown fox jumps over the lazy dog"
+		width  = 20
+		indent = "  "
+	)
+
+	got := wrapAt(text, width, indent)
 
 	for line := range strings.SplitSeq(got, "\n") {
-		if len(line) > 20 {
+		if utf8.RuneCountInString(line) > width {
 			t.Errorf("line exceeds the width: %q", line)
+		}
+
+		if !strings.HasPrefix(line, indent) {
+			t.Errorf("line is not indented: %q", line)
 		}
 	}
 
-	if strings.Join(strings.Fields(got), " ") != "the quick brown fox jumps over the lazy dog" {
+	if strings.Join(strings.Fields(got), " ") != text {
 		t.Errorf("wrapping changed the words: %q", got)
 	}
 }
