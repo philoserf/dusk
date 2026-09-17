@@ -41,14 +41,15 @@ Library is a single package at the repo root, with a reference CLI under `cmd/du
 dependencies — nothing outside the standard library, and the Meeus coefficient tables are transcribed
 into the source rather than fetched. Module path: `github.com/philoserf/dusk/v4`.
 
-| File        | Domain                                                                                                                                                                   |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dusk.go`   | Package doc, `Observer`/`NewObserver`, event types, `stringError`, all sentinels but one                                                                                 |
-| `solar.go`  | `SunriseSunset`, civil/nautical/astronomical twilight, all unexported solar helpers                                                                                      |
-| `lunar.go`  | `MoonriseMoonset`, `LunarPhase`, unexported lunar helpers, Meeus Table 47.A/B coefficients                                                                               |
-| `epoch.go`  | Julian dates, sidereal time, nutation, obliquity, coordinate conversions — unexported apart from `ErrDateOutOfRange`, which lives beside the range check that returns it |
-| `trig.go`   | Degree-based trig wrappers, `clamp`, `mod360`/`mod24` normalization                                                                                                      |
-| `cmd/dusk/` | Reference CLI over the public API: `main.go` (flags, errors), `report.go` (assembly), `render.go` (text/JSON)                                                            |
+| File        | Domain                                                                                                                                               |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dusk.go`   | Package doc, `Observer`/`NewObserver`, event types, `stringError`, all sentinels but one                                                             |
+| `solar.go`  | `SunriseSunset`, civil/nautical/astronomical twilight, all unexported solar helpers                                                                  |
+| `lunar.go`  | `MoonriseMoonset`, `LunarPhase`, unexported lunar helpers, Meeus Table 47.A/B coefficients                                                           |
+| `epoch.go`  | Julian dates, sidereal time, nutation, obliquity — unexported apart from `ErrDateOutOfRange`, which lives beside the range check that returns it     |
+| `coord.go`  | Coordinate conversions: `eclipticToEquatorial`, `altitudeOf`, `hourAngle`. Sits one layer above `epoch.go`; reached only by `MoonriseMoonset`'s scan |
+| `trig.go`   | Degree-based trig wrappers, `clamp`, `mod360`/`mod24` normalization                                                                                  |
+| `cmd/dusk/` | Reference CLI over the public API: `main.go` (flags, errors), `report.go` (assembly), `render.go` (text/JSON)                                        |
 
 `cmd/dusk` is an executable specification, not a product: it calls every exported function, and every
 documented edge case is reachable with a single flag. Its exit contract is part of that — polar geometry
