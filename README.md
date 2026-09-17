@@ -147,7 +147,7 @@ if err != nil {
 	log.Fatal(err)
 }
 
-fmt.Printf("%s — illumination %.1f%%, waxing: %t\n", phase.Name, phase.Illumination, phase.Waxing)
+fmt.Printf("%s — illumination %.1f%%, waxing: %t\n", phase.Name, phase.Illumination, phase.Elongation < 180)
 ```
 
 ### Civil twilight
@@ -232,7 +232,7 @@ fmt.Printf("Solar noon: %s\n", sun.Noon.Format("15:04"))
 ### Lunar
 
 - `MoonriseMoonset(date, obs)` — moonrise/moonset times and whether the Moon was above the horizon at the start of the day
-- `LunarPhase(date)` — illumination, elongation, approximate age, waxing/waning, and name
+- `LunarPhase(date)` — illumination, elongation, and phase name
 
 ### Twilight
 
@@ -249,11 +249,20 @@ Plain data; format them however you need. `Observer` implements `fmt.Stringer`, 
 - `SunEvent` — `Rise`, `Noon`, `Set` times and `Duration` (daylight)
 - `MoonEvent` — `Rise`, `Set` times and `AboveHorizon`
 - `TwilightEvent` — `Dawn` and `Dusk` times, both on the queried day
-- `LunarPhaseInfo` — `Illumination`, `Elongation`, `DaysApprox`, `Waxing`, `Name`
+- `LunarPhaseInfo` — `Illumination`, `Elongation`, `Name`
 
-The Meeus phase angle was published as `LunarPhaseInfo.Angle` until v4.0.0 and removed as unused.
-`Illumination` is derived from it, so callers who want it back can recover it as
-`acos(2*Illumination/100 - 1)`, signed by `Waxing`.
+`LunarPhaseInfo` has been reduced twice, both times for publishing a value that was a
+restatement of one already in the struct. Each removal is one expression to undo:
+
+| removed in | field                       | recover with                                                     |
+| ---------- | --------------------------- | ---------------------------------------------------------------- |
+| v4.0.0     | `Angle` (Meeus phase angle) | `acos(2*Illumination/100 - 1)`, negated when `Elongation >= 180` |
+| v5.0.0     | `Waxing`                    | `Elongation < 180`                                               |
+| v5.0.0     | `DaysApprox`                | `Elongation / 360 * 29.53059`                                    |
+
+`DaysApprox` is the one to think twice about before recovering: elongation does not advance
+linearly in time, so the result is not the lunation age the old name promised. Writing the
+expression is a choice to accept that; reading a field called `DaysApprox` was not.
 
 ### Errors
 

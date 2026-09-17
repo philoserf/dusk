@@ -66,7 +66,7 @@ func TestLunarPhase(t *testing.T) {
 		wantLow    float64 // illumination lower bound
 		wantHigh   float64 // illumination upper bound
 		wantName   string  // expected phase name (empty to skip)
-		wantWaxing bool
+		wantWaxing bool    // checked through the documented recovery, Elongation < 180
 		elongLow   float64 // elongation lower bound (degrees)
 		elongHigh  float64 // elongation upper bound (degrees)
 	}{
@@ -170,8 +170,12 @@ func TestLunarPhase(t *testing.T) {
 				t.Errorf("name = %q, want %q", p.Name, tt.wantName)
 			}
 
-			if p.Waxing != tt.wantWaxing {
-				t.Errorf("Waxing = %v, want %v", p.Waxing, tt.wantWaxing)
+			// LunarPhaseInfo.Waxing was removed in v5.0.0 as a restatement of
+			// Elongation. These eight cases still check the fact; they check it
+			// through the recovery the doc comment promises, which also keeps
+			// that promise under test.
+			if waxing := p.Elongation < 180; waxing != tt.wantWaxing {
+				t.Errorf("Elongation %.1f° gives waxing = %v, want %v", p.Elongation, waxing, tt.wantWaxing)
 			}
 
 			if p.Elongation < tt.elongLow || p.Elongation > tt.elongHigh {

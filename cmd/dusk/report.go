@@ -66,8 +66,6 @@ type PhaseReport struct {
 	Name         string  `json:"name"`
 	Illumination float64 `json:"illumination"`
 	Elongation   float64 `json:"elongation"`
-	DaysApprox   float64 `json:"daysApprox"`
-	Waxing       bool    `json:"waxing"`
 }
 
 // The JSON-facing prose for each state. Tables rather than switches: a switch
@@ -253,8 +251,6 @@ func phaseReport(date time.Time) (PhaseReport, error) {
 		Name:         phase.Name,
 		Illumination: phase.Illumination,
 		Elongation:   phase.Elongation,
-		DaysApprox:   phase.DaysApprox,
-		Waxing:       phase.Waxing,
 	}, nil
 }
 

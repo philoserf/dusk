@@ -4,8 +4,6 @@ import (
 	"time"
 )
 
-const lunarMonthDays = 29.53059
-
 // earthRadiusKm is the Earth's equatorial radius, used to turn the Moon's
 // distance into an equatorial horizontal parallax.
 const earthRadiusKm = 6378.14
@@ -119,13 +117,9 @@ func LunarPhase(date time.Time) (LunarPhaseInfo, error) {
 
 	K := 100 * (1 + cosx(PA)) / 2
 
-	days := d / 360 * lunarMonthDays
-
 	return LunarPhaseInfo{
 		Illumination: K,
 		Elongation:   d,
-		DaysApprox:   days,
-		Waxing:       d < 180,
 		Name:         lunarPhaseName(d),
 	}, nil
 }
@@ -286,23 +280,23 @@ func lunarArgumentOfLatitude(T float64) float64 {
 
 // lunarPhaseName returns the common name for the lunar phase based on the
 // elongation angle in degrees.
-func lunarPhaseName(age float64) string {
-	age = mod360(age)
+func lunarPhaseName(elongation float64) string {
+	elongation = mod360(elongation)
 
 	switch {
-	case age < 22.5 || age >= 337.5:
+	case elongation < 22.5 || elongation >= 337.5:
 		return "New Moon"
-	case age < 67.5:
+	case elongation < 67.5:
 		return "Waxing Crescent"
-	case age < 112.5:
+	case elongation < 112.5:
 		return "First Quarter"
-	case age < 157.5:
+	case elongation < 157.5:
 		return "Waxing Gibbous"
-	case age < 202.5:
+	case elongation < 202.5:
 		return "Full Moon"
-	case age < 247.5:
+	case elongation < 247.5:
 		return "Waning Gibbous"
-	case age < 292.5:
+	case elongation < 292.5:
 		return "Last Quarter"
 	default:
 		return "Waning Crescent"
