@@ -1,5 +1,88 @@
 # Changelog
 
+## v5.1.0 — 2026-09-17
+
+Two accuracy fixes and a hygiene fix. **Every solar time in this release moves** — sunrise,
+sunset and all three twilight bands. No lunar value moves, and no exported signature changes.
+
+### Sunrise and sunset are solved independently, not mirrored
+
+`SunriseSunset` placed rise and set symmetrically about solar transit, which assumes the
+Sun's declination is the same in the morning as in the evening. Near an equinox it moves
+about 0.4° a day, so the afternoon half-day genuinely is shorter — and the mirrored
+construction reported the two as equal **to the second, by definition**.
+
+Each boundary is now re-solved against the declination at its own instant. The refraction
+constant is corrected from `-0.83` to `-0.8333`, the value Meeus and USNO use.
+
+Measured against published USNO values across twelve place/date pairs, `library − USNO` on
+sunset, in seconds:
+
+| place, date                        | before | after    |
+| ---------------------------------- | ------ | -------- |
+| Grand Rapids 2026-09-17            | +68    | +47      |
+| Seattle 2026-09-17                 | +86    | +60      |
+| Oslo 2026-09-17                    | +148   | +107     |
+| 65°N 2026-09-17                    | +167   | +115     |
+| 68°N 2026-09-17                    | +176   | **+115** |
+| Oslo 2026-12-21 (solstice control) | −8     | −6       |
+| Oslo 2026-03-20                    | −86    | −43      |
+
+Worst case falls from 2m56s to 1m55s, which brings the accuracy `README.md` documents back
+inside its own claim. The solstice control does not move: the fix leaves alone the case that
+was already right.
+
+**Sunrise gets worse, and you should know that before upgrading.** The mirrored construction
+put the entire error on sunset, which left sunrise accidentally accurate; correcting the
+geometry distributes it. Oslo's sunrise goes from −3s to −47s, 68°N's from −29s to −94s. The
+model is more correct and one published quantity is less accurate — the same trade v4.1.0
+made when the lunar parallax fix moved every moonrise later.
+
+**About half the asymmetry remains.** Oslo's afternoon is 180 seconds shorter than its
+morning; this release reports 86, up from zero. The hour angle is still measured about a
+transit computed once for the day, so the Sun's motion in right ascension is unmodelled.
+Tracked in [#114](https://github.com/philoserf/dusk/issues/114), with measurements.
+
+**Twilight moves too.** v5.0.0 gave `Twilight` the same shared geometry, so all three bands
+get the same correction and the same trade. Oslo's civil dusk improves from 149s to 100s;
+its civil dawn degrades from 4s to 53s.
+
+### Rendered times round instead of truncating
+
+`"15:04"` drops the seconds, so every displayed time ran up to 59 seconds early — one-sided,
+always. `cmd/dusk`'s **text** report now rounds. Its **JSON does not**: that is the
+machine-readable answer and keeps its seconds, so the two renderings of one event may differ
+by up to half a minute, by design.
+
+Three of the four published examples now print exactly what USNO publishes, where they
+previously printed a minute early:
+
+| example                      | before        | after         | USNO          |
+| ---------------------------- | ------------- | ------------- | ------------- |
+| `ExampleSunriseSunset`       | 06:03         | 06:04         | 06:04         |
+| `ExampleTwilight` (dawn)     | 04:30         | 04:31         | 04:31         |
+| `ExampleSunriseSunset_polar` | 12:45         | 12:46         | 12:46         |
+| `ExampleMoonriseMoonset`     | 10:10 / 22:06 | 10:11 / 22:07 | 10:11 / 22:07 |
+
+`ExampleSunriseSunset` was the one nobody had noticed — its siblings documented the
+truncation and it did not, so it had been advertising a sunrise a minute earlier than the
+reference it was derived from, from a value 14 seconds off.
+
+Callers formatting the library's own return values should round too; the examples now
+demonstrate that rather than the truncation.
+
+### Also
+
+- `.prettierignore` now covers `.planning/` as well as `.issues/`. Both are hidden by a
+  global ignore that prettier does not read, so the gate failed on files the repository does
+  not carry.
+
+### Upgrading
+
+No signature changes and no import-path change: `go get -u` is the whole migration. If you
+have pinned sunrise, sunset or twilight times in your own tests, expect them to move by up
+to about a minute and re-derive them from a reference rather than from this library.
+
 ## v5.0.0 — 2026-09-17
 
 **The import path is now `github.com/philoserf/dusk/v5`.** Every exported change below is

@@ -420,36 +420,33 @@ in microseconds. Two exported functions share one body.
 `solar.go` — `solarCrossing`
 
 ```go
-func solarCrossing(date Date, obs Observer, depression float64) (float64, float64, Horizon, error) {
-	err := validObserver(obs)
-	if err != nil {
-		return 0, 0, Crosses, err
-	}
-
 	// Build the day at UTC midnight, not in obs.loc: meanSolarTime applies the
 	// observer's longitude itself, after julianDay has rounded, so handing it a
 	// zone-adjusted instant would apply longitude twice. MoonriseMoonset does the
 	// opposite for the opposite reason -- see lunar.go.
 	day := date.at(time.UTC)
-
-	err = validJulianDateRange(day)
-	if err != nil {
-		return 0, 0, Crosses, err
-	}
-
-	sp := computeSolarParams(day, obs.lon)
-
-	omega, horizon := solarHourAngle(sp.delta, depression, obs.lat)
-
-	return sp.jTransit, omega, horizon, nil
-}
 ```
 
 That comment is the payoff from `meanSolarTime`. The day is built at **UTC** midnight —
 not in the observer's zone — because the longitude correction is applied downstream.
 
-This is the whole of what the two entry points share. Each builds its own result,
-because they answer different questions about the same two instants.
+What comes back is three instants rather than a hour angle:
+
+`solar.go` — `solarDay`
+
+```go
+// solarDay holds one day's solar geometry, already solved into instants.
+// rise and set are meaningless unless horizon is Crosses; transit always holds.
+type solarDay struct {
+	rise    float64
+	transit float64
+	set     float64
+	horizon Horizon
+}
+```
+
+This is the whole of what `SunriseSunset` and `Twilight` share. Each turns the same three
+instants into its own result type.
 
 ### The six-step parameter chain
 
@@ -465,7 +462,7 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 	delta := solarDeclination(lambda, T)
 	jTransit := solarTransitJD(J, M, lambda)
 
-	return solarParams{delta: delta, jTransit: jTransit}
+	return solarParams{J: J, T: T, delta: delta, jTransit: jTransit}
 }
 ```
 
@@ -474,7 +471,21 @@ Read the units carefully. `J` is **days** since J2000, and `solarMeanAnomaly` ta
 back to days rather than keeping a second function in the other unit. `T` is
 **centuries**, and only `solarDeclination` wants it.
 
-Two numbers come out: the declination, and the Julian date of solar transit.
+Two numbers come out — the declination and the Julian date of solar transit — plus the two
+time bases they were computed from. Those are carried so the correction pass below can
+re-solve on the same footing instead of inventing a second convention:
+
+`solar.go` — `solarParams.declinationAt`
+
+```go
+func (sp solarParams) declinationAt(offsetDays float64) float64 {
+	M := solarMeanAnomaly(sp.J + offsetDays)
+	C := solarEquationOfCenter(M)
+	lambda := solarEclipticLongitude(M, C)
+
+	return solarDeclination(lambda, sp.T+offsetDays/36525.0)
+}
+```
 
 ### Turning declination into two times
 
@@ -484,7 +495,7 @@ Two numbers come out: the declination, and the Julian date of solar transit.
 func solarHourAngle(delta, depression, lat float64) (float64, Horizon) {
 	var h0 float64
 	if depression == 0 {
-		h0 = -0.83
+		h0 = -0.8333
 	} else {
 		h0 = -depression
 	}
@@ -510,38 +521,78 @@ it is the arithmetic reporting that no hour angle solves the equation, because t
 never reaches that altitude on that day at that latitude. Clamping would return a
 plausible time for an event that does not occur.
 
-The `-0.83` is refraction plus solar semidiameter. Meeus and USNO use `-0.8333`; the
-discrepancy is real, worth about 1.6 seconds of half-day at the equator, and tracked as
-an open question in `THEORY.md`.
+The `-0.8333` is refraction plus solar semidiameter, the value Meeus and USNO use. It read
+`-0.83` until v5.1.0 — a transcription error worth about 1.6 seconds of half-day at the
+equator, and, corrected on its own, very slightly the wrong way: a lower horizon means a
+later sunset, and sunset was already late.
 
 `solar.go` — `SunriseSunset`
 
 ```go
-	noon := universalTimeFromJD(jTransit).In(obs.loc)
+	noon := universalTimeFromJD(day.transit).In(obs.loc)
 
 	// Transit is defined on every day at every latitude, so Noon is always set
 	// -- including through the polar night, when the Sun reaches its highest
 	// point below the horizon and there is no rise or set to report.
-	if horizon != Crosses {
+	if day.horizon != Crosses {
 		return SunEvent{
 			Noon:     noon,
-			Duration: daylightOf(horizon),
-			Horizon:  horizon,
+			Duration: daylightOf(day.horizon),
+			Horizon:  day.horizon,
 		}, nil
 	}
 
-	rise := universalTimeFromJD(jTransit - omega/360.0).In(obs.loc)
-	set := universalTimeFromJD(jTransit + omega/360.0).In(obs.loc)
+	rise := universalTimeFromJD(day.rise).In(obs.loc)
+	set := universalTimeFromJD(day.set).In(obs.loc)
 ```
 
-`omega/360` converts the hour angle from degrees to a fraction of a day. Rise and set
-are placed symmetrically about transit.
+### Why the two boundaries are not mirrored
 
-**That symmetry embeds an assumption the sky does not honour** — that declination is the
-same at sunrise as at sunset. Near an equinox it moves about 0.4° per day, so the
-afternoon half-day is measurably shorter than the morning. The error lands almost
-entirely on sunset and grows with latitude, reaching about 2.5 minutes at Oslo. That is
-a known open defect, filed and not yet fixed.
+Through v5.0.0 rise and set were `jTransit ∓ omega/360` — one hour angle, applied both ways.
+**That symmetry embeds an assumption the sky does not honour**: that declination is the same
+at sunrise as at sunset. Near an equinox it moves about 0.4° a day, so the afternoon half-day
+really is shorter than the morning, and a mirrored construction reports the two as equal _to
+the second, by definition_.
+
+v5.1.0 added a correction pass per boundary:
+
+`solar.go` — `solarCrossing`
+
+```go
+	return solarDay{
+		rise:    sp.jTransit - refineOmega(sp, -omega/360.0, depression, obs.lat, omega)/360.0,
+		transit: sp.jTransit,
+		set:     sp.jTransit + refineOmega(sp, +omega/360.0, depression, obs.lat, omega)/360.0,
+		horizon: Crosses,
+	}, nil
+```
+
+`solar.go` — `refineOmega`
+
+```go
+func refineOmega(sp solarParams, offsetDays, depression, lat, fallback float64) float64 {
+	omega, horizon := solarHourAngle(sp.declinationAt(offsetDays), depression, lat)
+	if horizon != Crosses {
+		return fallback
+	}
+
+	return omega
+}
+```
+
+The fallback is the one deliberate approximation here. A refined declination that puts a
+boundary out of reach is the polar limit arriving mid-correction, on a day whose first pass
+said the Sun crosses; keeping the first estimate avoids a boundary that vanishes and
+reappears across a degree of latitude. `TestTwilight_RefinementAtThePolarLimit` pins a real
+case — 65.5°N, civil, 2025-05-13 — found by search rather than guessed.
+
+**It is a partial fix, and the code says so.** Measured against USNO, worst-case sunset falls
+from 176s to 115s, which is what makes the README's two-minute claim true. Sunrise gets
+_worse_ — the mirrored construction put the whole error on sunset, leaving sunrise
+accidentally accurate, and correcting the geometry distributes it. About half the true skew
+remains, because the hour angle is still measured about a transit computed once for the day:
+the Sun's own motion in right ascension between transit and the boundary is unmodelled. That
+is issue #114.
 
 ### Twilight, which is the same computation
 
@@ -549,25 +600,26 @@ a known open defect, filed and not yet fixed.
 
 ```go
 func Twilight(date Date, obs Observer, depression float64) (TwilightEvent, error) {
-	jTransit, omega, horizon, err := solarCrossing(date, obs, depression)
+	day, err := solarCrossing(date, obs, depression)
 	if err != nil {
 		return TwilightEvent{}, err
 	}
 
-	if horizon != Crosses {
-		return TwilightEvent{Horizon: horizon}, nil
+	if day.horizon != Crosses {
+		return TwilightEvent{Horizon: day.horizon}, nil
 	}
 
 	return TwilightEvent{
-		Dawn:    universalTimeFromJD(jTransit - omega/360.0).In(obs.loc),
-		Dusk:    universalTimeFromJD(jTransit + omega/360.0).In(obs.loc),
+		Dawn:    universalTimeFromJD(day.rise).In(obs.loc),
+		Dusk:    universalTimeFromJD(day.set).In(obs.loc),
 		Horizon: Crosses,
 	}, nil
 }
 ```
 
-Identical arithmetic to `SunriseSunset`, with the depression threaded through. Passing
-`depression = 0` gives sunrise and sunset, refraction included.
+Identical arithmetic to `SunriseSunset`, with the depression threaded through — **including
+the boundary correction**, which is why v5.1.0 moved every twilight time and not just
+sunrise and sunset. Passing `depression = 0` gives sunrise and sunset, refraction included.
 
 Through v4 this was shaped differently: `Twilight(D).Dusk` was the evening of D and
 `Twilight(D).Dawn` was the morning of **D+1**, computed by running the entire parameter
@@ -831,6 +883,24 @@ This is the best-reasoned code in the repository, and its comments are the clear
 statement of the library's contract anywhere — frequently better than the doc comments
 they describe.
 
+Times are rounded, not truncated, and where that happens matters:
+
+`cmd/dusk/render.go` — `timeline`
+
+```go
+		// Round here rather than at the Format call below, so the day check and
+		// the reader see the same value. A 23:59:45 sunset rounds to 00:00 and
+		// belongs to tomorrow; comparing the unrounded instant would print it as
+		// today's, with no marker and no way to tell.
+		when = when.Round(time.Minute)
+```
+
+`"15:04"` drops the seconds, so until v5.1.0 every displayed time ran up to 59 seconds
+early — one-sided, always. That was noise while the moonrise threshold was minutes wrong;
+once the library agreed with USNO to within half a minute, the layout became the larger
+error. **The JSON report does not round**: it is the machine-readable answer and keeps its
+seconds, so the two renderings of one event may differ by up to half a minute, by design.
+
 `cmd/dusk/render.go` — `moonCondition`
 
 ```go
@@ -930,27 +1000,24 @@ deliberate design, each disable carrying a measured finding count and a reason.
 
 ## What this pass turned up
 
-Reading the source and the previous walkthrough side by side surfaced four doc comments
-that the v5.0.0 changes had left describing code that no longer exists. All four are
-fixed in this release; they are listed because the pattern matters more than the
-instances.
+The previous regeneration recorded four doc comments left describing deleted symbols, and
+the pattern behind them: **nothing in the gate reads prose.** That entry is now in
+`CLAUDE.md`'s Gotchas, and the pattern repeated at smaller scale in v5.1.0 — one comment,
+caught the same way, by reading the source beside the document.
 
-| Location                       | What it still said                                                     |
-| ------------------------------ | ---------------------------------------------------------------------- |
-| `dusk.go` package doc          | "Two sentinel errors distinguish polar edge cases" — there are none    |
-| `lunar.go` — `MoonriseMoonset` | the date is converted from a `time.Time` to the observer's zone        |
-| `cmd/dusk/main.go` — `run`     | the date must be parsed in the observer's zone or it lands a day early |
-| `solar.go` — `Twilight`        | linked `ErrCircumpolar` and `ErrNeverRises`, deleted a PR earlier      |
+| Location                     | What it still said                                                                                                                                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `solar.go` — `solarCrossing` | that it returns "the Julian date of solar transit, and the hour angle", and that callers build results "from jTransit and omega" — it had returned three instants in a `solarDay` since the commit that wrote the comment |
 
-**Nothing in the gate reads prose.** `go build` does not resolve godoc links, `go vet`
-does not check whether a comment matches the code beneath it, and the walkthrough row in
-the release gate measures _staleness by commit count_, not accuracy. Four of the five
-above survived a fully green gate across five merged pull requests. The one that did not
-was caught by `lll` complaining the line was too long — which is to say, by accident.
+That one was introduced _by_ the change whose doc it describes, in the same commit, and
+survived review and a green gate. It is the strongest argument for the Gotchas entry: the
+comment most likely to go stale is the one attached to the code you are editing, because it
+is the one you have stopped reading.
 
-The practical consequence for a maintainer: when you delete an exported symbol, grep for
-its name in comments as well as code, and treat a doc comment adjacent to changed code as
-part of the change rather than as documentation to revisit later.
+Five walkthrough snippets went stale in the same release, all in the solar section, and were
+caught by the extract-and-compare check rather than by eye. That check is worth keeping in
+the release procedure for exactly this reason — prose describing code cannot be verified by
+reading the prose.
 
 ## Index
 

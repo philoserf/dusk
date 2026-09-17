@@ -74,6 +74,11 @@ out-of-range date (`unsupported date:`) exit 1, told apart by the message rather
 - `Twilight(date, obs, depression)` returns **both boundaries on the queried day**, symmetric
   about transit — so either both exist or neither does. The v4 two-day shape, and the three
   named wrappers over it, are gone; overnight darkness is now two calls at the call site
+- **The text report rounds to the minute; the JSON does not.** `cmd/dusk`'s timeline rounds
+  where an event enters it, not at the `Format` call — the day-marker logic compares against
+  the report's day, so a 23:59:45 sunset has to round to tomorrow's 00:00 _before_ that
+  comparison. JSON keeps its seconds as the machine-readable answer, so the two renderings
+  of one event may differ by up to half a minute, deliberately
 - Zero-value `time.Time` signals "event did not occur" — check with `.IsZero()`
 - **Polar geometry is a value, not an error.** `SunEvent.Horizon` / `TwilightEvent.Horizon`
   are `Crosses` / `StaysAbove` / `StaysBelow`; `Rise`/`Set`/`Dawn`/`Dusk` are zero unless

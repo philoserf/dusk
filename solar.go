@@ -49,14 +49,12 @@ type solarDay struct {
 	horizon Horizon
 }
 
-// solarCrossing resolves the observer's calendar day and returns the geometry
-// both public solar entry points need: the Julian date of solar transit, and
-// the hour angle at the given depression. SunriseSunset passes 0; Twilight
-// passes its band.
+// solarCrossing resolves the observer's calendar day and solves the day's solar
+// geometry at the given depression, returning transit and the two boundaries as
+// Julian dates. SunriseSunset passes 0; Twilight passes its band.
 //
-// This is the whole of what the two share. Each builds its own result from
-// jTransit and omega, because they answer different questions about the same
-// two instants.
+// This is the whole of what the two share. Each turns the same three instants
+// into its own result type, because they answer different questions about them.
 func solarCrossing(date Date, obs Observer, depression float64) (solarDay, error) {
 	err := validObserver(obs)
 	if err != nil {
