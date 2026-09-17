@@ -65,8 +65,9 @@ type SunReport struct {
 	state horizonState
 }
 
-// TwilightReport holds one twilight band. Dawn is this morning's, Dusk is
-// tonight's - see twilightReports for why those come from different calls.
+// TwilightReport holds one twilight band. Dawn and Dusk are both today's, as
+// the library returns them. Night is set only on the deepest band that has one,
+// which is the only one the summary prints.
 type TwilightReport struct {
 	Name  string    `json:"name"`
 	Dawn  time.Time `json:"dawn,omitzero"`
@@ -178,59 +179,70 @@ func sunReport(date time.Time, obs dusk.Observer) (SunReport, error) {
 	}, nil
 }
 
-// twilightFunc is the shared signature of the three exported twilight calls.
-type twilightFunc func(time.Time, dusk.Observer) (dusk.TwilightEvent, error)
-
-// twilightBands names each twilight, its depression angle, and its constructor.
+// twilightBands names each twilight band and its depression angle. The angle
+// is passed straight to the library, so the number the prose prints and the
+// number the geometry uses are the same one.
 var twilightBands = []struct {
 	name    string
 	degrees int
-	fn      twilightFunc
 }{
-	{"Civil", 6, dusk.CivilTwilight},
-	{"Nautical", 12, dusk.NauticalTwilight},
-	{"Astronomical", 18, dusk.AstronomicalTwilight},
+	{"Civil", 6},
+	{"Nautical", 12},
+	{"Astronomical", 18},
 }
 
-// twilightReports computes all three twilight bands for the day.
+// twilightReports computes all three twilight bands for the day, then the
+// overnight darkness for the one band that displays it.
 //
-// dusk.TwilightEvent is deliberately asymmetric: Dusk is tonight's boundary and
-// Dawn is *tomorrow* morning's. A day report wants this morning's dawn instead,
-// so each band is computed twice - Dawn from yesterday's event, Dusk from
-// today's. This is the single most easily missed detail in the library's
-// contract, which is why the reference implementation does it explicitly.
+// dusk.Twilight returns both boundaries of a band for a single day, so one call
+// per band is enough. The Dark row needs an interval that spans midnight, which
+// no single day's event can carry: it is tonight's Dusk to tomorrow's Dawn, and
+// costs the one extra call below.
 func twilightReports(date time.Time, obs dusk.Observer) ([]TwilightReport, error) {
-	yesterday := date.AddDate(0, 0, -1)
 	reports := make([]TwilightReport, 0, len(twilightBands))
 
-	for _, band := range twilightBands {
-		report := TwilightReport{Name: band.name, degrees: band.degrees}
+	// Bands run shallow to deep, so the last one that crosses is the deepest
+	// that crosses - which is the band the summary's Dark row names.
+	deepest := -1
 
-		// Yesterday's call supplies this morning's dawn and nothing else. Its
-		// state is discarded: on a polar transition day it describes a night
-		// the report is not about, and letting it stand printed "twilight
-		// never arrives" above tonight's real dusk time.
-		morning, _, err := callTwilight(band.fn, yesterday, obs, band.name)
+	var deepestDusk time.Time
+
+	for i, band := range twilightBands {
+		event, state, err := callTwilight(band.degrees, date, obs, band.name)
 		if err != nil {
 			return nil, err
 		}
 
-		report.Dawn = toSecond(morning.Dawn)
-
-		// Tonight's geometry is the one the report is about. When it is not a
-		// crossing the event is the zero value, so Dusk and Night fall out
-		// empty without being cleared.
-		evening, state, err := callTwilight(band.fn, date, obs, band.name)
-		if err != nil {
-			return nil, err
+		if state == stateCrosses {
+			deepest = i
+			deepestDusk = event.Dusk
 		}
 
-		report.Dusk = toSecond(evening.Dusk)
-		report.Night = shortDuration(evening.NightDuration)
-		report.state = state
-		report.Note = twilightNote(state, band.degrees)
+		reports = append(reports, TwilightReport{
+			Name:    band.name,
+			Dawn:    toSecond(event.Dawn),
+			Dusk:    toSecond(event.Dusk),
+			Note:    twilightNote(state, band.degrees),
+			degrees: band.degrees,
+			state:   state,
+		})
+	}
 
-		reports = append(reports, report)
+	if deepest < 0 {
+		return reports, nil
+	}
+
+	band := twilightBands[deepest]
+
+	tomorrow, state, err := callTwilight(band.degrees, date.AddDate(0, 0, 1), obs, band.name)
+	if err != nil {
+		return nil, err
+	}
+
+	// A band that crosses today need not cross tomorrow: near a polar
+	// transition the night has no end to measure to, and the row is omitted.
+	if state == stateCrosses {
+		reports[deepest].Night = shortDuration(tomorrow.Dawn.Sub(deepestDusk))
 	}
 
 	return reports, nil
@@ -239,9 +251,9 @@ func twilightReports(date time.Time, obs dusk.Observer) ([]TwilightReport, error
 // callTwilight separates the library's three outcomes: a real event, an
 // expected polar-geometry state, or a genuine error worth failing on.
 func callTwilight(
-	fn twilightFunc, date time.Time, obs dusk.Observer, name string,
+	degrees int, date time.Time, obs dusk.Observer, name string,
 ) (dusk.TwilightEvent, horizonState, error) {
-	event, err := fn(date, obs)
+	event, err := dusk.Twilight(date, obs, float64(degrees))
 	if err == nil {
 		return event, stateCrosses, nil
 	}

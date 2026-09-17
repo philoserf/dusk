@@ -68,8 +68,9 @@ out-of-range date (`unsupported date:`) exit 1, told apart by the message rather
   selects the previous day for any observer west of Greenwich
 - `LunarPhase` is the exception to the day regime: it takes an **instant**, not a day, and no
   `Observer` — phase is Sun-Earth-Moon geometry, so the observer is irrelevant
-- Twilight functions return tonight's `Dusk` and **tomorrow morning's** `Dawn`. To get this
-  morning's dawn, call with yesterday's date
+- `Twilight(date, obs, depression)` returns **both boundaries on the queried day**, symmetric
+  about transit — so either both exist or neither does. The v4 two-day shape, and the three
+  named wrappers over it, are gone; overnight darkness is now two calls at the call site
 - Zero-value `time.Time` signals "event did not occur" — check with `.IsZero()`
 - `ErrCircumpolar` / `ErrNeverRises` for geometrically impossible events (polar)
 - `error` returns for date out of range (validated at all public entry points)
