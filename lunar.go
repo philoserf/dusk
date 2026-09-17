@@ -163,12 +163,11 @@ func crossingInstant(cur time.Time, prevDiff, curDiff float64) time.Time {
 	return cur.Add(-time.Minute + time.Duration(frac*float64(time.Minute)))
 }
 
-// MoonriseMoonset computes the moonrise and moonset times for the given date
-// at the specified observer position and timezone.
-// The date is converted to the observer's timezone to determine the local
-// calendar day, then the function scans that local day (midnight to midnight)
-// for rise/set events. This means the same time.Time can produce different
-// results for observers in different timezones.
+// MoonriseMoonset computes the moonrise and moonset times for the given calendar
+// day at the specified observer position and timezone. The function scans that
+// day in the observer's zone, midnight to midnight, for rise/set events -- so
+// the same Date gives different results for observers in different zones, which
+// is the point.
 //
 // The algorithm scans minute-by-minute through the day to detect altitude
 // sign changes. This is slow by design (~1440 ecliptic-position evaluations).
