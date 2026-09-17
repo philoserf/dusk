@@ -1,5 +1,129 @@
 # Changelog
 
+## v4.1.0 — 2026-09-17
+
+The astronomy **changed**. v4.0.0 shipped with the note that every calculation returned
+exactly what v3.0.0 returned; this release does not. Moonrise and moonset move by 5–12
+minutes, because the threshold they were measured against was the Sun's.
+
+Everything else is the standing documents catching up with the code, and the tests
+catching up with what the documents promise.
+
+### Bug fixes
+
+- **The moonrise/moonset threshold omitted the Moon's horizontal parallax.** The constant
+  was 0.833° — Meeus's `h0` for the **Sun** — carrying a comment whose own arithmetic
+  (refraction 0.566 + semidiameter 0.25 = 0.816) did not reach it. The Moon is the one body
+  close enough that parallax dominates, and Meeus gives it `h0 = 0.7275·π − 0.5667`, about
+  **+0.125°**: its centre is _above_ the geometric horizon when it is seen to rise. The sign
+  was backwards and the magnitude was off by about 0.96°, biasing every rise early and every
+  set late.
+
+  Measured against published USNO values over 28 rise/set events from 55°S to 64°N across
+  all four seasons, the largest disagreement is now **32 seconds**, where before it ran to
+  5–12 minutes in a consistent direction:
+
+  | date / place      | before        | after         | USNO          |
+  | ----------------- | ------------- | ------------- | ------------- |
+  | 2024-01-15 NYC    | 10:06 / 22:13 | 10:11 / 22:07 | 10:11 / 22:07 |
+  | 2024-01-20 NYC    | 12:19 / 03:03 | 12:25 / 02:56 | 12:25 / 02:56 |
+  | 2024-01-25 NYC    | 16:50 / 07:40 | 16:56 / 07:34 | 16:56 / 07:34 |
+  | 2024-01-15 Sydney | 09:50 / 23:00 | 09:51 / 23:00 | 09:51 / 23:00 |
+
+  `h0` is recomputed per sample from the Moon's true distance, which the position series
+  already returned and discarded, so perigee/apogee variation (±0.05°) comes along free.
+
+- **A `MoonEvent` for one day could carry a time on the next.** The minute scan ran
+  `i <= scanMinutes`, sampling the next local midnight itself, so a crossing detected there
+  was filed under the wrong calendar day — and lost from the day it belonged to. Measured at
+  33 out of 19,200 day-scans, about 0.17%.
+
+  Fixed by reporting the **interpolated crossing** rather than the sample that detected it.
+  The reported instant now lands in `[cur−1m, cur)`, strictly inside the scanned day on
+  every iteration including the last, which also removes the one-minute quantization the
+  doc comment used to concede. Opening the loop bound instead would have lost the event
+  from both days.
+
+- **`wrapAt`'s width budget excluded the caller's own indent**, so a wrapped condition's
+  first line ran two columns past its continuations and the paragraph's right edge was
+  ragged. The indent is now the function's business alone, on every line, so `width` means
+  the same thing throughout.
+
+### Removed
+
+Unexported only — no exported symbol changed, added or disappeared in this release.
+
+- **`solarPosition`** — residue of the v3 API shrink, with no caller but its own two tests
+  and a doc comment arguing for a rounded-versus-continuous design the package does not
+  have. Every function in the chain it composed is pinned harder elsewhere.
+- **The azimuth half of `equatorialToHorizontal`**, which nothing read and which ran on all
+  ~1441 iterations of every moonrise scan. The function is now `altitudeOf`, returning a
+  bare `float64`, and the two-field `horizontal` struct is gone with it. This also resolves
+  a filed defect in the deleted code: the pole guard could return an azimuth of 360°.
+  `BenchmarkMoonriseMoonset` improves about 8%, from ~1.37 ms to ~1.26 ms.
+- **`solarMeanAnomalyFromCentury`** — the same formula as `solarMeanAnomaly` with the time
+  argument scaled, contradicting the convention `CLAUDE.md` states outright. The two
+  coefficients differ by 0.53 arcseconds across the whole valid date range, four orders of
+  magnitude inside the nearest reference tolerance.
+- **`lunarPosition`**, left without a production caller by the parallax fix, which needs the
+  distance that `lunarPosition` discards. Its Meeus p. 342 reference value is kept and
+  re-pointed at the composition the scan actually performs.
+
+### Tests
+
+- **The sun and moon fuzz targets now assert.** Both took `_ *testing.T` and dropped their
+  results, so the entire verdict was "did not panic". The Sun's target now checks
+  `Rise < Noon < Set`, non-zero times and positive duration; the Moon's checks that any
+  non-zero time falls inside the scanned local day — the invariant the boundary bug above
+  violated, which is why that fix had to land first.
+- **The solar reference tests are pinned to real USNO values at tolerances the data
+  supports.** One pinned value was attributed to USNO under a comment that contradicted both
+  it and another comment three hundred lines down; checked against USNO's published data,
+  the comment was wrong in _both_ digits. Sunrise/sunset and civil twilight now carry true
+  USNO values at **2 minutes** (was 3 and 5), with measured margins of 16–63 seconds
+  recorded in the comments.
+- **Nautical twilight is labelled a regression pin**, because USNO's one-day service
+  publishes civil twilight and no deeper band, so its values cannot be corroborated. Its
+  tolerance tightens from 10 minutes to **4**, with the measured margin stated — twilight's
+  own figure rather than a loose reading of sunrise's.
+- The lunar pins become genuine USNO references and tighten from ±5m and ±20m to **±1m**.
+
+### Documentation
+
+- `README.md` required Go 1.24+ for a module whose `go` directive is 1.27 — the one drift
+  here that cost a reader something before they ran anything.
+- `README.md`'s API list still advertised the phase angle removed in v4.0.0, contradicting
+  its own **Result types** section thirteen lines below. The recovery route moves to where a
+  caller would look for it.
+- `MoonEvent`'s doc comment still promised the duration field removed in v3.0.0 — and that
+  field was removed precisely because a naive `Set.Sub(Rise)` is negative when the Moon is
+  up at midnight, so the comment was inviting the bug it was deleted for.
+- The three day-construction sites now name each other and say why they differ. Both
+  conventions are correct for opposite reasons, and read in call order the second looked
+  like a contradiction of the first.
+- `THEORY.md`, `WALKTHROUGH.md`, `README.md` and `CLAUDE.md` rebuilt against the current
+  source. Three of `THEORY.md`'s five open uncertainties are now settled, including the
+  lunar error budget, which turned out to be almost entirely the missing parallax rather
+  than the method.
+
+### Internal
+
+- **`epoch.go` split into `epoch.go` and `coord.go`.** The file held a time layer that
+  everything sits on and a coordinate layer reached by one call chain; no reading order
+  could keep them together. The three surviving "moved from …" banner comments, each naming
+  a file that no longer exists, are rewritten to say what their section _is_.
+- `golangci/golangci-lint-action` is pinned by commit digest, which `ci.yml`'s own comment
+  had stated as the policy while not keeping it. All three `uses:` lines are now digests.
+
+### Known issues
+
+- Rendered times **truncate** their seconds rather than rounding. With the algorithm now
+  accurate to seconds, this is the largest remaining error in anything displayed with a
+  minute layout — up to 59 seconds, one-sided, always early. `ExampleMoonriseMoonset` shows
+  it: the library computes 10:10:53 where USNO publishes 10:11, and `Format("15:04")` prints
+  `10:10`. Tracked as [#96](https://github.com/philoserf/dusk/issues/96); rounding is a
+  change to the rendering contract and was deliberately not made here.
+
 ## v4.0.0 — 2026-09-06
 
 Adds `cmd/dusk`, and completes the API shrink that v3 began. The astronomy is
