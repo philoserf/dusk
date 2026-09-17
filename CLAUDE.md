@@ -7,8 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Go library for astronomical calculations: twilight, lunar phase, rise/set times.
 
 Onboarding references: `THEORY.md` (Naur-style theory of the codebase) and `WALKTHROUGH.md` (linear code tour).
-`THEORY.md` is hand-maintained prose — extend it when a load-bearing idea changes. `WALKTHROUGH.md` is a
-showboat document whose snippets are verified executable; keep them runnable, and re-verify before tagging.
+Both are hand-maintained prose — extend `THEORY.md` when a load-bearing idea changes, and regenerate
+`WALKTHROUGH.md` with the `code-walkthrough` skill when the code it quotes moves. Its snippets are quoted
+from the source by file and symbol, not by line range, and nothing in the gate checks them against the
+files they came from: re-read it before tagging.
 
 ## Commands
 
@@ -102,10 +104,10 @@ adding another: count the findings, read them, and write down why they are wrong
   by `task docs` and configured by
   `.prettierrc.json`. `embeddedLanguageFormatting: "off"` is the load-bearing setting: prettier's
   default rewrites source inside fenced blocks, and this repository's documents quote their own
-  compiled examples. `.prettierignore` names what is out of scope and why — `WALKTHROUGH.md`
-  (Showboat owns those bytes), `.golangci.yml` (prettier explodes the commented `varnamelen`
-  flow sequence), and `.issues/` (hidden by the global `core.excludesfile`, not by this repo's
-  `.gitignore`, so git skips it and prettier would not)
+  compiled examples. `.prettierignore` names what is out of scope and why — `.golangci.yml`
+  (prettier explodes the commented `varnamelen` flow sequence) and `.issues/` (hidden by the
+  global `core.excludesfile`, not by this repo's `.gitignore`, so git skips it and prettier
+  would not)
 
 ## Gotchas
 
