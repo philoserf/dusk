@@ -1,6 +1,6 @@
 # dusk Walkthrough
 
-A linear tour of `github.com/philoserf/dusk/v4` — a zero-dependency Go library for
+A linear tour of `github.com/philoserf/dusk/v5` — a zero-dependency Go library for
 sunrise, twilight, moonrise and lunar phase, plus the reference CLI that consumes it.
 
 This document is hand-maintained prose. Its snippets are quoted from the source by **file

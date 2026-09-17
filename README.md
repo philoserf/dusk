@@ -1,14 +1,14 @@
 # dusk
 
 [![CI](https://github.com/philoserf/dusk/actions/workflows/ci.yml/badge.svg)](https://github.com/philoserf/dusk/actions/workflows/ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/philoserf/dusk/v4.svg)](https://pkg.go.dev/github.com/philoserf/dusk/v4)
+[![Go Reference](https://pkg.go.dev/badge/github.com/philoserf/dusk/v5.svg)](https://pkg.go.dev/github.com/philoserf/dusk/v5)
 
 A single, zero-dependency Go package for astronomical calculations — sunrise/sunset, moonrise/moonset, twilight, and lunar phase — based on Meeus's _Astronomical Algorithms_.
 
 ## Install
 
 ```bash
-go get github.com/philoserf/dusk/v4
+go get github.com/philoserf/dusk/v5
 ```
 
 ## Command line
@@ -23,7 +23,7 @@ twilight table's dawn column stops running backwards, and a moonset belonging to
 previous night's rise stops appearing above the moonrise it precedes.
 
 ```bash
-go install github.com/philoserf/dusk/v4/cmd/dusk@latest
+go install github.com/philoserf/dusk/v5/cmd/dusk@latest
 
 dusk --lat 42.9634 --lon -85.6681 --tz America/Detroit --date 2025-06-21
 dusk --lat 69.6492 --lon 18.9553 --tz Europe/Oslo --date 2025-12-21   # polar night
@@ -74,7 +74,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/philoserf/dusk/v4"
+	"github.com/philoserf/dusk/v5"
 )
 
 func main() {

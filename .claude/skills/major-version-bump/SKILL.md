@@ -11,9 +11,9 @@ allowed-tools:
 The `/vN` in the module path is load-bearing in two config files that a `go mod edit` will not touch,
 and both turn the gate red until they are updated by hand:
 
-- `.golangci.yml` — the `depguard` allow-list names `github.com/philoserf/dusk/v4`. Under
+- `.golangci.yml` — the `depguard` allow-list names `github.com/philoserf/dusk/v5`. Under
   `list-mode: strict` the new path is not allowed, so every internal import is reported as forbidden
-  (measured: 5 findings across `cmd/dusk` and `example_test.go`) — loudly, naming each import
+  (measured at the v4→v5 bump: 5 findings across `cmd/dusk` and `example_test.go`) — loudly, naming each import
 - `coverage.ratchet` — the keys are full import paths. The ratchet reads the old packages as vanished
   and the new ones as appeared, so it fails even when coverage is unchanged; re-record with
   `task ratchet:update` once the path is right

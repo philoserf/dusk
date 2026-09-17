@@ -39,7 +39,7 @@ changing what the tests reach — read the diff before assuming a regression.
 
 Library is a single package at the repo root, with a reference CLI under `cmd/dusk`. Zero external
 dependencies — nothing outside the standard library, and the Meeus coefficient tables are transcribed
-into the source rather than fetched. Module path: `github.com/philoserf/dusk/v4`.
+into the source rather than fetched. Module path: `github.com/philoserf/dusk/v5`.
 
 | File        | Domain                                                                                                                                               |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
