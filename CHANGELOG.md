@@ -60,7 +60,10 @@ Unexported only — no exported symbol changed, added or disappeared in this rel
   ~1441 iterations of every moonrise scan. The function is now `altitudeOf`, returning a
   bare `float64`, and the two-field `horizontal` struct is gone with it. This also resolves
   a filed defect in the deleted code: the pole guard could return an azimuth of 360°.
-  `BenchmarkMoonriseMoonset` improves about 8%, from ~1.37 ms to ~1.26 ms.
+  Measured on its own, this removal improves `BenchmarkMoonriseMoonset` about 8%. The
+  parallax fix above then spends part of that back — an `asinx` and a division per sample —
+  so the **net for the release is about 6%**, from ~1.35 ms at v4.0.0 to ~1.27 ms
+  (5×30 iterations, steady state, Apple M-series).
 - **`solarMeanAnomalyFromCentury`** — the same formula as `solarMeanAnomaly` with the time
   argument scaled, contradicting the convention `CLAUDE.md` states outright. The two
   coefficients differ by 0.53 arcseconds across the whole valid date range, four orders of
@@ -102,9 +105,10 @@ Unexported only — no exported symbol changed, added or disappeared in this rel
   conventions are correct for opposite reasons, and read in call order the second looked
   like a contradiction of the first.
 - `THEORY.md`, `WALKTHROUGH.md`, `README.md` and `CLAUDE.md` rebuilt against the current
-  source. Three of `THEORY.md`'s five open uncertainties are now settled, including the
-  lunar error budget, which turned out to be almost entirely the missing parallax rather
-  than the method.
+  source. Two of `THEORY.md`'s five open uncertainties are now settled — the v3/v4 API
+  shrink, and the lunar error budget, which turned out to be almost entirely the missing
+  parallax rather than the method. A sixth question, `epoch.go`'s two layers, moved down
+  from the Seams section and was settled by splitting the file.
 
 ### Internal
 

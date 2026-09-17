@@ -363,9 +363,11 @@ and pinning a tool to silence the gate.
 ## Uncertainties
 
 Where I am reading intent from code and could be wrong. Five entries stood here before
-v4.1.0; three have been settled, and are recorded below with what settled them, because a
-resolved uncertainty is worth more than a deleted one — it tells the next reader the
-question was asked and answered rather than never noticed.
+v4.1.0 and **two of them are now settled**; a sixth question, about `epoch.go`'s two
+layers, is carried down from the Seams section because splitting the file settled it too.
+Settled entries are kept, struck through, with what settled them — a resolved uncertainty
+is worth more than a deleted one, because it tells the next reader the question was asked
+and answered rather than never noticed.
 
 **Whether the solar `−0.83` was chosen or inherited.** _Still open._ It is the standard
 Meeus `h0` for the Sun — refraction plus semidiameter — and it is right. The lunar
@@ -409,8 +411,8 @@ keeping: this library's documented error bars were inherited assumptions, not
 measurements, and the one that was checked turned out to be an order of magnitude
 pessimistic while concealing a systematic bias.
 
-**~~Whether `epoch.go`'s two layers were a deliberate consolidation.~~** _Settled by
-splitting them._ Nothing in the repository stated the file count was deliberate, and the
+**~~Whether `epoch.go`'s two layers were a deliberate consolidation.~~** _Carried down
+from Seams, and settled by splitting them._ Nothing in the repository stated the file count was deliberate, and the
 coordinate layer now lives in `coord.go` under a header naming its one consumer.
 
 ## Index
