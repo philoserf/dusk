@@ -284,7 +284,7 @@ expression is a choice to accept that; reading a field called `DaysApprox` was n
 
 ## Accuracy
 
-Sunrise/sunset times are typically within 1-2 minutes of USNO data. Moonrise/moonset uses the full Meeus Chapter 47 periodic terms with a minute-by-minute altitude scan, interpolating the crossing between samples, and agrees with USNO to within about a minute: measured against published USNO values over 28 rise/set events spanning latitudes 55°S to 64°N and all four seasons, the largest deviation was 32 seconds, and USNO itself publishes only to the minute. Lunar phase illumination is within 1-2% of published values. Lunar ecliptic position uses the full Meeus Chapter 47 periodic terms (100+ coefficients).
+Sunrise and sunset agree with USNO to within about two minutes. Measured against published USNO values across twelve place/date pairs from the equator to 68°N, the largest disagreement is 115 seconds, on sunset near an equinox at high latitude. The two boundaries are solved independently rather than mirrored about solar noon, which is what keeps that figure under two minutes; a residual asymmetry remains and is tracked in [#114](https://github.com/philoserf/dusk/issues/114). Moonrise/moonset uses the full Meeus Chapter 47 periodic terms with a minute-by-minute altitude scan, interpolating the crossing between samples, and agrees with USNO to within about a minute: measured against published USNO values over 28 rise/set events spanning latitudes 55°S to 64°N and all four seasons, the largest deviation was 32 seconds, and USNO itself publishes only to the minute. Lunar phase illumination is within 1-2% of published values. Lunar ecliptic position uses the full Meeus Chapter 47 periodic terms (100+ coefficients).
 
 ## Requirements
 

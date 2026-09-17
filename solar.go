@@ -8,12 +8,15 @@ import (
 // and longitude. Used by SunriseSunset and twilight to avoid repeating the
 // 6-step parameter sequence.
 type solarParams struct {
-	delta    float64 // solar declination (degrees)
+	J        float64 // mean solar time: days since J2000 at the observer's longitude
+	T        float64 // Julian centuries since J2000
+	delta    float64 // solar declination at mean solar time (degrees)
 	jTransit float64 // Julian date of solar transit (noon)
 }
 
 // computeSolarParams returns the solar declination and transit JD for a given
-// date and observer longitude.
+// date and observer longitude, along with the two time bases they were computed
+// from so that declinationAt can re-solve on the same footing.
 func computeSolarParams(date time.Time, lon float64) solarParams {
 	J := meanSolarTime(date, lon)
 	M := solarMeanAnomaly(J)
@@ -23,7 +26,27 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 	delta := solarDeclination(lambda, T)
 	jTransit := solarTransitJD(J, M, lambda)
 
-	return solarParams{delta: delta, jTransit: jTransit}
+	return solarParams{J: J, T: T, delta: delta, jTransit: jTransit}
+}
+
+// declinationAt returns the Sun's declination offsetDays away from the day's
+// mean solar time. Both time bases move together, so the result sits on the
+// same footing as sp.delta rather than a second convention.
+func (sp solarParams) declinationAt(offsetDays float64) float64 {
+	M := solarMeanAnomaly(sp.J + offsetDays)
+	C := solarEquationOfCenter(M)
+	lambda := solarEclipticLongitude(M, C)
+
+	return solarDeclination(lambda, sp.T+offsetDays/36525.0)
+}
+
+// solarDay holds one day's solar geometry, already solved into instants.
+// rise and set are meaningless unless horizon is Crosses; transit always holds.
+type solarDay struct {
+	rise    float64
+	transit float64
+	set     float64
+	horizon Horizon
 }
 
 // solarCrossing resolves the observer's calendar day and returns the geometry
@@ -34,10 +57,10 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 // This is the whole of what the two share. Each builds its own result from
 // jTransit and omega, because they answer different questions about the same
 // two instants.
-func solarCrossing(date Date, obs Observer, depression float64) (float64, float64, Horizon, error) {
+func solarCrossing(date Date, obs Observer, depression float64) (solarDay, error) {
 	err := validObserver(obs)
 	if err != nil {
-		return 0, 0, Crosses, err
+		return solarDay{}, err
 	}
 
 	// Build the day at UTC midnight, not in obs.loc: meanSolarTime applies the
@@ -48,14 +71,51 @@ func solarCrossing(date Date, obs Observer, depression float64) (float64, float6
 
 	err = validJulianDateRange(day)
 	if err != nil {
-		return 0, 0, Crosses, err
+		return solarDay{}, err
 	}
 
 	sp := computeSolarParams(day, obs.lon)
 
 	omega, horizon := solarHourAngle(sp.delta, depression, obs.lat)
+	if horizon != Crosses {
+		return solarDay{transit: sp.jTransit, horizon: horizon}, nil
+	}
 
-	return sp.jTransit, omega, horizon, nil
+	// One correction pass per boundary. The first estimate places both
+	// symmetrically about transit, which assumes the Sun's declination is the
+	// same in the morning as in the evening. Near an equinox it moves about
+	// 0.4 degrees a day, so the afternoon half-day is genuinely shorter than the
+	// morning one, and the mirrored construction cannot represent that at all.
+	//
+	// Re-solving each boundary against the declination at its own estimated
+	// instant recovers most of the difference. It does not recover all of it:
+	// the hour angle is still measured about a transit computed once for the
+	// day, so the Sun's motion in right ascension between transit and the
+	// boundary is unmodelled. Measured, that leaves about half the equinox skew
+	// at high latitude, which is issue #114.
+	return solarDay{
+		rise:    sp.jTransit - refineOmega(sp, -omega/360.0, depression, obs.lat, omega)/360.0,
+		transit: sp.jTransit,
+		set:     sp.jTransit + refineOmega(sp, +omega/360.0, depression, obs.lat, omega)/360.0,
+		horizon: Crosses,
+	}, nil
+}
+
+// refineOmega re-solves the hour angle against the declination at the estimated
+// boundary instant.
+//
+// A refined declination that puts the boundary out of reach is the polar limit
+// arriving mid-correction, on a day whose first pass said the Sun does cross.
+// Keep the first estimate there rather than reporting a state the day as a whole
+// does not have -- the alternative is a discontinuity at the one latitude where
+// the answer is already hardest to defend.
+func refineOmega(sp solarParams, offsetDays, depression, lat, fallback float64) float64 {
+	omega, horizon := solarHourAngle(sp.declinationAt(offsetDays), depression, lat)
+	if horizon != Crosses {
+		return fallback
+	}
+
+	return omega
 }
 
 // SunriseSunset computes sunrise, solar noon, and sunset for the given calendar
@@ -65,26 +125,26 @@ func solarCrossing(date Date, obs Observer, depression float64) (float64, float6
 // The algorithm follows the NOAA solar calculator method (derived from Meeus,
 // Astronomical Algorithms).
 func SunriseSunset(date Date, obs Observer) (SunEvent, error) {
-	jTransit, omega, horizon, err := solarCrossing(date, obs, 0)
+	day, err := solarCrossing(date, obs, 0)
 	if err != nil {
 		return SunEvent{}, err
 	}
 
-	noon := universalTimeFromJD(jTransit).In(obs.loc)
+	noon := universalTimeFromJD(day.transit).In(obs.loc)
 
 	// Transit is defined on every day at every latitude, so Noon is always set
 	// -- including through the polar night, when the Sun reaches its highest
 	// point below the horizon and there is no rise or set to report.
-	if horizon != Crosses {
+	if day.horizon != Crosses {
 		return SunEvent{
 			Noon:     noon,
-			Duration: daylightOf(horizon),
-			Horizon:  horizon,
+			Duration: daylightOf(day.horizon),
+			Horizon:  day.horizon,
 		}, nil
 	}
 
-	rise := universalTimeFromJD(jTransit - omega/360.0).In(obs.loc)
-	set := universalTimeFromJD(jTransit + omega/360.0).In(obs.loc)
+	rise := universalTimeFromJD(day.rise).In(obs.loc)
+	set := universalTimeFromJD(day.set).In(obs.loc)
 
 	return SunEvent{
 		Rise:     rise,
@@ -135,8 +195,8 @@ func solarDeclination(lambda, T float64) float64 {
 // geometric horizon, positive downward). For standard sunrise/sunset, pass
 // depression = 0.
 //
-// For sunrise/sunset (depression=0), includes a -0.83 degree correction for
-// atmospheric refraction and solar semidiameter. For twilight, uses the
+// For sunrise/sunset (depression=0), includes a -0.8333 degree correction for
+// atmospheric refraction and solar semidiameter, the value Meeus and USNO use. For twilight, uses the
 // depression angle directly per IAU/USNO convention.
 //
 // The second return says whether the Sun reaches the queried altitude at all.
@@ -145,7 +205,7 @@ func solarDeclination(lambda, T float64) float64 {
 func solarHourAngle(delta, depression, lat float64) (float64, Horizon) {
 	var h0 float64
 	if depression == 0 {
-		h0 = -0.83
+		h0 = -0.8333
 	} else {
 		h0 = -depression
 	}
@@ -189,18 +249,18 @@ func solarTransitJD(J, M, lambda float64) float64 {
 // Passing depression = 0 gives sunrise and sunset, refraction included, which
 // is what [SunriseSunset] returns.
 func Twilight(date Date, obs Observer, depression float64) (TwilightEvent, error) {
-	jTransit, omega, horizon, err := solarCrossing(date, obs, depression)
+	day, err := solarCrossing(date, obs, depression)
 	if err != nil {
 		return TwilightEvent{}, err
 	}
 
-	if horizon != Crosses {
-		return TwilightEvent{Horizon: horizon}, nil
+	if day.horizon != Crosses {
+		return TwilightEvent{Horizon: day.horizon}, nil
 	}
 
 	return TwilightEvent{
-		Dawn:    universalTimeFromJD(jTransit - omega/360.0).In(obs.loc),
-		Dusk:    universalTimeFromJD(jTransit + omega/360.0).In(obs.loc),
+		Dawn:    universalTimeFromJD(day.rise).In(obs.loc),
+		Dusk:    universalTimeFromJD(day.set).In(obs.loc),
 		Horizon: Crosses,
 	}, nil
 }

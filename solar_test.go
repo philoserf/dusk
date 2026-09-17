@@ -17,8 +17,9 @@ func TestSunriseSunset(t *testing.T) {
 	//
 	// USNO reference, aa.usno.navy.mil/api/rstt/oneday: Rise 06:59, Upper Transit
 	// 13:03, Set 19:09. Tolerance is 2 minutes because that is what README.md and
-	// CLAUDE.md promise for sunrise/sunset; measured margin at the time of
-	// writing is 16s on rise and 63s on set. USNO publishes to the minute.
+	// CLAUDE.md promise for sunrise/sunset; measured margin after the v5.1.0
+	// independent-boundary fix is 4s on rise and 41s on set, from 16s and 63s
+	// before it. USNO publishes to the minute.
 	date := Date{2024, 3, 20}
 
 	tolerance := 2 * time.Minute
@@ -49,6 +50,68 @@ func TestSunriseSunset(t *testing.T) {
 	// Duration should be positive and roughly 12 hours near the equinox.
 	if event.Duration < 11*time.Hour || event.Duration > 13*time.Hour {
 		t.Errorf("Duration = %v, expected ~12h near equinox", event.Duration)
+	}
+}
+
+func TestSunriseSunset_HighLatitudeEquinox(t *testing.T) {
+	t.Parallel()
+
+	// Oslo (59.91°N, 10.75°E) on 2026-09-17, eleven days before the September
+	// equinox. This test exists because the suite had no absolute solar pin
+	// above 40.7°N at all, and that is exactly where the mirrored-hour-angle
+	// error lived: at NYC's latitude it is under a minute, so every assertion
+	// passed while README.md's accuracy claim was false further north.
+	//
+	// USNO reference, aa.usno.navy.mil/api/rstt/oneday: Rise 06:49, Upper
+	// Transit 13:12, Set 19:32.
+	//
+	// Measured margin: 47s on rise, 17s on transit, 107s on set. Before v5.1.0
+	// solved the two boundaries independently it was 3s, 17s and **148s** --
+	// note that rise was *better* then. The mirrored construction put the whole
+	// error on sunset, which left sunrise accidentally accurate; correcting the
+	// geometry distributes it. The remaining asymmetry is issue #114.
+	oslo, err := time.LoadLocation("Europe/Oslo")
+	if err != nil {
+		t.Fatalf("failed to load timezone: %v", err)
+	}
+
+	date := Date{2026, 9, 17}
+
+	tolerance := 2 * time.Minute
+
+	obs := mustObserver(t, 59.91, 10.75, oslo)
+
+	event, err := SunriseSunset(date, obs)
+	if err != nil {
+		t.Fatalf("SunriseSunset() returned error: %v", err)
+	}
+
+	for _, tt := range []struct {
+		name string
+		got  time.Time
+		want time.Time
+	}{
+		{"Rise", event.Rise, time.Date(2026, 9, 17, 6, 49, 0, 0, oslo)},
+		{"Noon", event.Noon, time.Date(2026, 9, 17, 13, 12, 0, 0, oslo)},
+		{"Set", event.Set, time.Date(2026, 9, 17, 19, 32, 0, 0, oslo)},
+	} {
+		if diff := tt.got.Sub(tt.want); diff < -tolerance || diff > tolerance {
+			t.Errorf("%s = %v, want %v (±%v, diff=%v)",
+				tt.name, tt.got.Format("15:04:05"), tt.want.Format("15:04"), tolerance, diff)
+		}
+	}
+
+	// The afternoon half-day is genuinely shorter than the morning near an
+	// equinox, because declination moves about 0.4° a day. USNO has 22980s and
+	// 22800s here, a skew of −180s. A mirrored construction reports 0 by
+	// definition, which is what this assertion exists to forbid: it fails if
+	// anyone reintroduces the symmetry, and it does not pretend the current
+	// −86s is the whole story.
+	morning := event.Noon.Sub(event.Rise)
+	afternoon := event.Set.Sub(event.Noon)
+
+	if skew := afternoon - morning; skew > -30*time.Second {
+		t.Errorf("afternoon − morning = %v, want a clearly negative skew near the September equinox", skew)
 	}
 }
 
@@ -227,6 +290,10 @@ func TestCivilTwilight(t *testing.T) {
 	// 06:31 and End Civil Twilight 19:36, both on the 20th. Both are real USNO
 	// values for the reported day -- re-derived when v5 made Dawn and Dusk
 	// same-day, not carried over from the v4 pins.
+	//
+	// Measured margin after v5.1.0's independent-boundary fix: 47s on dawn and
+	// 21s on dusk, from 24s and 43s before it. Twilight moves because v5.0.0
+	// gave it the same solarCrossing sunrise uses.
 	date := Date{2024, 3, 20}
 	tolerance := 2 * time.Minute
 
@@ -378,6 +445,49 @@ func TestTwilight_Equatorial(t *testing.T) {
 	t.Logf("Quito civil twilight: dawn=%v dusk=%v (lead %v, trail %v)", civil.Dawn, civil.Dusk, lead, trail)
 }
 
+func TestTwilight_RefinementAtThePolarLimit(t *testing.T) {
+	t.Parallel()
+
+	// 65.5°N, civil twilight, 2025-05-13. The first pass says the Sun crosses
+	// 6° below the horizon; re-solving the evening boundary against the
+	// declination at its own estimated instant says it does not, because a day
+	// this close to the limit is gaining length fast enough to cross it inside
+	// the correction.
+	//
+	// Found by search rather than by guess -- it is the earliest such day at any
+	// latitude and band the suite covers. The branch it exercises is the one
+	// deliberate approximation in solarCrossing: keep the first estimate rather
+	// than report a state the day as a whole does not have, because the
+	// alternative is a boundary that vanishes and reappears across one degree of
+	// latitude.
+	obs := mustObserver(t, 65.5, 0, time.UTC)
+
+	event, err := Twilight(Date{2025, 5, 13}, obs, 6)
+	if err != nil {
+		t.Fatalf("Twilight() returned error: %v", err)
+	}
+
+	if event.Horizon != Crosses {
+		t.Fatalf("Horizon = %v, want Crosses -- the refinement must not overturn the day's own answer", event.Horizon)
+	}
+
+	if event.Dawn.IsZero() || event.Dusk.IsZero() {
+		t.Fatalf("dawn = %v, dusk = %v, want both real", event.Dawn, event.Dusk)
+	}
+
+	if !event.Dawn.Before(event.Dusk) {
+		t.Errorf("dawn %v should precede dusk %v", event.Dawn, event.Dusk)
+	}
+
+	// The fallback keeps the symmetric estimate for the boundary it could not
+	// refine, so that one stays mirrored about transit while the other does not.
+	// Asserting the day still makes sense is the point; asserting which side got
+	// the fallback would pin an implementation detail.
+	if d := event.Dusk.Sub(event.Dawn); d <= 0 || d > 24*time.Hour {
+		t.Errorf("dusk − dawn = %v, want a sane span", d)
+	}
+}
+
 func TestTwilight_PolarDay(t *testing.T) {
 	t.Parallel()
 
@@ -439,9 +549,16 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 	// instant reached by a call that names the right day.
 	//
 	// The tolerance is 4 minutes rather than the 2 the sunrise tests hold,
-	// because a 12° depression amplifies declination error: measured margin at
-	// the time of writing is 2m15s on dusk and 2m42s on dawn. That is twilight's
+	// because a 12° depression amplifies declination error. That is twilight's
 	// own tolerance, not a looser reading of sunrise's -- see CLAUDE.md.
+	//
+	// Measured margin after v5.1.0's independent-boundary fix: 2m41s on dusk and
+	// 3m07s on dawn, from 2m15s and 2m42s before it. **The margin grew because
+	// the library moved, and USNO cannot say which of the two is now right** --
+	// it publishes no nautical band. Every USNO-checkable quantity improved in
+	// that release, so the likeliest reading is that these pins were never very
+	// good. If one ever breaches 4 minutes, discard the pin rather than widening
+	// the tolerance; a value with no provenance has earned no protection.
 	nyc, err := time.LoadLocation("America/New_York")
 	if err != nil {
 		t.Fatalf("failed to load timezone: %v", err)
