@@ -4,8 +4,10 @@
 # one entry per line, and the grouping stops meaning anything.
 .golangci.yml
 
-# Local scratch written by the code-* skills. Prettier reads this repo's
-# .gitignore but not the global core.excludesfile, and `.issues` is ignored
-# through the latter -- so git hides it and prettier would not. Without this
-# line the gate fails on files the repository does not carry.
+# Local scratch: .issues/ is written by the code-* skills, .planning/ by
+# release-captain. Prettier reads this repo's .gitignore but not the global
+# core.excludesfile, and both are ignored through the latter -- so git hides
+# them and prettier would not. Without these lines the gate fails on files the
+# repository does not carry.
 .issues/
+.planning/
