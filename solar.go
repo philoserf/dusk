@@ -141,7 +141,8 @@ func solarTransitJD(J, M, lambda float64) float64 {
 }
 
 // ---------------------------------------------------------------------------
-// Twilight (moved from twilight.go)
+// Twilight: the three depression bands, sharing computeSolarParams with
+// sunrise and sunset above.
 // ---------------------------------------------------------------------------
 
 // CivilTwilight computes the evening civil twilight period (Sun 6 degrees below the

@@ -172,7 +172,7 @@ func TestSolarMeanAnomaly(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Twilight tests (moved from twilight_test.go)
+// Twilight tests: the three depression bands.
 // ---------------------------------------------------------------------------
 
 func TestCivilTwilight(t *testing.T) {

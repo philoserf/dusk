@@ -276,7 +276,8 @@ func lunarPhaseName(age float64) string {
 }
 
 // ---------------------------------------------------------------------------
-// Meeus Table 47.A/B coefficients (moved from lunar_tables.go)
+// Meeus Table 47.A/B coefficients, read by the periodic-term loops in
+// lunarEclipticPosition above.
 // ---------------------------------------------------------------------------
 
 // Meeus Table 47.A — Periodic terms for the longitude (Σl) and distance (Σr)
