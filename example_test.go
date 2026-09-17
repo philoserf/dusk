@@ -166,7 +166,7 @@ func ExampleTwilight() {
 	fmt.Printf("Dawn: %s\n", tw.Dawn.Format("15:04"))
 	fmt.Printf("Dusk: %s\n", tw.Dusk.Format("15:04"))
 	// USNO publishes 04:31 and 21:52 for this date and place; the library
-	// computes 04:30:50 and 21:51:27, margins of 10s and 33s. Format("15:04")
+	// computes 04:30:50 and 21:51:26, margins of 10s and 34s. Format("15:04")
 	// truncates rather than rounds, so both print a minute early -- the same
 	// rendering issue ExampleMoonriseMoonset notes.
 

@@ -130,6 +130,12 @@ adding another: count the findings, read them, and write down why they are wrong
 
 - Moonrise/moonset iterates minute-by-minute (1440 iterations) — slow by design
 - `solarHourAngle` returns `(float64, Horizon)` — the angle is zero and meaningless unless the Horizon is `Crosses`
+- **The two solar boundaries are solved independently, not mirrored.** `solarCrossing` takes
+  a first symmetric estimate about transit, then re-solves each boundary against the
+  declination at its own instant — near an equinox declination moves ~0.4°/day, so the
+  afternoon half-day really is shorter. Worst measured disagreement with USNO is 115s, from
+  176s. It recovers about half the true skew; the rest needs the hour angle measured against
+  the Sun's own right ascension rather than a fixed transit, which is #114
 - `solarHourAngle` takes `depression` (positive degrees below horizon) for twilight reuse; pass 0 for sunrise/sunset
 - `LunarPhaseInfo.Waxing` distinguishes waxing (elongation 0-180) from waning; `DaysApprox` is a linear approximation
 - `eclipticToEquatorial` applies full nutation (Δψ + Δε); `solarDeclination` uses mean obliquity only (intentional asymmetry — NOAA simplified method for sunrise/sunset)
