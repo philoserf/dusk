@@ -48,7 +48,7 @@ func ExampleSunriseSunset_polar() {
 	}
 
 	// Tromsø on June 21 — midnight sun
-	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
+	date := dusk.Date{Year: 2024, Month: 6, Day: 21}
 
 	summer, err := dusk.SunriseSunset(date, obs)
 	if err != nil {
@@ -63,7 +63,7 @@ func ExampleSunriseSunset_polar() {
 	}
 
 	// Tromsø on December 21 — polar night
-	date = time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
+	date = dusk.Date{Year: 2024, Month: 12, Day: 21}
 
 	winter, err := dusk.SunriseSunset(date, obs)
 	if err != nil {
@@ -98,7 +98,7 @@ func ExampleSunriseSunset() {
 		return
 	}
 
-	date := time.Date(2025, 6, 21, 0, 0, 0, 0, loc)
+	date := dusk.Date{Year: 2025, Month: 6, Day: 21}
 
 	obs, err := dusk.NewObserver(42.9634, -85.6681, loc)
 	if err != nil {
@@ -146,7 +146,7 @@ func ExampleTwilight() {
 		return
 	}
 
-	date := time.Date(2025, 6, 21, 0, 0, 0, 0, loc)
+	date := dusk.Date{Year: 2025, Month: 6, Day: 21}
 
 	obs, err := dusk.NewObserver(47.6062, -122.3321, loc)
 	if err != nil {
@@ -183,7 +183,7 @@ func ExampleMoonriseMoonset() {
 		return
 	}
 
-	date := time.Date(2024, 1, 15, 0, 0, 0, 0, loc)
+	date := dusk.Date{Year: 2024, Month: 1, Day: 15}
 
 	obs, err := dusk.NewObserver(40.7128, -74.0060, loc)
 	if err != nil {

@@ -98,7 +98,7 @@ func twilightNote(horizon dusk.Horizon, degrees int) string {
 }
 
 // buildReport assembles a full day by calling every public dusk entry point.
-func buildReport(obs dusk.Observer, date time.Time) (Report, error) {
+func buildReport(obs dusk.Observer, date dusk.Date) (Report, error) {
 	sun, err := sunReport(date, obs)
 	if err != nil {
 		return Report{}, err
@@ -114,17 +114,26 @@ func buildReport(obs dusk.Observer, date time.Time) (Report, error) {
 		return Report{}, err
 	}
 
-	phase, err := phaseReport(date)
+	// LunarPhase is the one entry point that takes an instant rather than a day,
+	// because phase is Sun-Earth-Moon geometry and changes measurably within a
+	// day. Midday in the observer's zone is the representative moment of their
+	// day, and saying so is now the caller's job rather than an accident of how
+	// --date happened to be parsed.
+	phase, err := phaseReport(time.Date(date.Year, date.Month, date.Day, 12, 0, 0, 0, obs.Location()))
 	if err != nil {
 		return Report{}, err
 	}
+
+	// A Date has no zone, so it is rendered in UTC: midday, because that is the
+	// one hour of the day no zone transition can move to another date.
+	display := time.Date(date.Year, date.Month, date.Day, 12, 0, 0, 0, time.UTC)
 
 	return Report{
 		Lat:      obs.Lat(),
 		Lon:      obs.Lon(),
 		Zone:     obs.Location().String(),
-		Date:     date.Format(dateLayout),
-		date:     date,
+		Date:     display.Format(dateLayout),
+		date:     display,
 		Sun:      sun,
 		Twilight: bands,
 		Moon:     moon,
@@ -133,7 +142,7 @@ func buildReport(obs dusk.Observer, date time.Time) (Report, error) {
 }
 
 // sunReport computes sunrise, noon, and sunset for the day.
-func sunReport(date time.Time, obs dusk.Observer) (SunReport, error) {
+func sunReport(date dusk.Date, obs dusk.Observer) (SunReport, error) {
 	event, err := dusk.SunriseSunset(date, obs)
 	if err != nil {
 		return SunReport{}, fmt.Errorf("sunrise/sunset: %w", err)
@@ -170,7 +179,7 @@ var twilightBands = []struct {
 // per band is enough. The Dark row needs an interval that spans midnight, which
 // no single day's event can carry: it is tonight's Dusk to tomorrow's Dawn, and
 // costs the one extra call below.
-func twilightReports(date time.Time, obs dusk.Observer) ([]TwilightReport, error) {
+func twilightReports(date dusk.Date, obs dusk.Observer) ([]TwilightReport, error) {
 	reports := make([]TwilightReport, 0, len(twilightBands))
 
 	// Bands run shallow to deep, so the last one that crosses is the deepest
@@ -206,7 +215,9 @@ func twilightReports(date time.Time, obs dusk.Observer) ([]TwilightReport, error
 
 	band := twilightBands[deepest]
 
-	tomorrow, err := dusk.Twilight(date.AddDate(0, 0, 1), obs, float64(band.degrees))
+	next := dusk.Date{Year: date.Year, Month: date.Month, Day: date.Day + 1}
+
+	tomorrow, err := dusk.Twilight(next, obs, float64(band.degrees))
 	if err != nil {
 		return nil, fmt.Errorf("%s twilight: %w", band.name, err)
 	}
@@ -226,7 +237,7 @@ func twilightReports(date time.Time, obs dusk.Observer) ([]TwilightReport, error
 // the reverse), because a lunar day runs about 24h50m. dusk signals that with a
 // zero-value time, which is a normal result and distinct from the sentinel
 // errors above.
-func moonReport(date time.Time, obs dusk.Observer) (MoonReport, error) {
+func moonReport(date dusk.Date, obs dusk.Observer) (MoonReport, error) {
 	event, err := dusk.MoonriseMoonset(date, obs)
 	if err != nil {
 		return MoonReport{}, fmt.Errorf("moonrise/moonset: %w", err)

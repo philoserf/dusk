@@ -247,10 +247,12 @@ func TestRunJSON(t *testing.T) {
 	}
 }
 
-// TestParseDate covers the detail most likely to be got wrong by a consumer:
-// the date must be interpreted in the observer's zone, because the library
-// derives the calendar day from date.In(observer location). Parsing as UTC
-// would silently select the previous day for any observer west of Greenwich.
+// TestParseDate covers what --date means now that the library takes a calendar
+// day. Until v5.0.0 this test existed to pin a hazard: the date had to be
+// parsed in the observer's zone, because the library derived the day from
+// date.In(observer location), and parsing as UTC silently selected the previous
+// day for any observer west of Greenwich. dusk.Date removed the hazard, so
+// these subtests pin its absence instead.
 func TestParseDate(t *testing.T) {
 	t.Parallel()
 
@@ -259,7 +261,7 @@ func TestParseDate(t *testing.T) {
 		t.Fatalf("LoadLocation: %v", err)
 	}
 
-	t.Run("parses in the observer zone", func(t *testing.T) {
+	t.Run("parses the day literally", func(t *testing.T) {
 		t.Parallel()
 
 		got, err := parseDate("2025-06-21", chicago)
@@ -267,34 +269,64 @@ func TestParseDate(t *testing.T) {
 			t.Fatalf("parseDate: %v", err)
 		}
 
-		if got.Location() != chicago {
-			t.Errorf("location = %v, want %v", got.Location(), chicago)
-		}
-
-		if y, m, d := got.Date(); y != 2025 || m != time.June || d != 21 {
-			t.Errorf("date = %d-%02d-%02d, want 2025-06-21", y, m, d)
+		if want := (dusk.Date{Year: 2025, Month: time.June, Day: 21}); got != want {
+			t.Errorf("date = %+v, want %+v", got, want)
 		}
 	})
 
-	t.Run("UTC midnight would land on the previous day", func(t *testing.T) {
+	t.Run("the zone cannot move the day", func(t *testing.T) {
 		t.Parallel()
 
-		utcMidnight := time.Date(2025, 6, 21, 0, 0, 0, 0, time.UTC)
-		if day := utcMidnight.In(chicago).Day(); day != 20 {
-			t.Fatalf("premise broken: UTC midnight is day %d in Chicago, want 20", day)
+		tokyo, err := time.LoadLocation("Asia/Tokyo")
+		if err != nil {
+			t.Fatalf("LoadLocation: %v", err)
 		}
 
-		correct, err := parseDate("2025-06-21", chicago)
+		west, err := parseDate("2025-06-21", chicago)
 		if err != nil {
 			t.Fatalf("parseDate: %v", err)
 		}
 
-		if correct.In(chicago).Day() != 21 {
-			t.Error("parseDate lost a day; it must parse in the observer's zone")
+		east, err := parseDate("2025-06-21", tokyo)
+		if err != nil {
+			t.Fatalf("parseDate: %v", err)
+		}
+
+		// Seventeen hours apart, and the same calendar day, because a Date has
+		// no instant in it for a zone to shift. This is the whole point of the
+		// v5 parameter type: the case that used to need care now cannot arise.
+		if west != east {
+			t.Errorf("Chicago gave %+v and Tokyo gave %+v, want the same day", west, east)
 		}
 	})
 
-	t.Run("empty defaults to today", func(t *testing.T) {
+	t.Run("a midnight DST transition cannot move the day", func(t *testing.T) {
+		t.Parallel()
+
+		// Santiago springs forward at midnight in September, so 00:00 does not
+		// exist and ParseInLocation resolved it to 23:00 the day before. That is
+		// the trap the old midday anchor existed to dodge.
+		santiago, err := time.LoadLocation("America/Santiago")
+		if err != nil {
+			t.Fatalf("LoadLocation: %v", err)
+		}
+
+		hole := time.Date(2025, 9, 7, 0, 0, 0, 0, santiago)
+		if hole.Day() == 7 && hole.Hour() == 0 {
+			t.Skip("tzdata has no midnight transition on this date; the premise no longer holds")
+		}
+
+		got, err := parseDate("2025-09-07", santiago)
+		if err != nil {
+			t.Fatalf("parseDate: %v", err)
+		}
+
+		if want := (dusk.Date{Year: 2025, Month: time.September, Day: 7}); got != want {
+			t.Errorf("date = %+v, want %+v across the DST hole", got, want)
+		}
+	})
+
+	t.Run("empty defaults to today in the observer's zone", func(t *testing.T) {
 		t.Parallel()
 
 		got, err := parseDate("", chicago)
@@ -302,8 +334,8 @@ func TestParseDate(t *testing.T) {
 			t.Fatalf("parseDate: %v", err)
 		}
 
-		if got.IsZero() {
-			t.Error("default date is zero")
+		if want := dusk.DateIn(time.Now(), chicago); got != want {
+			t.Errorf("default = %+v, want today in Chicago %+v", got, want)
 		}
 	})
 

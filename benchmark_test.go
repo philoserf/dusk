@@ -13,7 +13,7 @@ var benchEST = time.FixedZone("EST", -5*3600)
 var benchObs, _ = NewObserver(40.7128, -74.006, benchEST)
 
 func BenchmarkMoonriseMoonset(b *testing.B) {
-	date := time.Date(2024, 1, 15, 0, 0, 0, 0, benchEST)
+	date := Date{2024, 1, 15}
 
 	for b.Loop() {
 		MoonriseMoonset(date, benchObs) //nolint:errcheck // benchmark discards the result, timing is what matters
@@ -21,7 +21,7 @@ func BenchmarkMoonriseMoonset(b *testing.B) {
 }
 
 func BenchmarkSunriseSunset(b *testing.B) {
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, benchEST)
+	date := Date{2024, 3, 20}
 
 	for b.Loop() {
 		SunriseSunset(date, benchObs) //nolint:errcheck // benchmark discards the result, timing is what matters

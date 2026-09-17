@@ -34,19 +34,17 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 // This is the whole of what the two share. Each builds its own result from
 // jTransit and omega, because they answer different questions about the same
 // two instants.
-func solarCrossing(date time.Time, obs Observer, depression float64) (float64, float64, Horizon, error) {
+func solarCrossing(date Date, obs Observer, depression float64) (float64, float64, Horizon, error) {
 	err := validObserver(obs)
 	if err != nil {
 		return 0, 0, Crosses, err
 	}
 
-	localDate := date.In(obs.loc)
-
-	// Rebuild the day at UTC midnight, not in obs.loc: meanSolarTime applies the
+	// Build the day at UTC midnight, not in obs.loc: meanSolarTime applies the
 	// observer's longitude itself, after julianDay has rounded, so handing it a
 	// zone-adjusted instant would apply longitude twice. MoonriseMoonset does the
 	// opposite for the opposite reason -- see lunar.go.
-	day := time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, time.UTC)
+	day := date.at(time.UTC)
 
 	err = validJulianDateRange(day)
 	if err != nil {
@@ -60,15 +58,13 @@ func solarCrossing(date time.Time, obs Observer, depression float64) (float64, f
 	return sp.jTransit, omega, horizon, nil
 }
 
-// SunriseSunset computes sunrise, solar noon, and sunset for the given date
-// and observer position. The observer must be constructed via [NewObserver].
-// The date is converted to the observer's timezone to determine the local
-// calendar day; the time-of-day is ignored.
-// Output times are converted to the observer's timezone.
+// SunriseSunset computes sunrise, solar noon, and sunset for the given calendar
+// day and observer position. The observer must be constructed via [NewObserver].
+// Output times are in the observer's timezone.
 //
 // The algorithm follows the NOAA solar calculator method (derived from Meeus,
 // Astronomical Algorithms).
-func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
+func SunriseSunset(date Date, obs Observer) (SunEvent, error) {
 	jTransit, omega, horizon, err := solarCrossing(date, obs, 0)
 	if err != nil {
 		return SunEvent{}, err
@@ -185,14 +181,14 @@ func solarTransitJD(J, M, lambda float64) float64 {
 // astronomical, the IAU/USNO values. The observer must be constructed via
 // [NewObserver].
 //
-// Dawn and Dusk are both on the observer's calendar day for date, the same day
-// [SunriseSunset] reports. They are symmetric about solar transit, so either
-// both exist or neither does: a polar day or night returns [ErrCircumpolar] or
-// [ErrNeverRises] for the whole band rather than half a result.
+// Dawn and Dusk are both on date, the same day [SunriseSunset] reports. They
+// are symmetric about solar transit, so either both exist or neither does:
+// through a polar day or night both are zero and [TwilightEvent.Horizon] says
+// which way.
 //
 // Passing depression = 0 gives sunrise and sunset, refraction included, which
 // is what [SunriseSunset] returns.
-func Twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, error) {
+func Twilight(date Date, obs Observer, depression float64) (TwilightEvent, error) {
 	jTransit, omega, horizon, err := solarCrossing(date, obs, depression)
 	if err != nil {
 		return TwilightEvent{}, err

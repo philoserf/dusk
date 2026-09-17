@@ -186,25 +186,19 @@ func crossingInstant(cur time.Time, prevDiff, curDiff float64) time.Time {
 // inside the local day.
 //
 // An error is returned if the date is out of the valid Julian date range.
-func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
+func MoonriseMoonset(date Date, obs Observer) (MoonEvent, error) {
 	err := validObserver(obs)
 	if err != nil {
 		return MoonEvent{}, err
 	}
 
-	err = validJulianDateRange(date)
-	if err != nil {
-		return MoonEvent{}, err
-	}
-
-	localDate := date.In(obs.loc)
 	// Construct in local time then convert to UTC so DST is handled:
 	// spring-forward days are 23h, fall-back days are 25h. The scan walks the day
 	// one minute at a time and takes its length from the gap between these two
 	// midnights, so it needs real local instants. SunriseSunset and twilight build
 	// the day at UTC midnight instead, for the opposite reason -- see solar.go.
-	d := time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, obs.loc).UTC()
-	nextMidnight := time.Date(localDate.Year(), localDate.Month(), localDate.Day()+1, 0, 0, 0, 0, obs.loc).UTC()
+	d := date.at(obs.loc).UTC()
+	nextMidnight := Date{date.Year, date.Month, date.Day + 1}.at(obs.loc).UTC()
 
 	err = validJulianDateRange(d)
 	if err != nil {

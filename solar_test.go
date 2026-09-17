@@ -19,7 +19,7 @@ func TestSunriseSunset(t *testing.T) {
 	// 13:03, Set 19:09. Tolerance is 2 minutes because that is what README.md and
 	// CLAUDE.md promise for sunrise/sunset; measured margin at the time of
 	// writing is 16s on rise and 63s on set. USNO publishes to the minute.
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	date := Date{2024, 3, 20}
 
 	tolerance := 2 * time.Minute
 
@@ -61,7 +61,7 @@ func TestSunriseSunset_Equatorial(t *testing.T) {
 		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc) // June solstice
+	date := Date{2024, 6, 21} // June solstice
 
 	obs := mustObserver(t, -0.18, -78.47, loc)
 
@@ -101,7 +101,7 @@ func TestSunriseSunset_SouthernHemisphere(t *testing.T) {
 		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
+	date := Date{2024, 6, 21}
 
 	obs := mustObserver(t, -33.87, 151.21, loc)
 
@@ -137,7 +137,7 @@ func TestSunriseSunset_PolarDay(t *testing.T) {
 		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
+	date := Date{2024, 6, 21}
 	obs := mustObserver(t, 69.65, 18.96, loc)
 
 	event, err := SunriseSunset(date, obs)
@@ -174,7 +174,7 @@ func TestSunriseSunset_PolarNight(t *testing.T) {
 		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	date := time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
+	date := Date{2024, 12, 21}
 	obs := mustObserver(t, 69.65, 18.96, loc)
 
 	event, err := SunriseSunset(date, obs)
@@ -227,7 +227,7 @@ func TestCivilTwilight(t *testing.T) {
 	// 06:31 and End Civil Twilight 19:36, both on the 20th. Both are real USNO
 	// values for the reported day -- re-derived when v5 made Dawn and Dusk
 	// same-day, not carried over from the v4 pins.
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	date := Date{2024, 3, 20}
 	tolerance := 2 * time.Minute
 
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
@@ -263,7 +263,7 @@ func TestNauticalTwilight(t *testing.T) {
 		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	date := Date{2024, 3, 20}
 
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
 
@@ -300,7 +300,7 @@ func TestAstronomicalTwilight(t *testing.T) {
 		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	date := Date{2024, 3, 20}
 
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
 
@@ -339,7 +339,7 @@ func TestTwilight_Equatorial(t *testing.T) {
 		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, loc)
+	date := Date{2024, 3, 20}
 
 	obs := mustObserver(t, -0.18, -78.47, loc)
 
@@ -387,7 +387,7 @@ func TestTwilight_PolarDay(t *testing.T) {
 		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
+	date := Date{2024, 6, 21}
 	obs := mustObserver(t, 69.65, 18.96, loc)
 
 	event, err := Twilight(date, obs, 18)
@@ -409,7 +409,7 @@ func TestTwilight_PolarNight(t *testing.T) {
 	loc := time.UTC
 	obs := mustObserver(t, 87.0, 0, loc)
 
-	date := time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
+	date := Date{2024, 12, 21}
 
 	event, err := Twilight(date, obs, 18)
 	if err != nil {
@@ -447,7 +447,7 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 		t.Fatalf("failed to load timezone: %v", err)
 	}
 
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
+	date := Date{2024, 3, 20}
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
 	tolerance := 4 * time.Minute
 
@@ -461,7 +461,7 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 		t.Errorf("Dusk = %v, want %v (±%v, diff=%v)", nautical.Dusk.Format("15:04:05"), wantDusk.Format("15:04"), tolerance, diff)
 	}
 
-	next, err := Twilight(date.AddDate(0, 0, 1), obs, 12)
+	next, err := Twilight(Date{date.Year, date.Month, date.Day + 1}, obs, 12)
 	if err != nil {
 		t.Fatalf("Twilight(tomorrow) returned error: %v", err)
 	}
@@ -485,8 +485,8 @@ func TestTwilight_PolarTransition(t *testing.T) {
 	loc := time.UTC
 	obs := mustObserver(t, 75.0, 25.0, loc)
 
-	last := time.Date(2024, 11, 26, 0, 0, 0, 0, loc)
-	gone := time.Date(2024, 11, 27, 0, 0, 0, 0, loc)
+	last := Date{2024, 11, 26}
+	gone := Date{2024, 11, 27}
 
 	event, err := Twilight(last, obs, 6)
 	if err != nil {

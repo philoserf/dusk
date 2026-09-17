@@ -70,7 +70,7 @@ func TestZeroObserverReturnsError(t *testing.T) {
 
 	var zero Observer
 
-	date := time.Date(2024, 3, 20, 0, 0, 0, 0, time.UTC)
+	date := Date{2024, 3, 20}
 
 	_, err := SunriseSunset(date, zero)
 	if err == nil {
@@ -79,7 +79,7 @@ func TestZeroObserverReturnsError(t *testing.T) {
 
 	_, err = Twilight(date, zero, 6)
 	if err == nil {
-		t.Error("CivilTwilight: expected error for zero Observer")
+		t.Error("Twilight: expected error for zero Observer")
 	}
 
 	_, err = MoonriseMoonset(date, zero)

@@ -146,24 +146,26 @@ func observerFromFlags(lat, lon float64, tz string, set map[string]bool) (dusk.O
 	return obs, nil
 }
 
-// parseDate parses --date in the observer's zone, defaulting to today there.
-func parseDate(arg string, loc *time.Location) (time.Time, error) {
+// parseDate parses --date as a calendar day, defaulting to today in the
+// observer's zone.
+//
+// Until v5.0.0 this had to manufacture an instant and anchor it at midday,
+// because the library took a time.Time and resolved the day from it: a few
+// zones move their clocks at midnight, so 00:00 does not exist there and
+// ParseInLocation resolved it to 23:00 the day before, quietly reporting the
+// wrong day. dusk.Date carries the day itself, so there is no instant to
+// mangle and nothing to work around.
+func parseDate(arg string, loc *time.Location) (dusk.Date, error) {
 	if arg == "" {
-		return time.Now().In(loc), nil
+		return dusk.DateIn(time.Now(), loc), nil
 	}
 
-	// Parsed without a zone, then anchored at midday in the observer's. A few
-	// zones move their clocks at midnight - America/Santiago in September,
-	// America/Havana in March - and there 00:00 does not exist, so
-	// ParseInLocation resolves it to 23:00 the day before and the whole report
-	// silently comes out for the previous day. Midday exists everywhere; the
-	// library ignores the time of day and keeps only the calendar date.
 	day, err := time.Parse(dateLayout, arg)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("%w: --date %q is not YYYY-MM-DD: %w", errUsage, arg, err)
+		return dusk.Date{}, fmt.Errorf("%w: --date %q is not YYYY-MM-DD: %w", errUsage, arg, err)
 	}
 
-	return time.Date(day.Year(), day.Month(), day.Day(), 12, 0, 0, 0, loc), nil
+	return dusk.Date{Year: day.Year(), Month: day.Month(), Day: day.Day()}, nil
 }
 
 // writeVersion reports the build.

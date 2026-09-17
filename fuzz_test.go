@@ -23,7 +23,7 @@ func FuzzSunriseSunset(f *testing.F) {
 			return // invalid coordinates rejected by NewObserver
 		}
 
-		sun, err := SunriseSunset(date, obs)
+		sun, err := SunriseSunset(DateIn(date, time.UTC), obs)
 		if err != nil {
 			return // out-of-range dates are rejected, not asserted on
 		}
@@ -123,7 +123,7 @@ func FuzzMoonriseMoonset(f *testing.F) {
 			return // invalid coordinates rejected by NewObserver
 		}
 
-		moon, err := MoonriseMoonset(date, obs)
+		moon, err := MoonriseMoonset(DateIn(date, time.UTC), obs)
 		if err != nil {
 			return
 		}

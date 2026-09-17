@@ -33,8 +33,8 @@ func testObserver(t *testing.T) (dusk.Observer, *time.Location) {
 func TestTwilightDawnAndDuskComeFromOneDay(t *testing.T) {
 	t.Parallel()
 
-	obs, loc := testObserver(t)
-	date := time.Date(2025, 6, 21, 0, 0, 0, 0, loc)
+	obs, _ := testObserver(t)
+	date := dusk.Date{Year: 2025, Month: 6, Day: 21}
 
 	got, err := twilightReports(date, obs)
 	if err != nil {
@@ -63,9 +63,9 @@ func TestTwilightDawnAndDuskComeFromOneDay(t *testing.T) {
 		t.Errorf("Dusk = %v, want today's Dusk %v", civil.Dusk, toSecond(today.Dusk))
 	}
 
-	if civil.Dawn.Day() != date.Day() || civil.Dusk.Day() != date.Day() {
+	if civil.Dawn.Day() != date.Day || civil.Dusk.Day() != date.Day {
 		t.Errorf("Dawn on day %d and Dusk on day %d, want both on the reported day %d",
-			civil.Dawn.Day(), civil.Dusk.Day(), date.Day())
+			civil.Dawn.Day(), civil.Dusk.Day(), date.Day)
 	}
 
 	if !civil.Dawn.Before(civil.Dusk) {
@@ -117,8 +117,8 @@ func TestNotesDistinguishStates(t *testing.T) {
 func TestBuildReportPropagatesRealErrors(t *testing.T) {
 	t.Parallel()
 
-	obs, loc := testObserver(t)
-	date := time.Date(1600, 1, 1, 0, 0, 0, 0, loc)
+	obs, _ := testObserver(t)
+	date := dusk.Date{Year: 1600, Month: 1, Day: 1}
 
 	_, err := buildReport(obs, date)
 	if !errors.Is(err, dusk.ErrDateOutOfRange) {
@@ -141,7 +141,7 @@ func TestBuildReportPolar(t *testing.T) {
 		t.Fatalf("NewObserver: %v", err)
 	}
 
-	date := time.Date(2025, 12, 21, 0, 0, 0, 0, loc)
+	date := dusk.Date{Year: 2025, Month: 12, Day: 21}
 
 	report, err := buildReport(obs, date)
 	if err != nil {

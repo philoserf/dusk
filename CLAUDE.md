@@ -63,9 +63,12 @@ out-of-range date (`unsupported date:`) exit 1, told apart by the message rather
 - Longitude is **east-positive, west-negative** (New York is -74.006)
 - Meeus algorithms preferred; `solarMeanAnomaly(J)` takes days, not centuries
 - `Observer` constructed via `NewObserver` — validates once at creation, fields unexported
-- **Callers must build dates in the observer's timezone.** Public entry points resolve the
-  calendar day with `date.In(obs.loc)` and ignore time-of-day, so a `time.UTC` midnight
-  selects the previous day for any observer west of Greenwich
+- **The calendar day is a type, not a convention.** `SunriseSunset`, `Twilight` and
+  `MoonriseMoonset` take a `Date{Year, Month, Day}`; `DateIn(t, loc)` converts an instant.
+  Before v5.0.0 they took a `time.Time` and kept only `date.In(obs.loc)`'s calendar day, so
+  a `time.UTC` midnight silently selected the previous day west of Greenwich -- a trap this
+  file, `THEORY.md`, the README and the CLI each had to state separately. The two internal
+  reconstructions are unchanged: solar builds UTC midnight, lunar builds true local midnight
 - `LunarPhase` is the exception to the day regime: it takes an **instant**, not a day, and no
   `Observer` — phase is Sun-Earth-Moon geometry, so the observer is irrelevant
 - `Twilight(date, obs, depression)` returns **both boundaries on the queried day**, symmetric
