@@ -75,23 +75,6 @@ func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
 	}, nil
 }
 
-// solarPosition returns the equatorial coordinates (RA, Dec) of the Sun for
-// a given instant, using the Meeus mean anomaly + equation of center method.
-//
-// Unlike SunriseSunset (which rounds J to an integer for the NOAA method),
-// this function uses continuous Julian days for precise position at any instant.
-func solarPosition(t time.Time) equatorial {
-	JD := julianDate(t)
-	J := JD - j2000
-
-	M := solarMeanAnomaly(J)
-	C := solarEquationOfCenter(M)
-	lambda := solarEclipticLongitude(M, C)
-
-	// The Sun lies on the ecliptic (latitude = 0).
-	return eclipticToEquatorial(t, lambda, 0)
-}
-
 // solarMeanAnomaly returns the Sun's mean anomaly in degrees.
 // J is the number of days since J2000.0.
 func solarMeanAnomaly(J float64) float64 {

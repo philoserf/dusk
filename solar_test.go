@@ -2,7 +2,6 @@ package dusk
 
 import (
 	"errors"
-	"math"
 	"testing"
 	"time"
 )
@@ -159,44 +158,6 @@ func TestSunriseSunset_PolarNight(t *testing.T) {
 	_, err = SunriseSunset(date, obs)
 	if !errors.Is(err, ErrNeverRises) {
 		t.Errorf("expected ErrNeverRises for polar night at 69.65°N, got %v", err)
-	}
-}
-
-func TestSolarPosition(t *testing.T) {
-	t.Parallel()
-
-	// Near the vernal equinox: RA ~0°, Dec ~0°.
-	dt := time.Date(2024, 3, 20, 12, 0, 0, 0, time.UTC)
-	pos := solarPosition(dt)
-
-	// RA should be near 0° (or 360°). Handle wrap-around.
-	ra := pos.ra
-	if ra > 180 {
-		ra -= 360
-	}
-
-	if math.Abs(ra) > 5 {
-		t.Errorf("solarPosition() RA = %f°, want near 0° (±5°) at vernal equinox", pos.ra)
-	}
-
-	if math.Abs(pos.dec) > 2 {
-		t.Errorf("solarPosition() Dec = %f°, want near 0° (±2°) at vernal equinox", pos.dec)
-	}
-}
-
-func TestSolarPosition_SummerSolstice(t *testing.T) {
-	t.Parallel()
-
-	// Summer solstice 2024-06-20: RA ~90°, Dec ~+23.44°.
-	dt := time.Date(2024, 6, 20, 12, 0, 0, 0, time.UTC)
-	pos := solarPosition(dt)
-
-	if math.Abs(pos.ra-90) > 2 {
-		t.Errorf("solarPosition() RA = %f°, want near 90° (±2°) at summer solstice", pos.ra)
-	}
-
-	if math.Abs(pos.dec-23.44) > 1 {
-		t.Errorf("solarPosition() Dec = %f°, want near 23.44° (±1°) at summer solstice", pos.dec)
 	}
 }
 
