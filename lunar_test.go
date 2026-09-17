@@ -35,13 +35,18 @@ func TestLunarEclipticPosition(t *testing.T) {
 	}
 }
 
-func TestLunarPosition(t *testing.T) {
+func TestLunarEquatorialPosition(t *testing.T) {
 	t.Parallel()
 
 	// Meeus p. 342: 1992-04-12 00:00 UTC.
 	// Expected equatorial coordinates (nutation-corrected): RA ~134.7°, Dec ~13.8°.
+	//
+	// This is the ecliptic-to-equatorial composition moonAltitudeAboveHorizon
+	// performs on every scan step, written out rather than wrapped, so the
+	// reference value guards the live path rather than a parallel one.
 	dt := time.Date(1992, 4, 12, 0, 0, 0, 0, time.UTC)
-	eq := lunarPosition(dt)
+	ec := lunarEclipticPosition(dt)
+	eq := eclipticToEquatorial(dt, ec.lon, ec.lat)
 
 	if math.Abs(eq.ra-134.7) > 0.5 {
 		t.Errorf("RA = %.4f, want ~134.7°", eq.ra)
