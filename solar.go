@@ -42,6 +42,10 @@ func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
 
 	localDate := date.In(obs.loc)
 
+	// Rebuild the day at UTC midnight, not in obs.loc: meanSolarTime applies the
+	// observer's longitude itself, after julianDay has rounded, so handing it a
+	// zone-adjusted instant would apply longitude twice. MoonriseMoonset does the
+	// opposite for the opposite reason -- see lunar.go.
 	date = time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, time.UTC)
 
 	err = validJulianDateRange(date)
@@ -202,6 +206,10 @@ func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, 
 
 	localDate := date.In(obs.loc)
 
+	// Rebuild the day at UTC midnight, not in obs.loc: meanSolarTime applies the
+	// observer's longitude itself, after julianDay has rounded, so handing it a
+	// zone-adjusted instant would apply longitude twice. MoonriseMoonset does the
+	// opposite for the opposite reason -- see lunar.go.
 	date = time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, time.UTC)
 
 	err = validJulianDateRange(date)
