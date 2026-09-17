@@ -23,7 +23,10 @@ func lunarEclipticPosition(t time.Time) ecliptic {
 
 	D := lunarMeanElongation(T)
 	Lp := lunarMeanLongitude(T)
-	M := solarMeanAnomalyFromCentury(T)
+	// Meeus gives the Sun's mean anomaly per century here; solarMeanAnomaly takes
+	// days, which is the unit CLAUDE.md fixes for this quantity. julianCentury is
+	// days/36525, so scaling T back recovers the same argument.
+	M := solarMeanAnomaly(T * 36525)
 	Mp := lunarMeanAnomaly(T)
 	F := lunarArgumentOfLatitude(T)
 
