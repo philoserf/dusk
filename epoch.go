@@ -184,35 +184,18 @@ func eclipticToEquatorial(t time.Time, lon, lat float64) equatorial {
 	}
 }
 
-// equatorialToHorizontal converts equatorial coordinates to horizontal
-// (altitude/azimuth) for the given observer position and time.
+// altitudeOf returns the altitude in degrees of an equatorial position, for the
+// given observer and time. Azimuth is deliberately not computed: the only caller
+// is MoonriseMoonset's minute scan, which compares altitude against a horizon
+// threshold. If a bearing is ever wanted, reinstate it against a live consumer
+// and normalise it with mod360, as every other angle in this package is.
 //
-// See Meeus, Astronomical Algorithms, eq. 13.5 & 13.6 p. 93.
-func equatorialToHorizontal(t time.Time, obs Observer, eq equatorial) horizontal {
+// See Meeus, Astronomical Algorithms, eq. 13.6 p. 93.
+func altitudeOf(t time.Time, obs Observer, eq equatorial) float64 {
 	lst := localSiderealTime(t, obs.lon)
 	ha := hourAngle(eq.ra, lst)
 
-	alt := asinx(sinx(eq.dec)*sinx(obs.lat) + cosx(eq.dec)*cosx(obs.lat)*cosx(ha))
-
-	cosAltCosLat := cosx(alt) * cosx(obs.lat)
-
-	var az float64
-	// Guard against division by zero at the poles (lat ±90) or zenith (alt 90).
-	if math.Abs(cosAltCosLat) < 1e-10 {
-		az = 0
-	} else {
-		az = acosx((sinx(eq.dec) - sinx(alt)*sinx(obs.lat)) / cosAltCosLat)
-	}
-
-	// acos gives 0..180; if sin(ha) > 0, object is west, so az = 360 - az
-	if sinx(ha) > 0 {
-		az = 360 - az
-	}
-
-	return horizontal{
-		alt: alt,
-		az:  az,
-	}
+	return asinx(sinx(eq.dec)*sinx(obs.lat) + cosx(eq.dec)*cosx(obs.lat)*cosx(ha))
 }
 
 // hourAngle computes the hour angle in degrees.

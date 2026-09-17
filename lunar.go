@@ -189,19 +189,19 @@ func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
 
 	var rise, set time.Time
 
-	prevAlt := equatorialToHorizontal(d, obs, lunarPosition(d)).alt
+	prevAlt := altitudeOf(d, obs, lunarPosition(d))
 	aboveAtStart := prevAlt > -lunarHorizonDepression
 
 	for i := 1; i <= scanMinutes; i++ {
 		cur := d.Add(time.Duration(i) * time.Minute)
 
-		hz := equatorialToHorizontal(cur, obs, lunarPosition(cur))
+		alt := altitudeOf(cur, obs, lunarPosition(cur))
 
-		if rise.IsZero() && hz.alt > -lunarHorizonDepression && prevAlt <= -lunarHorizonDepression {
+		if rise.IsZero() && alt > -lunarHorizonDepression && prevAlt <= -lunarHorizonDepression {
 			rise = cur.In(obs.loc)
 		}
 
-		if set.IsZero() && hz.alt < -lunarHorizonDepression && prevAlt >= -lunarHorizonDepression {
+		if set.IsZero() && alt < -lunarHorizonDepression && prevAlt >= -lunarHorizonDepression {
 			set = cur.In(obs.loc)
 		}
 
@@ -209,7 +209,7 @@ func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
 			break
 		}
 
-		prevAlt = hz.alt
+		prevAlt = alt
 	}
 
 	return MoonEvent{

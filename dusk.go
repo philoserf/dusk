@@ -154,13 +154,6 @@ type equatorial struct {
 	dec float64
 }
 
-// horizontal represents altitude and azimuth in degrees.
-// Used internally for coordinate conversions.
-type horizontal struct {
-	alt float64
-	az  float64
-}
-
 // ecliptic represents ecliptic coordinates: longitude and latitude in degrees,
 // and distance in kilometers.
 // Used internally for lunar position calculations.

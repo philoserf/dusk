@@ -328,7 +328,7 @@ func TestEclipticToEquatorial(t *testing.T) {
 	}
 }
 
-func TestEquatorialToHorizontal(t *testing.T) {
+func TestAltitudeOf(t *testing.T) {
 	t.Parallel()
 
 	// Sirius observed from NYC on 2024-01-16 02:00 UTC (~9pm EST).
@@ -337,35 +337,28 @@ func TestEquatorialToHorizontal(t *testing.T) {
 	obs := mustObserver(t, 40.7128, -74.006, time.UTC)
 	sirius := equatorial{ra: 101.287, dec: -16.716}
 
-	h := equatorialToHorizontal(dt, obs, sirius)
+	alt := altitudeOf(dt, obs, sirius)
 
 	// Algorithm-computed reference: Sirius from NYC at 2024-01-16 02:00 UTC.
-	// Alt ~26°, Az ~147° (SE sky, still rising toward transit).
+	// Alt ~26° (SE sky, still rising toward transit).
 	const eps = 1.0
-	if math.Abs(h.alt-26.06) > eps {
-		t.Errorf("alt = %.4f, want ~26.06° (within %.0f°)", h.alt, eps)
-	}
-
-	if math.Abs(h.az-147.49) > eps {
-		t.Errorf("az = %.4f, want ~147.49° (within %.0f°)", h.az, eps)
+	if math.Abs(alt-26.06) > eps {
+		t.Errorf("alt = %.4f, want ~26.06° (within %.0f°)", alt, eps)
 	}
 }
 
-func TestEquatorialToHorizontal_Pole(t *testing.T) {
+func TestAltitudeOf_AltitudeEqualsDeclinationAtPole(t *testing.T) {
 	t.Parallel()
 
-	// Observer at the North Pole — cosAltCosLat guard triggers, azimuth defaults to 0.
+	// At the pole the hour angle term drops out, so altitude is the declination
+	// regardless of the time of day. That is a property of the formula itself.
 	dt := time.Date(2024, 1, 16, 12, 0, 0, 0, time.UTC)
 	obs := mustObserver(t, 90.0, 0, time.UTC)
 	star := equatorial{ra: 0, dec: 45}
 
-	h := equatorialToHorizontal(dt, obs, star)
-	if h.az != 0 {
-		t.Errorf("az = %.4f, want 0 at pole (guard branch)", h.az)
-	}
-	// Altitude should equal declination at the pole.
-	if math.Abs(h.alt-45.0) > 0.5 {
-		t.Errorf("alt = %.4f, want ~45° at North Pole for Dec=45°", h.alt)
+	alt := altitudeOf(dt, obs, star)
+	if math.Abs(alt-45.0) > 0.5 {
+		t.Errorf("alt = %.4f, want ~45° at North Pole for Dec=45°", alt)
 	}
 }
 
