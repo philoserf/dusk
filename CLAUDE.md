@@ -148,6 +148,14 @@ adding another: count the findings, read them, and write down why they are wrong
 - **An unexported function with a test is invisible to `unused`.** The gate cannot tell you
   when the last production caller disappears — this bit twice, with `solarPosition` and
   then `lunarPosition`. After deleting or rerouting a call site, `grep` for the callee
+- **Nothing in the gate reads prose.** `go build` does not resolve godoc links, `go vet`
+  does not check a comment against the code beneath it, and `release-gate`'s walkthrough
+  and `CLAUDE.md` rows measure staleness by commit count rather than accuracy. v5.0.0
+  deleted five exported symbols and left four doc comments describing them; three survived
+  a green gate through every PR in the release, and the fourth was caught only because
+  `lll` objected to the line's length. **After deleting or renaming an exported symbol,
+  `grep` for its name in comments as well as code**, and treat a doc comment next to
+  changed code as part of the change rather than as documentation to revisit later
 
 ## Major version bumps
 
