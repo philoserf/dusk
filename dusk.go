@@ -116,7 +116,12 @@ type SunEvent struct {
 }
 
 // MoonEvent holds the rise and set times for the Moon on a given day, along
-// with the duration between rise and set.
+// with whether the Moon was already above the horizon when that day began.
+//
+// There is deliberately no duration field. On a day when the Moon is up at
+// midnight, Set precedes Rise, so Set.Sub(Rise) is negative; MoonEvent.Duration
+// was removed in v3.0.0 for exactly that reason. Callers needing an interval
+// should handle that case themselves.
 type MoonEvent struct {
 	Rise         time.Time // zero value if the Moon does not rise
 	Set          time.Time // zero value if the Moon does not set
