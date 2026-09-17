@@ -168,7 +168,10 @@ func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
 
 	localDate := date.In(obs.loc)
 	// Construct in local time then convert to UTC so DST is handled:
-	// spring-forward days are 23h, fall-back days are 25h.
+	// spring-forward days are 23h, fall-back days are 25h. The scan walks the day
+	// one minute at a time and takes its length from the gap between these two
+	// midnights, so it needs real local instants. SunriseSunset and twilight build
+	// the day at UTC midnight instead, for the opposite reason -- see solar.go.
 	d := time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, obs.loc).UTC()
 	nextMidnight := time.Date(localDate.Year(), localDate.Month(), localDate.Day()+1, 0, 0, 0, 0, obs.loc).UTC()
 
