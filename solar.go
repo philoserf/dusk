@@ -81,12 +81,6 @@ func solarMeanAnomaly(J float64) float64 {
 	return mod360(357.5291092 + 0.98560028*J)
 }
 
-// solarMeanAnomalyFromCentury returns the Sun's mean anomaly in degrees.
-// T is Julian centuries since J2000.0.
-func solarMeanAnomalyFromCentury(T float64) float64 {
-	return mod360(357.5291092 + 35999.0503*T)
-}
-
 // solarEquationOfCenter returns the equation of center in degrees for a given
 // solar mean anomaly M (in degrees).
 func solarEquationOfCenter(M float64) float64 {
