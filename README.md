@@ -33,8 +33,8 @@ dusk --version
 ```
 
 `--lat`, `--lon`, and `--tz` are all required: a latitude of 0 is the equator rather
-than "unset", and the zone decides which calendar day is meant. `--date` defaults to
-today in that zone.
+than "unset", and the zone is needed to place the day's events on the clock. `--date` is
+a calendar day and defaults to today in that zone.
 
 ```text
 Sunday 21 December 2025
@@ -88,7 +88,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	date := time.Date(2025, 6, 21, 0, 0, 0, 0, loc)
+	date := dusk.Date{Year: 2025, Month: time.June, Day: 21}
 
 	sun, err := dusk.SunriseSunset(date, obs)
 	if err != nil {
@@ -165,7 +165,7 @@ if err != nil {
 	log.Fatal(err)
 }
 
-date := time.Date(2025, 6, 21, 0, 0, 0, 0, loc)
+date := dusk.Date{Year: 2025, Month: time.June, Day: 21}
 
 tw, err := dusk.Twilight(date, obs, 6)
 if err != nil {
@@ -204,7 +204,7 @@ if err != nil {
 	log.Fatal(err)
 }
 
-midsummer := time.Date(2025, 6, 21, 0, 0, 0, 0, loc)
+midsummer := dusk.Date{Year: 2025, Month: time.June, Day: 21}
 
 sun, err := dusk.SunriseSunset(midsummer, obs)
 if err != nil {
@@ -274,7 +274,8 @@ expression is a choice to accept that; reading a field called `DaysApprox` was n
 ## Conventions
 
 - All angles are in **degrees**.
-- The **calendar day is resolved in the observer's timezone** — functions convert the date with `date.In(observer location)` and ignore the time of day. Build the date with the observer's `*time.Location`, not `time.UTC`, or an observer west of Greenwich silently gets the previous day.
+- The day-based entry points take a **`Date`** — year, month, day, no zone and no time of day. Until v5.0.0 they took a `time.Time` and kept only the calendar day as resolved in the observer's zone, which silently selected the previous day for anyone who built the date in `time.UTC`. Convert an instant with `dusk.DateIn(t, loc)`, which is the call the library used to make invisibly.
+- `LunarPhase` is the exception and takes an **instant**, because phase is Sun-Earth-Moon geometry and changes measurably within a day. The package having two entry-point shapes is deliberate: it answers two kinds of question.
 - Longitude is **east-positive, west-negative** (e.g., New York is -74.006).
 - `Observer` is constructed via `NewObserver`, which validates coordinates and rejects NaN/Inf.
 - Polar geometry is a **result, not an error**: `SunEvent.Horizon` and `TwilightEvent.Horizon` report `Crosses`, `StaysAbove` or `StaysBelow`, with `Rise`/`Set`/`Dawn`/`Dusk` zero when there was no crossing. `error` means a nil timezone, bad coordinates or a date out of range.

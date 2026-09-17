@@ -98,6 +98,35 @@ func (o Observer) String() string {
 	return fmt.Sprintf("%.4f°, %.4f° (%s)", o.lat, o.lon, locName)
 }
 
+// Date is a calendar day. It has no zone and no time of day, because the
+// day-based entry points use neither.
+//
+// Fields are normalized the way [time.Date] normalizes them, so Month 13 is
+// January of the next year. A Date outside roughly 1677-2262 is rejected by the
+// entry points with [ErrDateOutOfRange].
+type Date struct {
+	Year  int
+	Month time.Month
+	Day   int
+}
+
+// DateIn returns the calendar date on which t falls in loc. It is the call the
+// day-based entry points used to make invisibly, on an instant the caller had
+// no reason to think mattered; making it the caller's puts the zone where it
+// can be seen. A nil loc is read as UTC.
+func DateIn(t time.Time, loc *time.Location) Date {
+	if loc != nil {
+		t = t.In(loc)
+	}
+
+	return Date{Year: t.Year(), Month: t.Month(), Day: t.Day()}
+}
+
+// at returns midnight on d in loc.
+func (d Date) at(loc *time.Location) time.Time {
+	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, loc)
+}
+
 // Horizon says whether the Sun reached the altitude a call asked about. It is
 // a value on the result rather than an error, because "the Sun did not set
 // today" is an answer to the question, not a failure to answer it.
