@@ -77,7 +77,7 @@ func TestZeroObserverReturnsError(t *testing.T) {
 		t.Error("SunriseSunset: expected error for zero Observer")
 	}
 
-	_, err = CivilTwilight(date, zero)
+	_, err = Twilight(date, zero, 6)
 	if err == nil {
 		t.Error("CivilTwilight: expected error for zero Observer")
 	}

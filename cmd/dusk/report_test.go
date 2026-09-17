@@ -31,7 +31,7 @@ func testObserver(t *testing.T) (dusk.Observer, *time.Location) {
 // detail. dusk.TwilightEvent.Dawn is always *tomorrow* morning's, so a day
 // report must take this morning's dawn from yesterday's event. Reporting
 // today's Dawn field would silently show tomorrow's time.
-func TestTwilightDawnComesFromYesterday(t *testing.T) {
+func TestTwilightDawnAndDuskComeFromOneDay(t *testing.T) {
 	t.Parallel()
 
 	obs, loc := testObserver(t)
@@ -46,32 +46,31 @@ func TestTwilightDawnComesFromYesterday(t *testing.T) {
 		t.Fatalf("got %d bands, want %d", len(got), len(twilightBands))
 	}
 
-	yesterday, err := dusk.CivilTwilight(date.AddDate(0, 0, -1), obs)
+	today, err := dusk.Twilight(date, obs, 6)
 	if err != nil {
-		t.Fatalf("CivilTwilight(yesterday): %v", err)
-	}
-
-	today, err := dusk.CivilTwilight(date, obs)
-	if err != nil {
-		t.Fatalf("CivilTwilight(today): %v", err)
+		t.Fatalf("Twilight(today, 6): %v", err)
 	}
 
 	civil := got[0]
 
-	if !civil.Dawn.Equal(toSecond(yesterday.Dawn)) {
-		t.Errorf("Dawn = %v, want yesterday's Dawn %v", civil.Dawn, toSecond(yesterday.Dawn))
+	// One call supplies both boundaries. Before v5 the report took Dawn from
+	// yesterday's event and Dusk from today's, because a TwilightEvent spanned
+	// two days; this asserts that it no longer has to.
+	if !civil.Dawn.Equal(toSecond(today.Dawn)) {
+		t.Errorf("Dawn = %v, want today's Dawn %v", civil.Dawn, toSecond(today.Dawn))
 	}
 
 	if !civil.Dusk.Equal(toSecond(today.Dusk)) {
 		t.Errorf("Dusk = %v, want today's Dusk %v", civil.Dusk, toSecond(today.Dusk))
 	}
 
-	if civil.Dawn.Equal(toSecond(today.Dawn)) {
-		t.Error("Dawn came from today's event, which is tomorrow morning's dawn")
+	if civil.Dawn.Day() != date.Day() || civil.Dusk.Day() != date.Day() {
+		t.Errorf("Dawn on day %d and Dusk on day %d, want both on the reported day %d",
+			civil.Dawn.Day(), civil.Dusk.Day(), date.Day())
 	}
 
-	if civil.Dawn.Day() != date.Day() {
-		t.Errorf("Dawn falls on day %d, want the reported day %d", civil.Dawn.Day(), date.Day())
+	if !civil.Dawn.Before(civil.Dusk) {
+		t.Errorf("Dawn %v should precede Dusk %v on the same day", civil.Dawn, civil.Dusk)
 	}
 }
 

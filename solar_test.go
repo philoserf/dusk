@@ -189,18 +189,18 @@ func TestCivilTwilight(t *testing.T) {
 
 	// NYC (40.7128°N, 74.006°W) on 2024-03-20 (vernal equinox).
 	//
-	// USNO reference, aa.usno.navy.mil/api/rstt/oneday: End Civil Twilight 19:36
-	// on the 20th, Begin Civil Twilight 06:30 on the 21st -- Dawn is tomorrow
-	// morning's, which is this package's convention. Measured margin at the time
-	// of writing: dusk 43s, dawn 17s.
+	// USNO reference, aa.usno.navy.mil/api/rstt/oneday: Begin Civil Twilight
+	// 06:31 and End Civil Twilight 19:36, both on the 20th. Both are real USNO
+	// values for the reported day -- re-derived when v5 made Dawn and Dusk
+	// same-day, not carried over from the v4 pins.
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
 	tolerance := 2 * time.Minute
 
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
 
-	event, err := CivilTwilight(date, obs)
+	event, err := Twilight(date, obs, 6)
 	if err != nil {
-		t.Fatalf("CivilTwilight() returned error: %v", err)
+		t.Fatalf("Twilight() returned error: %v", err)
 	}
 
 	// Civil twilight dusk, about half an hour after the 7:09 PM sunset above.
@@ -209,14 +209,15 @@ func TestCivilTwilight(t *testing.T) {
 		t.Errorf("Dusk = %v, want %v (±%v, diff=%v)", event.Dusk.Format("15:04:05"), wantDusk.Format("15:04"), tolerance, diff)
 	}
 
-	// Civil twilight dawn the following morning.
-	wantDawn := time.Date(2024, 3, 21, 6, 30, 0, 0, nyc)
+	// Civil twilight dawn the same morning, ahead of the 6:59 sunrise.
+	wantDawn := time.Date(2024, 3, 20, 6, 31, 0, 0, nyc)
 	if diff := event.Dawn.Sub(wantDawn); diff < -tolerance || diff > tolerance {
 		t.Errorf("Dawn = %v, want %v (±%v, diff=%v)", event.Dawn.Format("15:04:05"), wantDawn.Format("15:04"), tolerance, diff)
 	}
 
-	if event.NightDuration <= 0 {
-		t.Errorf("NightDuration = %v, want > 0", event.NightDuration)
+	// Both boundaries belong to the reported day, and bracket it.
+	if !event.Dawn.Before(event.Dusk) {
+		t.Errorf("Dawn %v should precede Dusk %v on the same day", event.Dawn, event.Dusk)
 	}
 }
 
@@ -232,14 +233,14 @@ func TestNauticalTwilight(t *testing.T) {
 
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
 
-	civil, err := CivilTwilight(date, obs)
+	civil, err := Twilight(date, obs, 6)
 	if err != nil {
-		t.Fatalf("CivilTwilight() returned error: %v", err)
+		t.Fatalf("Twilight() returned error: %v", err)
 	}
 
-	nautical, err := NauticalTwilight(date, obs)
+	nautical, err := Twilight(date, obs, 12)
 	if err != nil {
-		t.Fatalf("NauticalTwilight() returned error: %v", err)
+		t.Fatalf("Twilight() returned error: %v", err)
 	}
 
 	// Nautical twilight dusk is later than civil (Sun is deeper below horizon).
@@ -252,8 +253,8 @@ func TestNauticalTwilight(t *testing.T) {
 		t.Errorf("Nautical dawn %v should be before civil dawn %v", nautical.Dawn.Format("15:04:05"), civil.Dawn.Format("15:04:05"))
 	}
 
-	if nautical.NightDuration <= 0 {
-		t.Errorf("NightDuration = %v, want > 0", nautical.NightDuration)
+	if !nautical.Dawn.Before(nautical.Dusk) {
+		t.Errorf("Dawn %v should precede Dusk %v on the same day", nautical.Dawn, nautical.Dusk)
 	}
 }
 
@@ -269,14 +270,14 @@ func TestAstronomicalTwilight(t *testing.T) {
 
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
 
-	nautical, err := NauticalTwilight(date, obs)
+	nautical, err := Twilight(date, obs, 12)
 	if err != nil {
-		t.Fatalf("NauticalTwilight() returned error: %v", err)
+		t.Fatalf("Twilight() returned error: %v", err)
 	}
 
-	astro, err := AstronomicalTwilight(date, obs)
+	astro, err := Twilight(date, obs, 18)
 	if err != nil {
-		t.Fatalf("AstronomicalTwilight() returned error: %v", err)
+		t.Fatalf("Twilight() returned error: %v", err)
 	}
 
 	// Astronomical twilight dusk is later than nautical.
@@ -289,8 +290,8 @@ func TestAstronomicalTwilight(t *testing.T) {
 		t.Errorf("Astronomical dawn %v should be before nautical dawn %v", astro.Dawn.Format("15:04:05"), nautical.Dawn.Format("15:04:05"))
 	}
 
-	if astro.NightDuration <= 0 {
-		t.Errorf("NightDuration = %v, want > 0", astro.NightDuration)
+	if !astro.Dawn.Before(astro.Dusk) {
+		t.Errorf("Dawn %v should precede Dusk %v on the same day", astro.Dawn, astro.Dusk)
 	}
 }
 
@@ -308,9 +309,9 @@ func TestTwilight_Equatorial(t *testing.T) {
 
 	obs := mustObserver(t, -0.18, -78.47, loc)
 
-	civil, err := CivilTwilight(date, obs)
+	civil, err := Twilight(date, obs, 6)
 	if err != nil {
-		t.Fatalf("CivilTwilight() returned error: %v", err)
+		t.Fatalf("Twilight() returned error: %v", err)
 	}
 
 	if civil.Dusk.IsZero() {
@@ -321,17 +322,26 @@ func TestTwilight_Equatorial(t *testing.T) {
 		t.Error("expected non-zero civil twilight Dawn")
 	}
 
-	// Civil twilight duration (darkness period) should be less than 12 hours
-	// at the equator, where twilight transitions are rapid.
-	if civil.NightDuration >= 12*time.Hour {
-		t.Errorf("civil twilight NightDuration = %v, want < 12h near equator", civil.NightDuration)
+	// The equator is where twilight is briefest: the Sun crosses the 6° band
+	// almost vertically, so dawn leads sunrise by around twenty minutes rather
+	// than the hour it takes at high latitude. Asserting that gap is what this
+	// test is for -- the same-day event makes it directly measurable.
+	sun, err := SunriseSunset(date, obs)
+	if err != nil {
+		t.Fatalf("SunriseSunset() returned error: %v", err)
 	}
 
-	if civil.NightDuration <= 0 {
-		t.Errorf("civil twilight NightDuration = %v, want > 0", civil.NightDuration)
+	lead := sun.Rise.Sub(civil.Dawn)
+	if lead <= 0 || lead > 30*time.Minute {
+		t.Errorf("civil dawn leads sunrise by %v, want a positive gap under 30m near the equator", lead)
 	}
 
-	t.Logf("Quito civil twilight: dusk=%v dawn=%v duration=%v", civil.Dusk, civil.Dawn, civil.NightDuration)
+	trail := civil.Dusk.Sub(sun.Set)
+	if trail <= 0 || trail > 30*time.Minute {
+		t.Errorf("civil dusk trails sunset by %v, want a positive gap under 30m near the equator", trail)
+	}
+
+	t.Logf("Quito civil twilight: dawn=%v dusk=%v (lead %v, trail %v)", civil.Dawn, civil.Dusk, lead, trail)
 }
 
 func TestTwilight_PolarDay(t *testing.T) {
@@ -346,7 +356,7 @@ func TestTwilight_PolarDay(t *testing.T) {
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
 	obs := mustObserver(t, 69.65, 18.96, loc)
 
-	_, err = AstronomicalTwilight(date, obs)
+	_, err = Twilight(date, obs, 18)
 	if !errors.Is(err, ErrCircumpolar) {
 		t.Errorf("expected ErrCircumpolar for astronomical twilight at 69.65°N midsummer, got %v", err)
 	}
@@ -363,7 +373,7 @@ func TestTwilight_PolarNight(t *testing.T) {
 
 	date := time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
 
-	_, err := AstronomicalTwilight(date, obs)
+	_, err := Twilight(date, obs, 18)
 	if !errors.Is(err, ErrNeverRises) {
 		t.Errorf("expected ErrNeverRises for astronomical twilight at 87°N midwinter, got %v", err)
 	}
@@ -379,6 +389,13 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 	// service and no nautical or astronomical equivalent, so the provenance of
 	// 20:05 and 05:55 is unverified and they are treated as a regression pin.
 	//
+	// Both values are carried over from v4 unchanged, which is the point. When
+	// TwilightEvent stopped spanning two days, Dusk stayed where it was and Dawn
+	// moved to the day it actually describes: the 05:55 pin was always the
+	// morning AFTER the queried date, so it is now Twilight(D+1).Dawn. Asserting
+	// it that way makes this test a direct check of the migration -- the same
+	// instant reached by a call that names the right day.
+	//
 	// The tolerance is 4 minutes rather than the 2 the sunrise tests hold,
 	// because a 12° depression amplifies declination error: measured margin at
 	// the time of writing is 2m15s on dusk and 2m42s on dawn. That is twilight's
@@ -392,9 +409,9 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
 	tolerance := 4 * time.Minute
 
-	nautical, err := NauticalTwilight(date, obs)
+	nautical, err := Twilight(date, obs, 12)
 	if err != nil {
-		t.Fatalf("NauticalTwilight() returned error: %v", err)
+		t.Fatalf("Twilight() returned error: %v", err)
 	}
 
 	wantDusk := time.Date(2024, 3, 20, 20, 5, 0, 0, nyc)
@@ -402,30 +419,50 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 		t.Errorf("Dusk = %v, want %v (±%v, diff=%v)", nautical.Dusk.Format("15:04:05"), wantDusk.Format("15:04"), tolerance, diff)
 	}
 
+	next, err := Twilight(date.AddDate(0, 0, 1), obs, 12)
+	if err != nil {
+		t.Fatalf("Twilight(tomorrow) returned error: %v", err)
+	}
+
 	wantDawn := time.Date(2024, 3, 21, 5, 55, 0, 0, nyc)
-	if diff := nautical.Dawn.Sub(wantDawn); diff < -tolerance || diff > tolerance {
-		t.Errorf("Dawn = %v, want %v (±%v, diff=%v)", nautical.Dawn.Format("15:04:05"), wantDawn.Format("15:04"), tolerance, diff)
+	if diff := next.Dawn.Sub(wantDawn); diff < -tolerance || diff > tolerance {
+		t.Errorf("Dawn = %v, want %v (±%v, diff=%v)", next.Dawn.Format("15:04:05"), wantDawn.Format("15:04"), tolerance, diff)
 	}
 }
 
 func TestTwilight_PolarTransition(t *testing.T) {
 	t.Parallel()
 
-	// At 75°N, civil twilight succeeds on Nov 25 but fails on Nov 26,
-	// exercising the polar-transition branch in twilight().
+	// At 75°N the civil band closes between 2024-11-26 and 2024-11-27.
+	//
+	// A same-day event is symmetric about solar transit, so both boundaries
+	// exist or neither does -- the transition can only land BETWEEN days, and
+	// that is what this pins. Under the v4 two-day event the Nov 26 call failed,
+	// but it failed on Nov 27's geometry: Nov 26 has a real 19-minute civil
+	// window that the whole-call error threw away along with it.
 	loc := time.UTC
 	obs := mustObserver(t, 75.0, 25.0, loc)
 
-	before := time.Date(2024, 11, 25, 0, 0, 0, 0, loc)
-	after := time.Date(2024, 11, 26, 0, 0, 0, 0, loc)
+	last := time.Date(2024, 11, 26, 0, 0, 0, 0, loc)
+	gone := time.Date(2024, 11, 27, 0, 0, 0, 0, loc)
 
-	_, err := CivilTwilight(before, obs)
+	event, err := Twilight(last, obs, 6)
 	if err != nil {
-		t.Fatalf("CivilTwilight(Nov 25, 75°N) should succeed, got %v", err)
+		t.Fatalf("Twilight(Nov 26, 75°N, 6) should succeed, got %v", err)
 	}
 
-	_, err = CivilTwilight(after, obs)
+	if event.Dawn.IsZero() || event.Dusk.IsZero() {
+		t.Fatalf("Nov 26 should carry both boundaries, got dawn=%v dusk=%v", event.Dawn, event.Dusk)
+	}
+
+	// The window is narrow and closing: minutes, not hours.
+	window := event.Dusk.Sub(event.Dawn)
+	if window <= 0 || window > time.Hour {
+		t.Errorf("Nov 26 civil window = %v, want a positive span under an hour", window)
+	}
+
+	_, err = Twilight(gone, obs, 6)
 	if !errors.Is(err, ErrNeverRises) {
-		t.Fatalf("CivilTwilight(Nov 26, 75°N) should return ErrNeverRises, got %v", err)
+		t.Fatalf("Twilight(Nov 27, 75°N, 6) should return ErrNeverRises, got %v", err)
 	}
 }

@@ -128,14 +128,20 @@ type MoonEvent struct {
 	AboveHorizon bool      // true if Moon was above the horizon at start of day
 }
 
-// TwilightEvent holds the dusk and dawn times of a twilight period.
-// Dusk is tonight's boundary (sun passes below the depression angle).
-// Dawn is tomorrow morning's boundary (sun passes above the depression angle).
-// To get this morning's dawn, call with yesterday's date.
+// TwilightEvent holds the two boundaries of a twilight band on one calendar
+// day in the observer's timezone: Dawn where the Sun rises through the
+// depression angle, Dusk where it sets through it.
+//
+// Both are on the same day. They are symmetric about solar transit, so a
+// TwilightEvent never carries one boundary without the other -- when the
+// geometry forbids the crossing, [Twilight] returns an error instead.
+//
+// There is deliberately no night duration. Dusk-to-dawn spans two days, so it
+// is not this type's to hold; a caller wanting it subtracts today's Dusk from
+// tomorrow's Dawn.
 type TwilightEvent struct {
-	Dusk          time.Time     // evening boundary (today)
-	Dawn          time.Time     // morning boundary (tomorrow)
-	NightDuration time.Duration // time from Dusk to Dawn (overnight darkness)
+	Dawn time.Time // morning boundary
+	Dusk time.Time // evening boundary
 }
 
 // LunarPhaseInfo describes the Moon's current phase.

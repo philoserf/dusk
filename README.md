@@ -153,7 +153,7 @@ fmt.Printf("%s — illumination %.1f%%, waxing: %t\n", phase.Name, phase.Illumin
 
 ### Civil twilight
 
-Twilight functions return tonight's **Dusk** and tomorrow morning's **Dawn**. To get _this morning's_ dawn, call with yesterday's date:
+`Twilight` takes the depression angle as a parameter: 6 degrees for civil, 12 for nautical, 18 for astronomical. **Dawn and Dusk are both on the day you asked for**, the same day `SunriseSunset` reports:
 
 ```go
 loc, err := time.LoadLocation("America/Los_Angeles")
@@ -168,17 +168,27 @@ if err != nil {
 
 date := time.Date(2025, 6, 21, 0, 0, 0, 0, loc)
 
-tw, err := dusk.CivilTwilight(date, obs)
+tw, err := dusk.Twilight(date, obs, 6)
 if err != nil {
 	log.Fatal(err)
 }
 
-fmt.Printf("Dusk:           %s\n", tw.Dusk.Format(time.Kitchen))
-fmt.Printf("Dawn:           %s\n", tw.Dawn.Format(time.Kitchen))
-fmt.Printf("Night duration: %s\n", tw.NightDuration)
+fmt.Printf("Dawn: %s\n", tw.Dawn.Format(time.Kitchen))
+fmt.Printf("Dusk: %s\n", tw.Dusk.Format(time.Kitchen))
 ```
 
-`NauticalTwilight` and `AstronomicalTwilight` follow the same signature.
+The two boundaries are symmetric about solar transit, so either both exist or neither does — a polar day or night returns an error for the whole band rather than half a result.
+
+Overnight darkness spans two days, so it is not a field on the result. Subtract tonight's dusk from tomorrow's dawn:
+
+```go
+next, err := dusk.Twilight(date.AddDate(0, 0, 1), obs, 18)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Astronomical night: %s\n", next.Dawn.Sub(tw.Dusk))
+```
 
 ### Polar error handling
 
@@ -219,9 +229,7 @@ if errors.Is(err, dusk.ErrNeverRises) {
 
 ### Twilight
 
-- `CivilTwilight(date, obs)` — sun 6 degrees below horizon
-- `NauticalTwilight(date, obs)` — sun 12 degrees below horizon
-- `AstronomicalTwilight(date, obs)` — sun 18 degrees below horizon
+- `Twilight(date, obs, depression)` — both boundaries of one band on one day. Pass 6 for civil, 12 for nautical, 18 for astronomical (the IAU/USNO values), or any angle you need
 
 ### Observer
 
@@ -233,7 +241,7 @@ Plain data; format them however you need. `Observer` implements `fmt.Stringer`, 
 
 - `SunEvent` — `Rise`, `Noon`, `Set` times and `Duration` (daylight)
 - `MoonEvent` — `Rise`, `Set` times and `AboveHorizon`
-- `TwilightEvent` — `Dusk`, `Dawn` times and `NightDuration` (overnight darkness)
+- `TwilightEvent` — `Dawn` and `Dusk` times, both on the queried day
 - `LunarPhaseInfo` — `Illumination`, `Elongation`, `DaysApprox`, `Waxing`, `Name`
 
 The Meeus phase angle was published as `LunarPhaseInfo.Angle` until v4.0.0 and removed as unused.
@@ -257,7 +265,7 @@ The Meeus phase angle was published as `LunarPhaseInfo.Angle` until v4.0.0 and r
 - `Observer` is constructed via `NewObserver`, which validates coordinates and rejects NaN/Inf.
 - Functions that can fail return `error`. Two sentinel errors distinguish polar edge cases: `ErrCircumpolar` and `ErrNeverRises`.
 - A **zero-value `time.Time`** signals "event did not occur" (e.g., the Moon does not rise on a given day). Check with `.IsZero()`.
-- Twilight functions return tonight's **Dusk** and tomorrow morning's **Dawn**. To get this morning's dawn, call with yesterday's date.
+- `Twilight` returns both boundaries of one band on the queried day, symmetric about solar transit. Overnight darkness is tonight's dusk to tomorrow's dawn — two calls, because it spans two days.
 
 ## Accuracy
 

@@ -26,6 +26,43 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 	return solarParams{delta: delta, jTransit: jTransit}
 }
 
+// solarCrossing resolves the observer's calendar day and returns the geometry
+// both public solar entry points need: the Julian date of solar transit, and
+// the hour angle at the given depression. SunriseSunset passes 0; Twilight
+// passes its band.
+//
+// This is the whole of what the two share. Each builds its own result from
+// jTransit and omega, because they answer different questions about the same
+// two instants.
+func solarCrossing(date time.Time, obs Observer, depression float64) (float64, float64, error) {
+	err := validObserver(obs)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	localDate := date.In(obs.loc)
+
+	// Rebuild the day at UTC midnight, not in obs.loc: meanSolarTime applies the
+	// observer's longitude itself, after julianDay has rounded, so handing it a
+	// zone-adjusted instant would apply longitude twice. MoonriseMoonset does the
+	// opposite for the opposite reason -- see lunar.go.
+	day := time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, time.UTC)
+
+	err = validJulianDateRange(day)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	sp := computeSolarParams(day, obs.lon)
+
+	omega, err := solarHourAngle(sp.delta, depression, obs.lat)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return sp.jTransit, omega, nil
+}
+
 // SunriseSunset computes sunrise, solar noon, and sunset for the given date
 // and observer position. The observer must be constructed via [NewObserver].
 // The date is converted to the observer's timezone to determine the local
@@ -35,37 +72,14 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 // The algorithm follows the NOAA solar calculator method (derived from Meeus,
 // Astronomical Algorithms).
 func SunriseSunset(date time.Time, obs Observer) (SunEvent, error) {
-	err := validObserver(obs)
+	jTransit, omega, err := solarCrossing(date, obs, 0)
 	if err != nil {
 		return SunEvent{}, err
 	}
 
-	localDate := date.In(obs.loc)
-
-	// Rebuild the day at UTC midnight, not in obs.loc: meanSolarTime applies the
-	// observer's longitude itself, after julianDay has rounded, so handing it a
-	// zone-adjusted instant would apply longitude twice. MoonriseMoonset does the
-	// opposite for the opposite reason -- see lunar.go.
-	date = time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, time.UTC)
-
-	err = validJulianDateRange(date)
-	if err != nil {
-		return SunEvent{}, err
-	}
-
-	sp := computeSolarParams(date, obs.lon)
-
-	omega, err := solarHourAngle(sp.delta, 0, obs.lat)
-	if err != nil {
-		return SunEvent{}, err
-	}
-
-	Jrise := sp.jTransit - omega/360.0
-	Jset := sp.jTransit + omega/360.0
-
-	rise := universalTimeFromJD(Jrise).In(obs.loc)
-	noon := universalTimeFromJD(sp.jTransit).In(obs.loc)
-	set := universalTimeFromJD(Jset).In(obs.loc)
+	rise := universalTimeFromJD(jTransit - omega/360.0).In(obs.loc)
+	noon := universalTimeFromJD(jTransit).In(obs.loc)
+	set := universalTimeFromJD(jTransit + omega/360.0).In(obs.loc)
 
 	return SunEvent{
 		Rise:     rise,
@@ -141,90 +155,31 @@ func solarTransitJD(J, M, lambda float64) float64 {
 }
 
 // ---------------------------------------------------------------------------
-// Twilight: the three depression bands, sharing computeSolarParams with
-// sunrise and sunset above.
+// Twilight: one parameterised band, sharing solarCrossing with sunrise and
+// sunset above.
 // ---------------------------------------------------------------------------
 
-// CivilTwilight computes the evening civil twilight period (Sun 6 degrees below the
-// horizon) for the given date and observer position. Dusk is tonight's civil
-// dusk; Dawn is tomorrow morning's civil dawn.
-func CivilTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
-	return twilight(date, obs, 6)
-}
-
-// NauticalTwilight computes the evening nautical twilight period (Sun 12
-// degrees below the horizon) for the given date and observer position.
-func NauticalTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
-	return twilight(date, obs, 12)
-}
-
-// AstronomicalTwilight computes the evening astronomical twilight period (Sun
-// 18 degrees below the horizon) for the given date and observer position.
-func AstronomicalTwilight(date time.Time, obs Observer) (TwilightEvent, error) {
-	return twilight(date, obs, 18)
-}
-
-// twilight computes the twilight period for a given depression angle (positive
-// degrees below the geometric horizon). Only the calendar date is used; the
-// time-of-day is ignored. The returned Dusk is today's "set" at the depression
-// angle (evening boundary) and Dawn is tomorrow's "rise" at the depression
-// angle (morning boundary).
+// Twilight computes the morning and evening boundaries of a twilight band for
+// the given date and observer position. depression is degrees below the
+// geometric horizon, positive downward: 6 for civil, 12 for nautical and 18 for
+// astronomical, the IAU/USNO values. The observer must be constructed via
+// [NewObserver].
 //
-// Because the calculation spans two calendar days (tonight and tomorrow morning),
-// an error is returned if twilight cannot be computed for either day. Near polar
-// transition dates (latitudes ~65–70°), today's dusk may exist but tomorrow's
-// dawn may not (or vice versa). In that case the entire call returns an error;
-// callers needing partial results should compute each boundary separately using
-// the appropriate depression angle and [SunriseSunset]-style hour-angle logic.
-func twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, error) {
-	err := validObserver(obs)
+// Dawn and Dusk are both on the observer's calendar day for date, the same day
+// [SunriseSunset] reports. They are symmetric about solar transit, so either
+// both exist or neither does: a polar day or night returns [ErrCircumpolar] or
+// [ErrNeverRises] for the whole band rather than half a result.
+//
+// Passing depression = 0 gives sunrise and sunset, refraction included, which
+// is what [SunriseSunset] returns.
+func Twilight(date time.Time, obs Observer, depression float64) (TwilightEvent, error) {
+	jTransit, omega, err := solarCrossing(date, obs, depression)
 	if err != nil {
 		return TwilightEvent{}, err
 	}
-
-	localDate := date.In(obs.loc)
-
-	// Rebuild the day at UTC midnight, not in obs.loc: meanSolarTime applies the
-	// observer's longitude itself, after julianDay has rounded, so handing it a
-	// zone-adjusted instant would apply longitude twice. MoonriseMoonset does the
-	// opposite for the opposite reason -- see lunar.go.
-	date = time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 0, 0, 0, 0, time.UTC)
-
-	err = validJulianDateRange(date)
-	if err != nil {
-		return TwilightEvent{}, err
-	}
-
-	// Evening twilight: sunset at the given depression angle for today.
-	sp := computeSolarParams(date, obs.lon)
-
-	omega, err := solarHourAngle(sp.delta, depression, obs.lat)
-	if err != nil {
-		return TwilightEvent{}, err
-	}
-
-	dusk := universalTimeFromJD(sp.jTransit + omega/360).In(obs.loc)
-
-	// Tomorrow's "rise" at this depression = twilight dawn.
-	tomorrow := date.AddDate(0, 0, 1)
-
-	err = validJulianDateRange(tomorrow)
-	if err != nil {
-		return TwilightEvent{}, err
-	}
-
-	sp2 := computeSolarParams(tomorrow, obs.lon)
-
-	omega2, err2 := solarHourAngle(sp2.delta, depression, obs.lat)
-	if err2 != nil {
-		return TwilightEvent{}, err2
-	}
-
-	dawn := universalTimeFromJD(sp2.jTransit - omega2/360).In(obs.loc)
 
 	return TwilightEvent{
-		Dusk:          dusk,
-		Dawn:          dawn,
-		NightDuration: dawn.Sub(dusk),
+		Dawn: universalTimeFromJD(jTransit - omega/360.0).In(obs.loc),
+		Dusk: universalTimeFromJD(jTransit + omega/360.0).In(obs.loc),
 	}, nil
 }

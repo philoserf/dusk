@@ -117,7 +117,7 @@ func ExampleLunarPhase() {
 	// Illumination: 100%
 }
 
-func ExampleCivilTwilight() {
+func ExampleTwilight() {
 	loc, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {
 		fmt.Println("error:", err)
@@ -134,18 +134,24 @@ func ExampleCivilTwilight() {
 		return
 	}
 
-	tw, err := dusk.CivilTwilight(date, obs)
+	tw, err := dusk.Twilight(date, obs, 6)
 	if err != nil {
 		fmt.Println("error:", err)
 
 		return
 	}
 
-	fmt.Printf("Dusk: %s\n", tw.Dusk.Format("15:04"))
+	// Dawn first: both boundaries are on the queried day, in clock order.
 	fmt.Printf("Dawn: %s\n", tw.Dawn.Format("15:04"))
+	fmt.Printf("Dusk: %s\n", tw.Dusk.Format("15:04"))
+	// USNO publishes 04:31 and 21:52 for this date and place; the library
+	// computes 04:30:50 and 21:51:27, margins of 10s and 33s. Format("15:04")
+	// truncates rather than rounds, so both print a minute early -- the same
+	// rendering issue ExampleMoonriseMoonset notes.
+
 	// Output:
+	// Dawn: 04:30
 	// Dusk: 21:51
-	// Dawn: 04:31
 }
 
 func ExampleMoonriseMoonset() {
