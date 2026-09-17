@@ -46,7 +46,7 @@ func renderText(w io.Writer, report Report) error {
 	if lines := conditions(report); len(lines) > 0 {
 		indented := make([]string, 0, len(lines))
 		for _, line := range lines {
-			indented = append(indented, "  "+wrapAt(line, 66, "  "))
+			indented = append(indented, wrapAt(line, 66, "  "))
 		}
 
 		blocks = append(blocks, strings.Join(indented, "\n"))
@@ -296,8 +296,11 @@ func join(names []string) string {
 	}
 }
 
-// wrapAt breaks a sentence onto lines no longer than width, indenting the
-// continuations, so a condition reads as a paragraph rather than one long row.
+// wrapAt breaks a sentence onto lines no longer than width, so a condition
+// reads as a paragraph rather than one long row. Every line carries indent,
+// including the first, so width means the same thing on all of them -- a caller
+// that prepends the indent itself would give the first line that much more room
+// than the continuations beneath it.
 func wrapAt(text string, width int, indent string) string {
 	var (
 		out  strings.Builder
@@ -310,9 +313,9 @@ func wrapAt(text string, width int, indent string) string {
 
 		switch {
 		case i == 0:
-			out.WriteString(word)
+			out.WriteString(indent + word)
 
-			line = runcount
+			line = utf8.RuneCountInString(indent) + runcount
 		case line+1+runcount > width:
 			out.WriteString("\n" + indent + word)
 			line = utf8.RuneCountInString(indent) + runcount
