@@ -261,7 +261,7 @@ Sunrise/sunset times are typically within 1-2 minutes of USNO data. Moonrise/moo
 
 ## Requirements
 
-Go 1.24+. Zero dependencies.
+Go 1.27+. Zero dependencies.
 
 ## License
 
