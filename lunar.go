@@ -130,14 +130,6 @@ func LunarPhase(date time.Time) (LunarPhaseInfo, error) {
 	}, nil
 }
 
-// lunarPosition returns the equatorial coordinates (RA, Dec) of the Moon for
-// a given instant, using the Meeus ecliptic position converted to equatorial.
-func lunarPosition(t time.Time) equatorial {
-	ec := lunarEclipticPosition(t)
-
-	return eclipticToEquatorial(t, ec.lon, ec.lat)
-}
-
 // moonAltitudeAboveHorizon returns how far the Moon's centre is above the
 // altitude at which it is seen to rise or set, in degrees. Positive means up.
 //
