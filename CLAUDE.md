@@ -12,23 +12,7 @@ showboat document whose snippets are verified executable; keep them runnable, an
 
 ## Commands
 
-```bash
-task                 # The whole gate: tidy, vet, lint, nilaway, test, ratchet
-task fix             # Every autofix golangci-lint offers (deliberately not in the gate)
-task test            # The suite with -race, writing coverage.out
-task ratchet:update  # Re-record uncovered counts after a deliberate coverage change
-task build           # Build the reference CLI to bin/dusk
-task run -- --lat 69.6492 --lon 18.9553 --tz Europe/Oslo
-task fuzz            # The fuzzing engine, 10s per target (not in the gate)
-task bench           # Benchmarks (benchmark_test.go)
-task setup           # Install the toolchain: Brewfile, plus `go install` for nilaway
-task deps:check      # Verify the toolchain is installed
-task clean           # Remove bin/ and coverage artifacts
-
-FUZZTIME=2m task fuzz                # Longer fuzzing run
-go test -v -run TestName .           # Run a single library test
-go test -v -run TestName ./cmd/dusk  # Run a single CLI test
-```
+Run `task --list` for the current set.
 
 **CI runs exactly `task`.** Never add a check to CI that the local gate does not run,
 and never add a tool to the gate without also installing it in the workflow. The Go
@@ -125,24 +109,13 @@ adding another: count the findings, read them, and write down why they are wrong
 
 ## Major version bumps
 
-The `/vN` in the module path is load-bearing in two config files that a `go mod edit` will not touch,
-and both turn the gate red until they are updated by hand:
-
-- `.golangci.yml` — the `depguard` allow-list names `github.com/philoserf/dusk/v4`. Under
-  `list-mode: strict` the new path is not allowed, so every internal import is reported as forbidden
-  (measured: 5 findings across `cmd/dusk` and `example_test.go`) — loudly, naming each import
-- `coverage.ratchet` — the keys are full import paths. The ratchet reads the old packages as vanished
-  and the new ones as appeared, so it fails even when coverage is unchanged; re-record with
-  `task ratchet:update` once the path is right
-
-Also update the imports in `cmd/dusk` and `example_test.go`, this file's Architecture line, and the
-README's badge, `go get`, and `go install` lines.
+The `/vN` in the module path breaks `.golangci.yml` and `coverage.ratchet` until both
+are hand-edited — see the `major-version-bump` skill.
 
 ## Releases
 
-No release automation — the repo has exactly two workflows, `ci.yml` (the gate) and `claude.yml`.
-`CHANGELOG.md` is written by hand. **Tag last**, by hand, after the gate is green and `WALKTHROUGH.md`
-has been re-verified against the current source.
+No release automation. `CHANGELOG.md` is written by hand. **Tag last**, by hand, after the gate
+is green and `WALKTHROUGH.md` has been re-verified against the current source.
 
 ## CI
 
