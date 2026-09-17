@@ -124,6 +124,21 @@ adding another: count the findings, read them, and write down why they are wrong
 - `solarHourAngle` takes `depression` (positive degrees below horizon) for twilight reuse; pass 0 for sunrise/sunset
 - `LunarPhaseInfo.Waxing` distinguishes waxing (elongation 0-180) from waning; `DaysApprox` is a linear approximation
 - `eclipticToEquatorial` applies full nutation (Δψ + Δε); `solarDeclination` uses mean obliquity only (intentional asymmetry — NOAA simplified method for sunrise/sunset)
+- **The Moon's horizon threshold is _positive_ and the Sun's is negative.** Meeus's lunar
+  `h0 = 0.7275·π − 0.5667` is about **+0.125°**, because horizontal parallax outweighs
+  refraction for the one body close enough for it to matter; the Sun's is −0.833°. The
+  scan therefore compares `altitude > h0`, not `altitude > -h0`. Using 0.833 for both —
+  which this code did until v4.1.0 — biases every moonrise early and every moonset late by
+  5–12 minutes. `h0` is also recomputed per sample from the Moon's true distance, so it is
+  a function, not a constant
+- **A reported moon crossing is interpolated, and lands in `[cur−1m, cur)`.** That
+  half-open interval is an invariant, not an implementation detail: it is what keeps the
+  scan's closed upper bound from filing an event under the next calendar day, and it is
+  what `FuzzMoonriseMoonset` asserts. `crossingInstant` interpolates on the difference
+  `altitude − h0`, never on altitude against a fixed threshold
+- **An unexported function with a test is invisible to `unused`.** The gate cannot tell you
+  when the last production caller disappears — this bit twice, with `solarPosition` and
+  then `lunarPosition`. After deleting or rerouting a call site, `grep` for the callee
 
 ## Major version bumps
 

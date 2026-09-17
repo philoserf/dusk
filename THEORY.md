@@ -114,8 +114,58 @@ extraction opens all three day-based entry points — verbatim at the two solar 
 as the local-midnight variant at the lunar one — and a maintainer consolidating them into
 one helper will pick one convention and silently break the other half. The reference tests
 will catch it — and the failure will present as an algorithm bug, not a day-boundary
-bug, which is the expensive way to find out. Only the lunar site explains its own
-choice; neither mentions the other.
+bug, which is the expensive way to find out. Since v4.1.0 each of the three sites names
+the other convention and says why it differs, which is the cheapest available guard: the
+duplication is still there, but it no longer reads as a contradiction.
+
+### The two bodies have opposite horizon thresholds, and the Moon's is positive
+
+The Sun is _seen_ to rise while geometrically below the horizon: refraction lifts it by
+about 0.567° and its own semidiameter adds another 0.267°, so the crossing altitude is
+**−0.833°**. That is `solarHourAngle`'s `h0`, and it is the number most people carry in
+their heads.
+
+The Moon inverts it, and this is the least intuitive fact in the library. It is the one
+body close enough to Earth that **horizontal parallax dominates**: an observer on the
+surface sees it from a different place than the geocentric coordinates assume, by about
+0.951° at mean distance. Meeus's lunar threshold is
+
+    h0 = 0.7275·π − 0.5667
+
+which comes out to roughly **+0.125°**. The Moon's centre is _above_ the geometric
+horizon when it is seen to rise.
+
+Until v4.1.0 the code used 0.833 for both bodies, under a comment whose own arithmetic
+did not reach it, and compared against `−0.833` for the Moon. The sign was backwards
+relative to Meeus and the magnitude was off by about 0.96°, which biased every moonrise
+early and every moonset late by 5–12 minutes. A maintainer who "simplifies" the lunar
+threshold back to a shared constant will reintroduce exactly that, and the tests will
+catch it only because they are now pinned to USNO rather than to the library's own
+output.
+
+The threshold also is not constant: it is recomputed per sample from the Moon's true
+distance, which `lunarEclipticPosition` already returns. That is worth ±0.05° between
+perigee and apogee and costs nothing.
+
+### A reported crossing is interpolated, and that is a correctness property
+
+The minute scan finds a _bracket_ — two samples straddling the threshold — not an
+instant. Reporting the later sample was wrong in two ways, and the second was a real
+defect: the scan's upper bound is closed, so a crossing detected on the final sample
+carried a timestamp belonging to the **next** calendar day, in a struct documented as
+holding events for a given day. It happened on about 0.17% of day-scans, and the event
+was lost from the day it belonged to as well as misfiled.
+
+The fix was not to open the bound — that loses the event from both days — but to report
+the interpolated crossing. `crossingInstant` returns a time in `[cur−1m, cur)`, which is
+**strictly inside the scanned day on every iteration including the last**. The closed
+bound stops mattering.
+
+Treat that half-open interval as an invariant rather than an implementation detail. It is
+what `FuzzMoonriseMoonset` asserts, and it is the reason the boundary fix had to land
+before the fuzz target did — written the other way round, the target would have arrived
+failing on its own seed corpus and the temptation would have been to weaken the
+invariant.
 
 ### Two carriers for "this did not happen", and the choice is contested
 
@@ -201,6 +251,33 @@ minutes, and one of the two values labelled USNO is the library's own output.
 is the shape of defect this repository produces, and the reason its standing documents
 are re-read at release rather than trusted.
 
+### A pin is a reference value or a regression pin, and the comment says which
+
+The test suite is the only thing standing between a refactor of the solar chain and a
+silently degraded library, and it can only do that job if a reader can tell which
+assertions carry external authority.
+
+Both kinds are legitimate. A **reference value** comes from USNO, Stellarium or Meeus and
+says the library is _correct_; its tolerance should be what the reference actually
+supports. A **regression pin** is the library's own output, recorded to detect drift; it
+says nothing about correctness and its tolerance is arbitrary.
+
+Conflating them is how a suite comes to look stronger than it is. Before v4.1.0 the solar
+tests carried a comment attributing two values to USNO where one was wrong in both
+digits, at tolerances 1.5–5× wider than the accuracy the README promised — so a change
+pushing sunrise 2m30s off USNO would have broken the headline claim and left the gate
+green.
+
+The current state, and the shape to preserve: sunrise/sunset and civil twilight are real
+USNO values at 2 minutes; moonrise/moonset are real USNO values at 1 minute; nautical
+twilight is a **regression pin** at 4 minutes, labelled as such because USNO's public
+one-day service publishes civil twilight and no deeper band, so it cannot be corroborated
+the same way. Each records its measured margin, so the next reader can tell a tight test
+from a lucky one.
+
+The corollary is the standing rule: when a pinned value moves, re-derive it from the
+reference, do not widen the tolerance to admit it.
+
 ### `cmd/dusk` is an executable specification
 
 It is not a product, and reading it as one leads to the wrong changes. Its purpose is
@@ -230,11 +307,13 @@ day-construction, and the 1–2 ms per moonrise call. Do not try to unify them.
 `trig.go` depends on nothing, `epoch.go` on `trig.go` alone, `solar.go` and `lunar.go`
 on both. Nothing reaches back up.
 
-**Inside `epoch.go` is a historical accident being lived with.** The file holds a time
-layer that everything sits on and a coordinate layer consumed by exactly two call
-chains, and the two sit at different depths. The file records the merge that produced
-it in a banner comment naming a file that no longer exists. No reading order fixes this,
-which is worth knowing before concluding your own reading is at fault.
+**The time layer and the coordinate layer are now separate files**, and the split is
+principled rather than cosmetic. `epoch.go` is consumed by everything; `coord.go` is
+reached by exactly one call chain, the Moon's minute scan. They sat at different depths
+inside one file until v4.1.0, and no reading order could keep them together — the
+walkthrough had to introduce one before `dusk.go` and the other after `LunarPhase`.
+Splitting them changed no statement. If they are ever merged back, that reading problem
+returns with them.
 
 **The library/CLI boundary is where the theory is thinnest.** It is the only place two
 independently reasonable designs meet, and it is where the highest-severity structural
@@ -259,14 +338,17 @@ precisely the duplication that argues for exporting the parameter instead.
 and JSON from the same assembled report, and the assembly is separate from both.
 
 **A new celestial body would not fit.** The package's vocabulary is Sun and Moon by
-name, from `solarHourAngle` to `lunarHorizonDepression`, and the horizon-crossing
-threshold is a per-body constant rather than a parameter. Adding planets means
-generalising the position source, the threshold and the day-scan together — a rewrite
-of the interior, not an addition to it.
+name, from `solarHourAngle` to `moonAltitudeAboveHorizon`, and the horizon-crossing
+threshold is per-body — a constant for the Sun, a distance-dependent function for the
+Moon — rather than a parameter. Adding planets means generalising the position source,
+the threshold and the day-scan together: a rewrite of the interior, not an addition.
 
-**Sub-minute precision would require rethinking the lunar method.** The minute scan's
-resolution is its accuracy floor, and events shorter than a minute — the Moon grazing
-the horizon at high latitude — are invisible to it by construction.
+**Sub-minute precision is partly there and partly not.** Interpolation removed the
+one-minute quantization from the _reported_ instant, and the result agrees with USNO
+within 32 seconds across a 28-event sample. What the minute scan still cannot do is
+_detect_ an event shorter than its step — the Moon grazing the horizon at high latitude
+is invisible to it by construction, and no amount of interpolation recovers a bracket
+that was never sampled.
 
 **Dates outside 1677–2262 would require replacing `julianDate`.** The bound is
 `UnixNano`'s, not astronomy's, and the whole range-check apparatus exists to keep
@@ -280,56 +362,91 @@ and pinning a tool to silence the gate.
 
 ## Uncertainties
 
-Where I am reading intent from code and could be wrong.
+Where I am reading intent from code and could be wrong. Five entries stood here before
+v4.1.0; three have been settled, and are recorded below with what settled them, because a
+resolved uncertainty is worth more than a deleted one — it tells the next reader the
+question was asked and answered rather than never noticed.
 
-**Whether the solar `-0.83` was chosen or inherited.** It is the standard Meeus `h0` for
-the Sun — refraction plus semidiameter — and it is right. But the lunar constant beside
-it, 0.833, is demonstrably the solar value given a lunar-sounding justification after
-the fact, with the Moon's horizontal parallax missing entirely. One of the two was
-copied. I cannot tell from the code whether the solar one was arrived at independently.
+**Whether the solar `−0.83` was chosen or inherited.** _Still open._ It is the standard
+Meeus `h0` for the Sun — refraction plus semidiameter — and it is right. The lunar
+constant that sat beside it was demonstrably the solar value given a lunar-sounding
+justification after the fact, so one of the two was copied; that one is now fixed, but I
+still cannot tell from the code whether the solar figure was arrived at independently or
+happens to be correct for the same borrowed reason.
 
-**What `AboveHorizon` is measured against.** It compares the Moon's altitude to the same
-refraction-corrected threshold the scan uses, so it reports whether the Moon was
-_visibly_ up at local midnight rather than geometrically above the horizon. That is
-defensible and probably intended — it agrees with the rise and set times it sits beside
-— but nothing says so, and a caller could reasonably read the field either way.
+**What `AboveHorizon` is measured against.** _Still open, and sharper now._ It compares
+the Moon's altitude to the same threshold the scan uses, so it reports whether the Moon
+was _visibly_ up at local midnight rather than geometrically above the horizon. That is
+defensible and agrees with the rise and set times it sits beside. Since v4.1.0 the
+threshold is parallax-corrected and **positive**, which makes the field slightly stricter
+than it was — the Moon must be a little higher to count as up. No caller has complained
+because the reference tests do not probe the boundary case, and nothing documents which
+reading is intended.
 
-**Whether the v3/v4 API shrink was finished or merely paused.** Several unexported
-functions survive with no caller, and one of them carries a doc comment arguing for a
-design distinction the package does not act on. The residue is documented; what I cannot
-tell is whether what remains was kept deliberately or simply not reached.
+**Whether the twilight asymmetry is a contract or an accident.** _Still open._ The doc
+comment describes it confidently enough to read as a decision, and the CLI calls it "the
+single most easily missed detail in the library's contract" — which is how you describe
+something you have accepted. But the implementation's shape suggests it fell out of
+computing tomorrow separately rather than being chosen, and nothing records the choice
+being made. This is now the largest unresolved design question in the library.
 
-**Whether the twilight asymmetry is a contract or an accident.** The doc comment
-describes it confidently enough to read as a decision, and the CLI's comment calls it
-"the single most easily missed detail in the library's contract" — which is how you
-describe something you have accepted. But the implementation's shape suggests it fell
-out of computing tomorrow separately rather than being chosen, and nothing records the
-choice being made.
+**~~Whether the v3/v4 API shrink was finished or merely paused.~~** _Settled: it was
+paused._ `solarPosition` and `solarMeanAnomalyFromCentury` were residue, and the doc
+comment arguing for a rounded-versus-continuous solar position described a distinction
+the package does not act on. Both are gone. The pattern recurred immediately —
+`lunarPosition` was orphaned by the parallax fix in the same release — which suggests the
+real lesson is not about v3 at all: **an unexported function with a test is invisible to
+`unused`**, so the gate cannot tell you when the last production caller goes away. Check
+by hand after removing a call site.
 
-**How much of the lunar error budget is method and how much is the missing parallax.**
-The README attributes the ~20 minute spread to the simplified approach plus the
-one-minute scan. The parallax omission alone accounts for 5–12 minutes of systematic
-bias. Whether the remainder is the series truncation, the scan, or something else is not
-something I can settle without reference data the repository does not carry.
+**~~How much of the lunar error budget is method and how much is the missing parallax.~~**
+_Settled: almost all of it was the parallax._ The README attributed a ~20 minute spread to
+the simplified approach plus the one-minute scan. Measured against published USNO values
+over 28 rise/set events from 55°S to 64°N across all four seasons, the corrected library's
+largest disagreement is **32 seconds**, and USNO publishes only to the minute. The series
+truncation and the scan were never the dominant terms. The general lesson is worth
+keeping: this library's documented error bars were inherited assumptions, not
+measurements, and the one that was checked turned out to be an order of magnitude
+pessimistic while concealing a systematic bias.
+
+**~~Whether `epoch.go`'s two layers were a deliberate consolidation.~~** _Settled by
+splitting them._ Nothing in the repository stated the file count was deliberate, and the
+coordinate layer now lives in `coord.go` under a header naming its one consumer.
 
 ## Index
 
-Everything this pass found that is actionable was already filed; no new findings went to
-`.issues/`. The open issues this theory refers to, in the order they appear above:
+The issues this theory refers to. The v4.1.0 milestone closed sixteen findings; what
+remains open is the v5.0.0 set, which is where the library/CLI boundary — the thinnest
+part of the theory — is actually addressed.
 
-| Issue                                              | What it is                                                        |
+**Open:**
+
+| Issue                                              | What it is                                                                        |
+| -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [#63](https://github.com/philoserf/dusk/issues/63) | The day hazard left as a convention instead of a type                             |
+| [#66](https://github.com/philoserf/dusk/issues/66) | `LunarPhaseInfo` publishing two one-line derivations of a third                   |
+| [#70](https://github.com/philoserf/dusk/issues/70) | Error-as-carrier, reversed by its only consumer, destroying solar noon on the way |
+| [#76](https://github.com/philoserf/dusk/issues/76) | The depression angle hidden behind three names                                    |
+| [#77](https://github.com/philoserf/dusk/issues/77) | Twilight spanning two days, and the double call it forces                         |
+| [#96](https://github.com/philoserf/dusk/issues/96) | Rendered times truncate their seconds, now the largest error in the output        |
+
+**Closed in v4.1.0**, and referred to above where they changed the theory:
+
+| Issue                                              | What it was                                                       |
 | -------------------------------------------------- | ----------------------------------------------------------------- |
-| [#65](https://github.com/philoserf/dusk/issues/65) | The unnormalised azimuth, and the pole guard that can return 360° |
-| [#62](https://github.com/philoserf/dusk/issues/62) | …which nothing reads, so it should be deleted rather than fixed   |
-| [#63](https://github.com/philoserf/dusk/issues/63) | The day hazard left as a convention instead of a type             |
-| [#78](https://github.com/philoserf/dusk/issues/78) | Two day-constructions, neither comment naming the other           |
-| [#70](https://github.com/philoserf/dusk/issues/70) | Error-as-carrier, reversed by its only consumer                   |
-| [#77](https://github.com/philoserf/dusk/issues/77) | Twilight spanning two days, and the double call it forces         |
-| [#76](https://github.com/philoserf/dusk/issues/76) | The depression angle hidden behind three names                    |
-| [#61](https://github.com/philoserf/dusk/issues/61) | README's Go minimum against `go.mod`                              |
-| [#72](https://github.com/philoserf/dusk/issues/72) | Solar tolerances wider than the documented accuracy               |
-| [#64](https://github.com/philoserf/dusk/issues/64) | `epoch.go`'s two layers                                           |
 | [#69](https://github.com/philoserf/dusk/issues/69) | The lunar threshold's missing horizontal parallax                 |
 | [#67](https://github.com/philoserf/dusk/issues/67) | The scan closed at both ends                                      |
-| [#74](https://github.com/philoserf/dusk/issues/74) | `solarPosition`, the shrink's residue                             |
-| [#75](https://github.com/philoserf/dusk/issues/75) | Two fuzz targets that assert nothing                              |
+| [#75](https://github.com/philoserf/dusk/issues/75) | Two fuzz targets that asserted nothing                            |
+| [#72](https://github.com/philoserf/dusk/issues/72) | Solar tolerances wider than the documented accuracy               |
+| [#62](https://github.com/philoserf/dusk/issues/62) | The azimuth nothing read                                          |
+| [#65](https://github.com/philoserf/dusk/issues/65) | …and the pole guard that could return 360°, closed by deleting it |
+| [#64](https://github.com/philoserf/dusk/issues/64) | `epoch.go`'s two layers                                           |
+| [#73](https://github.com/philoserf/dusk/issues/73) | `solarPosition`, the v3 shrink's residue                          |
+| [#74](https://github.com/philoserf/dusk/issues/74) | …and the question of whether it was residue at all                |
+| [#78](https://github.com/philoserf/dusk/issues/78) | Two day-constructions, neither comment naming the other           |
+| [#79](https://github.com/philoserf/dusk/issues/79) | One solar mean anomaly formula under two names                    |
+| [#61](https://github.com/philoserf/dusk/issues/61) | README's Go minimum against `go.mod`                              |
+| [#71](https://github.com/philoserf/dusk/issues/71) | README advertising a removed phase angle                          |
+| [#68](https://github.com/philoserf/dusk/issues/68) | `MoonEvent` promising a removed duration                          |
+| [#81](https://github.com/philoserf/dusk/issues/81) | `wrapAt`'s width budget excluding the caller's indent             |
+| [#80](https://github.com/philoserf/dusk/issues/80) | A workflow action pinned by mutable tag                           |

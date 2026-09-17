@@ -40,8 +40,8 @@ today in that zone.
 Sunday 21 December 2025
 69.6492°N  18.9553°E  ·  Europe/Oslo
 
-  The sun does not rise today (polar night). Twilight still reaches
-  civil depth around midday.
+  The sun does not rise today (polar night). Twilight still
+  reaches civil depth around midday.
   The moon neither rises nor sets today.
 
   06:28   Astronomical dawn
