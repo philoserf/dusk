@@ -1,17 +1,19 @@
 // Package dusk provides astronomical calculations: twilight times,
 // sunrise/sunset, moonrise/moonset, and lunar phase.
 //
-// All angles are in degrees. Time parameters use [time.Time].
-// Functions that produce local times accept an [Observer] with a timezone.
+// All angles are in degrees. The day-based entry points take a [Date] and an
+// [Observer]; [LunarPhase] takes a [time.Time], because phase is Sun-Earth-Moon
+// geometry and uses the whole instant.
 //
-// Two sentinel errors distinguish polar edge cases:
-// [Horizon] on the solar result types (object always above or never above the
-// queried altitude).
+// A zero [time.Time] in a result means the event did not occur. For the Sun,
+// [Horizon] on the result says why: StaysAbove and StaysBelow mean the geometry
+// forbade the crossing at that latitude and altitude. For the Moon, a zero time
+// means the crossing simply fell outside this calendar day, which is routine --
+// a lunar day runs about 24h50m -- and [MoonEvent.AboveHorizon] says which side
+// of the horizon it started on.
 //
-// Zero-value [time.Time] in result structs signals "event did not occur"
-// for a specific day (e.g., the Moon rises but does not set before midnight).
-// Check with [time.Time.IsZero]. This is distinct from sentinel errors,
-// which indicate the geometry makes the event impossible at the given latitude.
+// An error means the call could not be made: a nil location, coordinates that
+// are not finite or out of range, or a date outside the supported span.
 //
 // # References
 //

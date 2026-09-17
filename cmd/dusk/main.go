@@ -90,9 +90,9 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	// The date must be parsed in the observer's zone, not UTC: the library
-	// derives the calendar day with date.In(observer location), so a UTC
-	// midnight lands on the previous day for every observer west of Greenwich.
+	// The zone is still needed, but only to answer "what is today" when --date
+	// is omitted. The library takes a dusk.Date, so a parsed day cannot land on
+	// the wrong side of a zone boundary the way a parsed instant could.
 	date, err := parseDate(*dateArg, obs.Location())
 	if err != nil {
 		return err

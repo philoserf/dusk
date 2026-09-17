@@ -1,5 +1,126 @@
 # Changelog
 
+## v5.0.0 — 2026-09-17
+
+**The import path is now `github.com/philoserf/dusk/v5`.** Every exported change below is
+a break; none of them changes a computed value. Sunrise, sunset, twilight, moonrise,
+moonset and illumination are bit-identical to v4.1.0 for every input that produced an
+answer in v4.1.0 — and two inputs that produced a wrong answer, or no answer, now produce
+the right one.
+
+Four reshapes, each removing a rule the documentation had to state instead of the type
+system.
+
+### The calendar day is a type
+
+`SunriseSunset`, `Twilight` and `MoonriseMoonset` take a `Date{Year, Month, Day}` instead
+of a `time.Time`. `DateIn(t, loc)` converts an instant.
+
+They always used only the calendar day, resolved in the observer's zone, and discarded the
+rest — so a `time.UTC` midnight with a Detroit observer silently selected the previous day
+and returned plausible times for it. Three of this library's own README examples were
+wrong that way before v4.0.0, and the rule "build dates in the observer's timezone" ended
+up written in five separate places. All five are gone.
+
+`LunarPhase` keeps its `time.Time`: it uses the whole instant and takes no `Observer`.
+Two entry-point shapes for two kinds of question.
+
+```go
+// before
+dusk.SunriseSunset(time.Date(2025, 6, 21, 0, 0, 0, 0, loc), obs)
+
+// after
+dusk.SunriseSunset(dusk.Date{Year: 2025, Month: time.June, Day: 21}, obs)
+dusk.SunriseSunset(dusk.DateIn(someInstant, loc), obs)
+```
+
+### Polar geometry is a value, not an error
+
+`ErrCircumpolar` and `ErrNeverRises` are removed. `SunEvent` and `TwilightEvent` carry a
+`Horizon` — `Crosses`, `StaysAbove` or `StaysBelow` — with `Rise`, `Set`, `Dawn` and
+`Dusk` zero unless the body crossed. `error` now means a nil location, bad coordinates, or
+a date outside the Julian range.
+
+**This recovers information v4 destroyed.** Solar transit is defined on every day at every
+latitude, and the error return discarded it. `SunEvent.Noon` is now always set, and
+`Duration` is 24h under the midnight sun and 0 through the polar night. Tromsø on 21
+December gains a row it could not previously print:
+
+```
+  09:31   Civil dawn
+  11:42   Solar noon
+  13:53   Civil dusk
+```
+
+The names changed with the carrier because the old ones were false at a depression angle:
+`ErrCircumpolar` said "always above the horizon" and at 18° meant the Sun never got 18°
+_below_ it. `StaysAbove` and `StaysBelow` read the same way at any angle.
+
+`MoonEvent` is unchanged. `AboveHorizon` answers a different question — which side of the
+horizon the Moon was on when the day began — and is not the same fact as whether a
+crossing was possible.
+
+### Twilight is one calendar day
+
+`CivilTwilight`, `NauticalTwilight` and `AstronomicalTwilight` are replaced by
+`Twilight(date, obs, depression)`. `TwilightEvent.Dawn` and `.Dusk` are now **both on the
+day you asked for**; `NightDuration` is removed.
+
+`Twilight(D).Dawn` used to be the morning of D+1, which meant callers wanting this
+morning's dawn passed yesterday's date — a rule stated in five places and reversed by the
+only consumer, which called each band twice and discarded half of each result.
+
+**This fixes a real defect, not just a shape.** The two-day form failed if _either_ day's
+geometry was impossible, and the failure took a valid result with it. At 75°N on
+2025-11-26 the civil row reported a dawn of `11:28:33Z` beside the note "this dark all day
+— the sun stays below 6 degrees". Both could not be true: that day does cross −6°, and its
+real dusk at `12:06:27Z` was discarded because the call failed on **Nov 27's** dawn. A
+same-day event is symmetric about transit, so both boundaries exist or neither does, and
+the transition lands between days.
+
+Overnight darkness spans midnight and so is no longer a field. Subtract:
+
+```go
+tonight, _ := dusk.Twilight(d, obs, 18)
+tomorrow, _ := dusk.Twilight(dusk.Date{d.Year, d.Month, d.Day + 1}, obs, 18)
+night := tomorrow.Dawn.Sub(tonight.Dusk)
+```
+
+Passing `depression = 0` gives sunrise and sunset, refraction included.
+
+### `LunarPhaseInfo` loses two derived fields
+
+`DaysApprox` and `Waxing` are removed. Both were restatements of `Elongation`, recoverable
+in one expression each — `Elongation < 180` and `Elongation / 360 * 29.53059` — and both
+recoveries are in the doc comment.
+
+`DaysApprox` is worth a note: elongation does not advance linearly in time, so a linear
+rescaling was never the lunation age the name promised. Its own comment said "rough". The
+expression survives where writing it is a choice to accept the approximation, rather than
+a number handed over under a misleading name.
+
+This is the third pass of the same shape — v4.0.0 removed `LunarPhaseInfo.Angle` and four
+`String()` methods on identical grounds. The README's `Angle` recovery note was signed by
+`Waxing`, so it is re-signed by `Elongation`; all three removals are now one table.
+
+### Also
+
+- `cmd/dusk --json` drops `daysApprox` and `waxing` from the phase object, and reports
+  `night` only on the deepest band that has one — the only band the summary ever printed.
+  Polar reports gain `noon`, and midsummer gains `daylight`.
+- The reference CLI is about 100 lines smaller. `horizonState`, `stateOf`, `callTwilight`,
+  `twilightFunc` and `parseDate`'s midday anchor are all gone, each of them machinery that
+  existed to undo a library decision.
+- `FuzzSunriseSunset` asserted its invariants only on days that returned no error, so
+  above the Arctic circle it asserted nothing. It now checks every day.
+
+### Upgrading
+
+`pkg.go.dev` reports no importers of `/v4`. If you have an unpublished one, the four
+mechanical edits are: the import path, `Date` at three call sites, `Horizon` in place of
+`errors.Is` on the two removed sentinels, and `Twilight(d, obs, 6|12|18)` in place of the
+three named wrappers.
+
 ## v4.1.0 — 2026-09-17
 
 The astronomy **changed**. v4.0.0 shipped with the note that every calculation returned

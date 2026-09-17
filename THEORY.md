@@ -85,38 +85,47 @@ because converting to local time can push a boundary date over the edge. The sen
 for this lives in `epoch.go` beside the check rather than with the other sentinels in
 `dusk.go`, deliberately.
 
-### A day is resolved in the observer's zone — and then two different things happen to it
+### The calendar day is a type, and then two different things happen to it
 
-This is the subtlety that costs the most when it is missed, and the repository has paid
-for it more than once.
+Until v5.0.0 this was the subtlety that cost the most, and the repository paid for it
+repeatedly. The day-based entry points took a `time.Time`, kept only the calendar date as
+resolved **in the observer's zone**, and discarded the rest — so a `time.UTC` midnight
+with a Detroit observer silently selected the previous day and returned entirely
+plausible times for it. Three of the library's own README examples were wrong that way
+before v4.0.0. The rule "callers must build dates in the observer's timezone" ended up
+written in five places, which is what a convention the type system cannot express costs.
 
-Every day-based entry point begins by resolving the caller's `time.Time` to a calendar
-date **in the observer's zone** and discarding the time of day. So passing a
-`time.UTC` midnight with a Detroit observer selects the previous day, silently, and
-returns entirely plausible times for it. Three of the library's own README examples were
-wrong in exactly this way before v4.0.0. The rule "callers must build dates in the
-observer's timezone" is written in four places; it is a convention the type system does
-not express, which is the standing complaint against it.
+v5.0.0 made it a type. `SunriseSunset`, `Twilight` and `MoonriseMoonset` take a
+`Date{Year, Month, Day}` — no zone, no time of day — and `DateIn(t, loc)` performs the
+conversion that used to happen invisibly, at the caller's hand where the zone is visible.
+All five statements of the rule are gone, along with the CLI's midday anchor: `parseDate`
+used to manufacture an instant at noon because a few zones have no midnight, and
+`ParseInLocation` resolved the missing hour to 23:00 the day before. There is no instant
+to mangle now.
 
-What happens **after** the date is extracted is where the halves part company, and both
+`LunarPhase` deliberately kept its `time.Time`. It uses the whole instant and takes no
+`Observer`, because phase is Sun–Earth–Moon geometry. The package therefore has two
+entry-point shapes, and that is the point: it answers two kinds of question, and the
+signatures say which is which.
+
+What happens **after** the day is in hand is where the halves part company, and both
 answers are correct:
 
-- **The solar path** rebuilds the day as UTC midnight. It must, because `meanSolarTime`
+- **The solar path** builds the day as UTC midnight. It must, because `meanSolarTime`
   applies the observer's longitude itself, after `julianDay` has rounded to an integer
   day number. Hand it a zone-adjusted instant and the longitude is applied twice.
-- **The lunar path** rebuilds the day as true local midnight in `obs.loc` and converts
-  to UTC, and computes the next local midnight the same way. It must, because it walks
-  the day minute by minute and needs the real _length_ of the day: 1380 minutes on a
-  spring-forward day, 1500 on a fall-back day, not a hard-coded 1440.
+- **The lunar path** builds true local midnight in `obs.loc` and converts to UTC, and
+  computes the next local midnight the same way. It must, because it walks the day minute
+  by minute and needs the real _length_ of the day: 1380 minutes on a spring-forward day,
+  1500 on a fall-back day, not a hard-coded 1440.
 
-**This is the single most dangerous-looking duplication in the codebase.** The same
-extraction opens all three day-based entry points — verbatim at the two solar sites, and
-as the local-midnight variant at the lunar one — and a maintainer consolidating them into
-one helper will pick one convention and silently break the other half. The reference tests
-will catch it — and the failure will present as an algorithm bug, not a day-boundary
-bug, which is the expensive way to find out. Since v4.1.0 each of the three sites names
-the other convention and says why it differs, which is the cheapest available guard: the
-duplication is still there, but it no longer reads as a contradiction.
+**This remains the most dangerous-looking duplication in the codebase**, and moving the
+day _selection_ out did not remove it — it only removed the third copy. A maintainer
+consolidating the two reconstructions into one helper will pick one convention and
+silently break the other half. The reference tests will catch it, and the failure will
+present as an algorithm bug rather than a day-boundary bug, which is the expensive way to
+find out. Each site names the other convention and says why it differs; that is the
+cheapest available guard.
 
 ### The two bodies have opposite horizon thresholds, and the Moon's is positive
 
@@ -167,50 +176,71 @@ before the fuzz target did — written the other way round, the target would hav
 failing on its own seed corpus and the temptation would have been to weaken the
 invariant.
 
-### Two carriers for "this did not happen", and the choice is contested
+### One carrier for "this did not happen", and two meanings it still keeps
 
 The package distinguishes an event that is _geometrically impossible_ from one that
 merely _did not fall inside this calendar day_. That distinction is real and worth
-keeping: at 70°N in December the Sun does not rise at all, while the Moon routinely
-rises on Tuesday and sets on Wednesday because a lunar day runs about 24h50m.
+keeping: at 70°N in December the Sun does not rise at all, while the Moon routinely rises
+on Tuesday and sets on Wednesday because a lunar day runs about 24h50m.
 
-Where the theory is under challenge is that the two meanings are carried by two
-different **mechanisms**. The Sun uses an error — `ErrCircumpolar` or `ErrNeverRises`
-returned in place of the whole result. The Moon uses a value — a zero `time.Time` for
-the crossing that did not happen, plus `AboveHorizon` to say which side of the horizon
-it was on.
+Through v4 the two meanings were carried by two different **mechanisms** — the Sun
+returned `ErrCircumpolar` or `ErrNeverRises` in place of the whole result, the Moon
+returned zero times plus `AboveHorizon` — and this section recorded the split as
+contested. v5.0.0 settled it. `SunEvent.Horizon` and `TwilightEvent.Horizon` are
+`Crosses`, `StaysAbove` or `StaysBelow`; `Rise`, `Set`, `Dawn` and `Dusk` are zero unless
+the body crossed. `error` narrowed to what it should always have meant: a nil location,
+bad coordinates, a date outside the Julian range.
 
-The evidence against the split is that the only consumer reverses it. `cmd/dusk`
-declares a `horizonState` type, a translator from the sentinels, a state field threaded
-through two report structs, a wrapper whose whole job is separating expected polar
-geometry from genuine failure, and two prose tables keyed on the state — roughly sixty
-lines undoing a decision the library made about how to carry three outcomes. A second
-consumer would write them again. And the error path destroys a valid result on the way
-out: `computeSolarParams` has already produced the Julian date of solar transit, which
-is well defined on every day at every latitude, and `SunriseSunset` discards it with
-everything else. Solar noon happens during the polar night; the library knows when, and
-throws it away.
+Three things argued for the change and all three were being paid.
 
-Hold both readings. The distinction is principled; the carrier is not settled.
+The only consumer reversed the conversion, in about sixty lines — a `horizonState` type,
+a translator from the sentinels, a state field threaded through two report structs, a
+wrapper separating expected polar geometry from genuine failure. All of it is deleted,
+and the CLI's note tables now key on `dusk.Horizon` **unchanged**, because the vocabulary
+was already this one; the CLI simply had to rebuild it on arrival.
 
-### `TwilightEvent` is asymmetric, and every consumer pays
+The error path destroyed a valid result. `computeSolarParams` produces the Julian date of
+solar transit, which is well defined on every day at every latitude, and `SunriseSunset`
+discarded it along with everything else. Solar noon happens during the polar night, and
+the library knew when. Tromsø on 21 December now prints an `11:42 Solar noon` row between
+its civil dawn and civil dusk. `Duration` was unrepresentable for the same reason and is
+now 24h under the midnight sun and 0 through the polar night.
 
-`Twilight(D).Dusk` is the evening of day D. `Twilight(D).Dawn` is the morning of day
-**D+1**. The doc comment says so, and tells callers wanting this morning's dawn to pass
-yesterday's date.
+The names were false at a depression angle. `ErrCircumpolar` said "always above the
+horizon" and at 18° meant the Sun never got 18° _below_ it — so `cmd/dusk` carried a
+comment correcting the library's own vocabulary. `StaysAbove` and `StaysBelow` describe
+the geometry and read the same way at any angle.
 
-Two things follow that a maintainer should know before touching the twilight path.
-First, the implementation computes the whole solar parameter chain twice — once for
-today's dusk and once for tomorrow's dawn — where `SunriseSunset` takes both boundaries
-from one day's transit. Second, the error is all-or-nothing across two days of geometry:
-near 65–70°N there are transition dates where tonight's dusk is real and tomorrow's dawn
-is not, and the entire call fails. The doc comment's advice to compute each boundary
-separately is an admission that the type is wrong for that case.
+**`MoonEvent` was deliberately left alone.** `AboveHorizon` says which side of the
+horizon the Moon was on when the day began, which is not the same fact as whether a
+crossing was possible, and giving the Moon a `Horizon` would conflate them. The two
+bodies still answer differently because they are being asked different questions — that
+part of the original split was always right.
 
-The reference CLI pays both costs visibly: it calls each of the three bands twice, once
-with yesterday's date for the dawn and once with today's for the dusk, and discards half
-of each result. Three rendered bands cost six library calls and twelve hour angles where
-three would do.
+### Twilight is one day, and both boundaries or neither
+
+Through v4, `Twilight(D).Dusk` was the evening of day D and `Twilight(D).Dawn` was the
+morning of day **D+1**; the doc comment told callers wanting this morning's dawn to pass
+yesterday's date, and this section recorded the cost. v5.0.0 made the result same-day:
+one `computeSolarParams`, one `solarHourAngle`, and `jTransit ∓ omega/360` — the body
+`SunriseSunset` already had, with the depression threaded through, shared as
+`solarCrossing`.
+
+The reshape was not cosmetic. The two-day error was all-or-nothing across two days of
+geometry, and it was producing wrong output: at 75°N on 2025-11-26 the civil row printed
+a dawn of 11:28:33Z beside a note claiming the Sun stayed below 6° all day. The dawn was
+the correct one — computed from that day's own parameters — and the day's real dusk at
+12:06:27Z was discarded because the call failed on **Nov 27's** dawn. One day, one omega,
+one outcome: the transition now lands between days, where the geometry puts it.
+
+The consumer cost went with it. Three rendered bands cost six library calls and twelve
+hour angles; they now cost three, plus one more for the overnight-darkness row. That row
+is the one thing the two-day shape genuinely bought — dusk-to-dawn spans midnight, so no
+single day's event can hold it — and it moved to the call site, which needs the night of
+exactly one band rather than all three.
+
+`NightDuration` is gone for the same reason `Date` exists: a field that spans two days
+does not belong on a type that describes one.
 
 ### The gate is where the theory is enforced — and where it is not
 
@@ -329,10 +359,11 @@ right.
 
 ## What this is shaped to accommodate
 
-**A new twilight band costs one line.** The shared `twilight` is fully parameterised by
-depression angle; only the three exported wrappers fix 6, 12 and 18. A blue hour at 4°
-or an aviation band would slot in — plus an entry in the CLI's own table, which is
-precisely the duplication that argues for exporting the parameter instead.
+**A new twilight band costs nothing.** `Twilight(date, obs, depression)` takes the angle
+as a parameter, so a Danish blue hour at 4° or an aviation band needs no library change at
+all — only an entry in the CLI's own table. Through v4 the three exported wrappers fixed
+6, 12 and 18 and the CLI rebuilt the mapping as function pointers, keeping the constants
+in two files with nothing comparing them; v5.0.0 removed both halves of that.
 
 **A new output format costs nothing in the library.** `cmd/dusk` already renders text
 and JSON from the same assembled report, and the assembly is separate from both.
@@ -355,7 +386,8 @@ that was never sampled.
 callers on the right side of it.
 
 Where a maintainer who did not understand the theory would do damage, in order of
-likelihood: consolidating the two day-constructions; adding `math.Sin` to a file outside
+likelihood: consolidating the two day-reconstructions, which `Date` narrowed but did
+not remove; adding `math.Sin` to a file outside
 `trig.go`; applying `clamp` to the hour-angle cosine, which would turn an impossible
 event into a plausible time; loosening a reference-data tolerance to make a change pass;
 and pinning a tool to silence the gate.
@@ -363,8 +395,9 @@ and pinning a tool to silence the gate.
 ## Uncertainties
 
 Where I am reading intent from code and could be wrong. Five entries stood here before
-v4.1.0 and **two of them are now settled**; a sixth question, about `epoch.go`'s two
-layers, is carried down from the Seams section because splitting the file settled it too.
+v4.1.0 and two were settled then; a sixth, about `epoch.go`'s two layers, was carried down
+from the Seams section and settled by splitting the file. **v5.0.0 settles a third** — the
+twilight asymmetry — leaving two open.
 Settled entries are kept, struck through, with what settled them — a resolved uncertainty
 is worth more than a deleted one, because it tells the next reader the question was asked
 and answered rather than never noticed.
@@ -374,7 +407,10 @@ Meeus `h0` for the Sun — refraction plus semidiameter — and it is right. The
 constant that sat beside it was demonstrably the solar value given a lunar-sounding
 justification after the fact, so one of the two was copied; that one is now fixed, but I
 still cannot tell from the code whether the solar figure was arrived at independently or
-happens to be correct for the same borrowed reason.
+happens to be correct for the same borrowed reason. Sharper since: the value is `−0.83`
+where Meeus and USNO use `−0.8333`, and #104 measures the gap at
+1.6s of half-day at the equator and 3.8s at 65°N — real, too small to matter, and not the
+cause of the three-minute sunset error that issue is actually about.
 
 **What `AboveHorizon` is measured against.** _Still open, and sharper now._ It compares
 the Moon's altitude to the same threshold the scan uses, so it reports whether the Moon
@@ -385,12 +421,19 @@ than it was — the Moon must be a little higher to count as up. No caller has c
 because the reference tests do not probe the boundary case, and nothing documents which
 reading is intended.
 
-**Whether the twilight asymmetry is a contract or an accident.** _Still open._ The doc
-comment describes it confidently enough to read as a decision, and the CLI calls it "the
-single most easily missed detail in the library's contract" — which is how you describe
-something you have accepted. But the implementation's shape suggests it fell out of
-computing tomorrow separately rather than being chosen, and nothing records the choice
-being made. This is now the largest unresolved design question in the library.
+**~~Whether the twilight asymmetry is a contract or an accident.~~** _Settled: an
+accident, and an expensive one._ Nothing recorded the choice being made because no choice
+was made — the shape fell out of computing tomorrow separately, and the confident doc
+comment was the repository accepting a consequence rather than stating an intent. The
+evidence that decided it was not the argument but a measurement: at 75°N on 2025-11-26
+the two-day error threw away a real civil dusk and printed a note contradicting the dawn
+printed beside it. A contract does not produce output that disagrees with itself.
+
+The general lesson is the one this file keeps relearning: **prose describing a behaviour
+confidently is not evidence the behaviour was chosen.** Four documents stated the
+asymmetry as a rule, and the fifth statement was in the reference CLI calling it "the
+single most easily missed detail in the library's contract" — which reads as acceptance
+and was in fact accumulation.
 
 **~~Whether the v3/v4 API shrink was finished or merely paused.~~** _Settled: it was
 paused._ `solarPosition` and `solarMeanAnomalyFromCentury` were residue, and the doc
