@@ -15,10 +15,14 @@ func TestSunriseSunset(t *testing.T) {
 	}
 
 	// NYC (40.7128°N, 74.006°W) on 2024-03-20 (vernal equinox).
-	// USNO data: Sunrise ~6:57 AM EDT, Sunset ~7:11 PM EDT.
+	//
+	// USNO reference, aa.usno.navy.mil/api/rstt/oneday: Rise 06:59, Upper Transit
+	// 13:03, Set 19:09. Tolerance is 2 minutes because that is what README.md and
+	// CLAUDE.md promise for sunrise/sunset; measured margin at the time of
+	// writing is 16s on rise and 63s on set. USNO publishes to the minute.
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
 
-	tolerance := 3 * time.Minute
+	tolerance := 2 * time.Minute
 
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
 
@@ -27,8 +31,8 @@ func TestSunriseSunset(t *testing.T) {
 		t.Fatalf("SunriseSunset() returned error: %v", err)
 	}
 
-	wantRise := time.Date(2024, 3, 20, 6, 57, 0, 0, nyc)
-	wantSet := time.Date(2024, 3, 20, 19, 8, 0, 0, nyc)
+	wantRise := time.Date(2024, 3, 20, 6, 59, 0, 0, nyc)
+	wantSet := time.Date(2024, 3, 20, 19, 9, 0, 0, nyc)
 
 	if diff := event.Rise.Sub(wantRise); diff < -tolerance || diff > tolerance {
 		t.Errorf("Sunrise = %v, want %v (±%v, diff=%v)", event.Rise.Format("15:04:05"), wantRise.Format("15:04"), tolerance, diff)
@@ -184,8 +188,13 @@ func TestCivilTwilight(t *testing.T) {
 	}
 
 	// NYC (40.7128°N, 74.006°W) on 2024-03-20 (vernal equinox).
+	//
+	// USNO reference, aa.usno.navy.mil/api/rstt/oneday: End Civil Twilight 19:36
+	// on the 20th, Begin Civil Twilight 06:30 on the 21st -- Dawn is tomorrow
+	// morning's, which is this package's convention. Measured margin at the time
+	// of writing: dusk 43s, dawn 17s.
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
-	tolerance := 5 * time.Minute
+	tolerance := 2 * time.Minute
 
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
 
@@ -194,13 +203,13 @@ func TestCivilTwilight(t *testing.T) {
 		t.Fatalf("CivilTwilight() returned error: %v", err)
 	}
 
-	// Civil twilight dusk should be roughly 7:30-7:40 PM EDT (after sunset ~7:08 PM).
-	wantDusk := time.Date(2024, 3, 20, 19, 35, 0, 0, nyc)
+	// Civil twilight dusk, about half an hour after the 7:09 PM sunset above.
+	wantDusk := time.Date(2024, 3, 20, 19, 36, 0, 0, nyc)
 	if diff := event.Dusk.Sub(wantDusk); diff < -tolerance || diff > tolerance {
 		t.Errorf("Dusk = %v, want %v (±%v, diff=%v)", event.Dusk.Format("15:04:05"), wantDusk.Format("15:04"), tolerance, diff)
 	}
 
-	// Civil twilight dawn should be roughly 6:25-6:35 AM EDT next day.
+	// Civil twilight dawn the following morning.
 	wantDawn := time.Date(2024, 3, 21, 6, 30, 0, 0, nyc)
 	if diff := event.Dawn.Sub(wantDawn); diff < -tolerance || diff > tolerance {
 		t.Errorf("Dawn = %v, want %v (±%v, diff=%v)", event.Dawn.Format("15:04:05"), wantDawn.Format("15:04"), tolerance, diff)
@@ -363,7 +372,17 @@ func TestTwilight_PolarNight(t *testing.T) {
 func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 	t.Parallel()
 
-	// USNO reference: NYC 2024-03-20 nautical twilight dusk ~20:05 EDT, dawn ~05:55 EDT.
+	// NYC 2024-03-20 nautical twilight: dusk ~20:05 EDT, dawn ~05:55 EDT.
+	//
+	// These two are the only pins in this file that could NOT be corroborated
+	// against USNO: aa.usno.navy.mil publishes civil twilight in its one-day
+	// service and no nautical or astronomical equivalent, so the provenance of
+	// 20:05 and 05:55 is unverified and they are treated as a regression pin.
+	//
+	// The tolerance is 4 minutes rather than the 2 the sunrise tests hold,
+	// because a 12° depression amplifies declination error: measured margin at
+	// the time of writing is 2m15s on dusk and 2m42s on dawn. That is twilight's
+	// own tolerance, not a looser reading of sunrise's -- see CLAUDE.md.
 	nyc, err := time.LoadLocation("America/New_York")
 	if err != nil {
 		t.Fatalf("failed to load timezone: %v", err)
@@ -371,7 +390,7 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 
 	date := time.Date(2024, 3, 20, 0, 0, 0, 0, nyc)
 	obs := mustObserver(t, 40.7128, -74.006, nyc)
-	tolerance := 10 * time.Minute
+	tolerance := 4 * time.Minute
 
 	nautical, err := NauticalTwilight(date, obs)
 	if err != nil {
