@@ -127,6 +127,44 @@ present as an algorithm bug rather than a day-boundary bug, which is the expensi
 find out. Each site names the other convention and says why it differs; that is the
 cheapest available guard.
 
+### The two solar boundaries are solved separately, and only half-corrected
+
+The NOAA method gives one hour angle per day and invites you to apply it both ways:
+`jTransit ∓ omega/360`. That is what this package did through v5.0.0, and it embeds an
+assumption the sky does not honour — that the Sun's declination is the same at sunrise as at
+sunset. Near an equinox declination moves about 0.4° a day, so the afternoon half-day really
+is shorter than the morning, and a mirrored construction reports the two as equal **to the
+second, by definition**. It cannot represent the asymmetry at all, which is a stronger
+statement than being inaccurate about it.
+
+v5.1.0 re-solves each boundary against the declination at its own estimated instant.
+`solarParams` carries the two time bases it was computed from so the second solve sits on
+the same footing rather than inventing a second convention — getting that wrong was the
+first prototype's bug, and it presented as a plausible-looking half-fix rather than as an
+error.
+
+**Three things about this are load-bearing.**
+
+It is deliberately partial, and the code says so where it happens. Measured against USNO
+across twelve place/date pairs, worst-case sunset falls from 176s to 115s — but Oslo's true
+skew is −180s and this reports −86s. The remainder needs the hour angle measured against the
+Sun's own right ascension rather than a transit computed once for the day, which means
+solving `altitude(t) = h0` the way `MoonriseMoonset` already does. That is filed, not
+forgotten.
+
+**Sunrise got worse, and that was accepted knowingly.** The mirrored construction put the
+entire error on sunset, which left sunrise accidentally accurate; correcting the geometry
+distributes it. Oslo's sunrise went from −3s to −47s. A maintainer who measures only sunrise
+will read this as a regression and be half right — the model improved and that output did
+not. The same trade was made in v4.1.0 when the lunar parallax fix moved every moonrise
+later.
+
+`refineOmega`'s fallback is the one approximation in the path. When the refined declination
+puts a boundary out of reach on a day whose first pass said the Sun crosses, it keeps the
+first estimate rather than reporting a state the day does not have. The alternative is a
+boundary that vanishes and reappears across a degree of latitude, which is worse than being
+slightly wrong at the one place the answer is hardest to defend anyway.
+
 ### The two bodies have opposite horizon thresholds, and the Moon's is positive
 
 The Sun is _seen_ to rise while geometrically below the horizon: refraction lifts it by
@@ -374,6 +412,14 @@ threshold is per-body — a constant for the Sun, a distance-dependent function 
 Moon — rather than a parameter. Adding planets means generalising the position source,
 the threshold and the day-scan together: a rewrite of the interior, not an addition.
 
+**The solar accuracy budget is now seconds, not minutes, and that changes what the
+architecture can afford.** `THEORY.md` has defended the nutation asymmetry — full nutation
+for the Moon, mean obliquity alone for the Sun — on the grounds that the NOAA method's 1–2
+minute budget does not earn the nutation terms back. After v5.1.0 the worst solar
+disagreement is 115 seconds and the remainder is a modelling gap rather than noise. The
+defence still holds today; it will not hold after the residual asymmetry is closed, and
+whoever closes it should expect to revisit that trade rather than assume it.
+
 **Sub-minute precision is partly there and partly not.** Interpolation removed the
 one-minute quantization from the _reported_ instant, and the result agrees with USNO
 within 32 seconds across a 28-event sample. What the minute scan still cannot do is
@@ -402,15 +448,18 @@ Settled entries are kept, struck through, with what settled them — a resolved 
 is worth more than a deleted one, because it tells the next reader the question was asked
 and answered rather than never noticed.
 
-**Whether the solar `−0.83` was chosen or inherited.** _Still open._ It is the standard
-Meeus `h0` for the Sun — refraction plus semidiameter — and it is right. The lunar
-constant that sat beside it was demonstrably the solar value given a lunar-sounding
-justification after the fact, so one of the two was copied; that one is now fixed, but I
-still cannot tell from the code whether the solar figure was arrived at independently or
-happens to be correct for the same borrowed reason. Sharper since: the value is `−0.83`
-where Meeus and USNO use `−0.8333`, and #104 measures the gap at
-1.6s of half-day at the equator and 3.8s at 65°N — real, too small to matter, and not the
-cause of the three-minute sunset error that issue is actually about.
+**~~Whether the solar `−0.83` was chosen or inherited.~~** _Settled: inherited, and wrong
+in the last digit._ It was `−0.83` where Meeus and USNO use `−0.8333`, and v5.1.0 corrected
+it. The lunar constant that once sat beside it was demonstrably the solar value given a
+lunar-sounding justification after the fact; this one turns out to have been the solar value
+mis-transcribed. Both were copied rather than derived, which answers the question the entry
+was really asking.
+
+The measurement is the interesting part: corrected **on its own** the constant made things
+very slightly worse — a lower horizon means a later sunset, and sunset was already late, so
+68°N went from +176s to +178s. A change can be correct and unhelpful at the same time, and
+the only way to know which you have is to measure it separately from everything shipping
+beside it.
 
 **What `AboveHorizon` is measured against.** _Still open, and sharper now._ It compares
 the Moon's altitude to the same threshold the scan uses, so it reports whether the Moon
