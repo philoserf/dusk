@@ -254,8 +254,9 @@ func summary(report Report) []string {
 
 	// The name and the percentage are the whole phase. Whether it is waxing
 	// carries in the name where it matters ("Waning Crescent") and is obvious
-	// from the percentage where it does not; the JSON keeps the flag for
-	// anything that wants to branch on it.
+	// from the percentage where it does not. This comment used to end by noting
+	// that the JSON kept a Waxing flag anyway, for anything that might want to
+	// branch on it; v5.0.0 took that reasoning at its word and removed it.
 	// Whole percent: the library documents illumination as within 1-2% of
 	// published values, so a tenth of a percent claims twenty times the
 	// accuracy the number has.

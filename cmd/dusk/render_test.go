@@ -40,7 +40,7 @@ func sampleReport() Report {
 			{Name: "Astronomical", degrees: 18, Dawn: at(3, 45), Dusk: at(23, 43), Night: "4h02m"},
 		},
 		Moon:  MoonReport{Rise: at(2, 37)},
-		Phase: PhaseReport{Name: "Waning Crescent", Illumination: 23.9, DaysApprox: 24.7},
+		Phase: PhaseReport{Name: "Waning Crescent", Illumination: 23.9, Elongation: 301.2},
 	}
 }
 

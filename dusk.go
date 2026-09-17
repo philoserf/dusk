@@ -160,11 +160,16 @@ type TwilightEvent struct {
 }
 
 // LunarPhaseInfo describes the Moon's current phase.
+//
+// Two fields published until v5.0.0 were restatements of Elongation and are
+// recovered in one expression each: the Moon is waxing when Elongation < 180,
+// and a linear estimate of days into the lunation is Elongation / 360 * 29.53059.
+// That estimate is why DaysApprox went: elongation does not advance linearly in
+// time, so the number was not the lunation age its name promised, and a caller
+// who writes the expression at least chooses the approximation knowingly.
 type LunarPhaseInfo struct {
 	Illumination float64 // percentage 0-100
 	Elongation   float64 // degrees 0-360
-	DaysApprox   float64 // rough days into lunation (linear estimate from elongation)
-	Waxing       bool    // true from New Moon to Full Moon (elongation 0-180)
 	Name         string  // "New Moon", "Waxing Crescent", etc.
 }
 
