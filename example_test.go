@@ -59,7 +59,7 @@ func ExampleSunriseSunset_polar() {
 
 	if summer.Horizon == dusk.StaysAbove {
 		fmt.Printf("Midnight sun — no sunrise or sunset, solar noon %s\n",
-			summer.Noon.Format("15:04"))
+			summer.Noon.Round(time.Minute).Format("15:04"))
 	}
 
 	// Tromsø on December 21 — polar night
@@ -76,16 +76,19 @@ func ExampleSunriseSunset_polar() {
 	// not a failure to produce one, so the rest of the day is still reported.
 	if winter.Horizon == dusk.StaysBelow {
 		fmt.Printf("Polar night — sun never rises, solar noon %s\n",
-			winter.Noon.Format("15:04"))
+			winter.Noon.Round(time.Minute).Format("15:04"))
 	}
-	// USNO for Tromsø: Upper Transit 12:46 on 2024-06-21. It publishes no
-	// transit for 2024-12-21 (the Sun is continuously below the horizon), but it
-	// publishes civil twilight at 09:32 and 13:53, and transit bisects them by
-	// construction -- 11:42:30, which is the second value below. Both print a
-	// minute early through Format("15:04"), as elsewhere.
+	// USNO for Tromsø: Upper Transit 12:46 on 2024-06-21. It publishes no transit
+	// for 2024-12-21 (the Sun is continuously below the horizon), but it does
+	// publish civil twilight at 09:32 and 13:53, and transit bisects them by
+	// construction -- 11:42:30.
+	//
+	// Round before formatting. "15:04" truncates, and the library returns true
+	// instants: 12:45:57 would print as 12:45, a minute below the reference it
+	// is four seconds from.
 
 	// Output:
-	// Midnight sun — no sunrise or sunset, solar noon 12:45
+	// Midnight sun — no sunrise or sunset, solar noon 12:46
 	// Polar night — sun never rises, solar noon 11:42
 }
 
@@ -114,10 +117,14 @@ func ExampleSunriseSunset() {
 		return
 	}
 
-	fmt.Printf("Sunrise: %s\n", sun.Rise.Format("15:04"))
-	fmt.Printf("Sunset:  %s\n", sun.Set.Format("15:04"))
+	fmt.Printf("Sunrise: %s\n", sun.Rise.Round(time.Minute).Format("15:04"))
+	fmt.Printf("Sunset:  %s\n", sun.Set.Round(time.Minute).Format("15:04"))
+	// USNO publishes 06:04 and 21:25 for this date and place; the library
+	// computes 06:03:46 and 21:25:09, margins of 14s and 9s. Both agree once
+	// rounded -- truncating would report the sunrise as 06:03.
+
 	// Output:
-	// Sunrise: 06:03
+	// Sunrise: 06:04
 	// Sunset:  21:25
 }
 
@@ -163,15 +170,16 @@ func ExampleTwilight() {
 	}
 
 	// Dawn first: both boundaries are on the queried day, in clock order.
-	fmt.Printf("Dawn: %s\n", tw.Dawn.Format("15:04"))
-	fmt.Printf("Dusk: %s\n", tw.Dusk.Format("15:04"))
+	fmt.Printf("Dawn: %s\n", tw.Dawn.Round(time.Minute).Format("15:04"))
+	fmt.Printf("Dusk: %s\n", tw.Dusk.Round(time.Minute).Format("15:04"))
 	// USNO publishes 04:31 and 21:52 for this date and place; the library
-	// computes 04:30:50 and 21:51:26, margins of 10s and 34s. Format("15:04")
-	// truncates rather than rounds, so both print a minute early -- the same
-	// rendering issue ExampleMoonriseMoonset notes.
+	// computes 04:30:50 and 21:51:26, margins of 10s and 34s. Dawn agrees once
+	// rounded; dusk is 34 seconds short of the minute and rounds down, which is
+	// the reference's own rounding rather than an error here -- USNO publishes
+	// to the minute too.
 
 	// Output:
-	// Dawn: 04:30
+	// Dawn: 04:31
 	// Dusk: 21:51
 }
 
@@ -200,17 +208,17 @@ func ExampleMoonriseMoonset() {
 	}
 
 	if !evt.Rise.IsZero() {
-		fmt.Printf("Moonrise: %s\n", evt.Rise.Format("15:04"))
+		fmt.Printf("Moonrise: %s\n", evt.Rise.Round(time.Minute).Format("15:04"))
 	}
 
 	if !evt.Set.IsZero() {
-		fmt.Printf("Moonset:  %s\n", evt.Set.Format("15:04"))
+		fmt.Printf("Moonset:  %s\n", evt.Set.Round(time.Minute).Format("15:04"))
 	}
 	// USNO publishes 10:11 and 22:07 for this date and place; the library computes
-	// 10:10:53 and 22:06:59. Format("15:04") truncates rather than rounds, so both
-	// print one minute early despite being within ten seconds of the reference.
+	// 10:10:53 and 22:06:59 -- seven seconds and one second from the reference.
+	// Rounding is what lets that show: truncating printed both a minute early.
 
 	// Output:
-	// Moonrise: 10:10
-	// Moonset:  22:06
+	// Moonrise: 10:11
+	// Moonset:  22:07
 }

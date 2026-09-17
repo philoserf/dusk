@@ -155,6 +155,66 @@ func TestRenderTextMarksEventsOnTheNextDay(t *testing.T) {
 	}
 }
 
+// TestRenderTextRoundsBeforeDeciding covers the one place rounding and the
+// day-marker interact. An event at 23:59:45 on the reported day rounds to 00:00
+// on the next one, so the rounding has to happen before the day comparison --
+// otherwise the reader is shown a midnight that the marker says is today.
+func TestRenderTextRoundsBeforeDeciding(t *testing.T) {
+	t.Parallel()
+
+	report := sampleReport()
+	report.Sun.Set = time.Date(2025, 6, 21, 23, 59, 45, 0, time.UTC)
+	report.Twilight = nil
+
+	var buf bytes.Buffer
+
+	err := renderText(&buf, report)
+	if err != nil {
+		t.Fatalf("renderText: %v", err)
+	}
+
+	labels := timelineLabels(t, buf.String())
+	if len(labels) == 0 {
+		t.Fatalf("no timeline rows were printed:\n%s", buf.String())
+	}
+
+	last := labels[len(labels)-1]
+	if last != "00:00 Sunset (22 Jun)" {
+		t.Errorf("last event = %q, want the rounded midnight marked as the next day", last)
+	}
+}
+
+// TestRenderTextRoundsRatherThanTruncates pins the change itself: "15:04" drops
+// the seconds, so a time 45 seconds into a minute belongs to the next one.
+func TestRenderTextRoundsRatherThanTruncates(t *testing.T) {
+	t.Parallel()
+
+	report := sampleReport()
+	report.Sun.Rise = time.Date(2025, 6, 21, 6, 3, 46, 0, time.UTC)
+	report.Twilight = nil
+
+	var buf bytes.Buffer
+
+	err := renderText(&buf, report)
+	if err != nil {
+		t.Fatalf("renderText: %v", err)
+	}
+
+	labels := timelineLabels(t, buf.String())
+
+	var found string
+
+	for _, l := range labels {
+		if strings.HasSuffix(l, "Sunrise") {
+			found = l
+		}
+	}
+
+	if found != "06:04 Sunrise" {
+		t.Errorf("sunrise row = %q, want 06:04 -- 06:03:46 rounds up, it does not truncate", found)
+	}
+}
+
 // TestRenderTextConditions checks the prose that the timeline cannot carry:
 // why an event is missing rather than merely absent.
 func TestRenderTextConditions(t *testing.T) {

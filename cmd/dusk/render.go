@@ -12,7 +12,10 @@ import (
 	"github.com/philoserf/dusk/v5"
 )
 
-// clockLayout is how times of day are printed in the text report.
+// clockLayout is how times of day are printed in the text report. Times are
+// rounded to it rather than truncated -- see timeline. The JSON report keeps the
+// seconds: it is the machine-readable answer, and the two are allowed to differ
+// by up to half a minute on the same event.
 const clockLayout = "15:04"
 
 // headingLayout spells the date the way a person reads it.
@@ -89,16 +92,22 @@ func timeline(report Report) []dayEvent {
 	// a mistake, so the day it lands on is said out loud.
 	day := report.date.Day()
 
-	add := func(at time.Time, label string) {
-		if at.IsZero() {
+	add := func(when time.Time, label string) {
+		if when.IsZero() {
 			return
 		}
 
-		if at.Day() != day {
-			label += " (" + at.Format("2 Jan") + ")"
+		// Round here rather than at the Format call below, so the day check and
+		// the reader see the same value. A 23:59:45 sunset rounds to 00:00 and
+		// belongs to tomorrow; comparing the unrounded instant would print it as
+		// today's, with no marker and no way to tell.
+		when = when.Round(time.Minute)
+
+		if when.Day() != day {
+			label += " (" + when.Format("2 Jan") + ")"
 		}
 
-		events = append(events, dayEvent{at: at, label: label})
+		events = append(events, dayEvent{at: when, label: label})
 	}
 
 	add(report.Sun.Rise, "Sunrise")
