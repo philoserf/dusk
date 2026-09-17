@@ -1,301 +1,335 @@
 # THEORY.md
 
-A Naur-style theory of `dusk`: not what the files contain, but what you have to be
-holding in your head to change them without breaking something that currently works.
+What a maintainer needs to hold in mind to change `dusk` without damaging it. Not a
+tour of the files — `WALKTHROUGH.md` does that, following the call chain. This document
+answers the other question: which of the decisions here are load-bearing, which are
+conventional, and which are still contested.
 
 ## What this models
 
-The Earth turns, and an observer standing on it watches two bodies cross a horizon.
-That is the entire domain. Everything in the package is an answer to one of three
-questions about a particular place on a particular day: when does the Sun cross a given
-depth below the horizon, when does the Moon cross the horizon, and how much of the Moon
-is lit.
+`dusk` models one observer looking at one sky on one day.
 
-The vocabulary is Meeus's, taken from _Astronomical Algorithms_ and used as if its
-meanings were settled, because within this package they are. A **depression angle** is
-degrees below the geometric horizon, positive downward; the three twilight bands are
-just that number fixed at 6, 12 and 18. **Elongation** is the Sun-Moon angle seen from
-Earth, running 0 to 360 with waxing on the first half. **Hour angle** is how far west of
-the meridian a body has travelled, in degrees. The **Julian date** is the continuous day
-count everything is computed in, and **J2000** — Julian date 2451545.0, noon UT on 1
-January 2000 — is the zero the polynomials are written around. When you see a bare `T`
-it is Julian centuries since J2000; a bare `J` is days since J2000. Those two are not
-interchangeable and the package has been bitten by their confusion before: `solar.go`
-carries both `solarMeanAnomaly(J)` and `solarMeanAnomalyFromCentury(T)`, computing the
-same physical quantity from different units, because the solar path has days in hand and
-the lunar path has centuries.
+The domain has three entities and they are not symmetric. There is a **place** — a
+latitude, a longitude, and a civil timezone, which the code calls an `Observer`. There
+is a **day**, which is a civil calendar date in that place's zone, not an interval and
+not an instant. And there are **events**: moments when the Sun or the Moon crosses a
+particular altitude, as seen from that place, on that day.
 
-The core entity is the `Observer`: a latitude, a longitude, and a `*time.Location`. It is
-not a container of three numbers, it is a **validated** container of three numbers, and
-that distinction is the package's smallest and most consequential design decision. See
-"Validate once" below.
+The asymmetry that shapes everything: the Sun's crossings are computable in closed
+form, and the Moon's are not. The Sun's position is a short polynomial chain — mean
+anomaly, equation of centre, ecliptic longitude, declination — and the two boundaries
+of the day fall out symmetrically around transit by one arccosine. The Moon needs
+Meeus's Chapter 47 series, sixty periodic terms for longitude and sixty more for
+latitude, and there is no algebraic way to ask when it will cross the horizon. So the
+code walks the day one minute at a time and watches for the altitude to change sign.
 
-The four result types — `SunEvent`, `MoonEvent`, `TwilightEvent`, `LunarPhaseInfo` — are
-deliberately inert. They have no methods (v4 removed the `String()` methods they briefly
-had), no computed accessors, and no behaviour. They are the boundary at which this
-package stops having opinions.
+That single fact — closed form on one side, search on the other — is why the two halves
+of this library look as different as they do, and it is the first thing to check any
+proposed unification against.
+
+A third entity sits apart from both. Lunar **phase** is Sun–Earth–Moon geometry, so it
+has no observer and no day: it is a property of an instant, the same for everyone alive.
+`LunarPhase` is correspondingly the only entry point that takes neither an `Observer`
+nor a calendar day, and it is not an oversight.
 
 ## The organizing ideas
 
-### Degrees, all the way down, and one place that converts
+### Degrees all the way down
 
-Meeus's formulae are written in degrees. Go's `math` is written in radians. Rather than
-convert at each call site, `trig.go` wraps the six trig functions the package needs so
-that every angle in every other file is in degrees — `sinx`, `cosx`, `tanx`, `asinx`,
-`acosx`, `atan2x`, plus `sincosx` for the coefficient loops that need both. There is no
-radian anywhere outside `trig.go`. This is why the coefficient tables can be transcribed
-from the book without a conversion pass and checked against the printed page, and it is
-why introducing a raw `math.Sin` into `lunar.go` would be a silent, catastrophic bug
-rather than a compile error. Keep the discipline absolute.
+Meeus writes in degrees; Go's `math` writes in radians. Rather than convert at each of
+several hundred call sites, `trig.go` wraps every trig function the package uses, and
+**there is no radian anywhere outside that file**. A maintainer who adds a bare
+`math.Sin` to `solar.go` has not introduced a unit bug that a test will catch cleanly —
+they have introduced a number that is wrong by a factor of 57 and will look like an
+astronomy error.
 
-`mod360` and `mod24` are the other half of the same idea: an angle that has been added
-to or subtracted from is normalised at the point it becomes a result, not left to a
-consumer. Almost every helper in `epoch.go` and `lunar.go` returns through one of them.
-The one place this discipline lapses is azimuth (see the seam below).
+The second half of the discipline is normalisation: an angle that has been added to or
+subtracted from passes through `mod360` (or `mod24` for hours) at the point it becomes
+a return value, not at the point it is consumed. This is **a convention, not an
+enforced invariant**. Nothing checks it; it holds because every function that returns an
+angle currently calls it.
 
-`clamp` is the third piece and the most interesting, because its own comment argues
-against it:
+There is exactly one exception, and it is instructive. `equatorialToHorizontal` returns
+an azimuth that skips normalisation, and the pole guard inside it can produce 360°. The
+reason nobody has been bitten is that nothing reads the field — which is the real
+finding, and the reason the repository's answer is to delete the azimuth rather than
+normalise it.
 
-> Note: it also silently clamps genuinely wrong values (e.g., a miscalculated 1.3 → 1),
-> which could mask upstream bugs. Correctness is validated by test coverage against
-> Meeus and USNO reference data rather than runtime detection.
+`clamp` belongs to this layer too, and its own doc comment argues against it. It pins
+values to `[-1, 1]` before `asin` and `acos` so that floating-point drift in a long
+degree-mode chain cannot produce NaN — at the price of silently absorbing a genuinely
+wrong 1.3. The package accepts that trade explicitly and pays for it with reference-data
+tests rather than runtime detection. **Weakening those tests is therefore more dangerous
+here than a coverage number suggests**, because they are the only thing standing where
+an assertion would otherwise stand.
 
-That is a deliberate trade and it names its own cost. `asin` and `acos` receive values
-that ought to lie in [-1, 1] but arrive there through long chains of degree-mode trig,
-and rounding puts them at 1.0000000000000002 often enough to matter. Clamping turns a
-NaN that would propagate through the whole result into a correct answer. The price is
-that a real error of the same shape is also absorbed. The package pays it, and pays for
-it with reference-data tests — which is why weakening those tests is more dangerous here
-than the coverage number alone suggests.
+### Validate once at construction, range-check at every entry
 
-### Validate once, at construction
+Two invariants, two different enforcement points, and confusing them is how a
+maintainer adds redundant checks or removes necessary ones.
 
-`NewObserver` is the only way to get a usable `Observer`: it rejects a nil location,
-NaN and Inf coordinates, and out-of-range latitude or longitude, and its fields are
-unexported so the checks cannot be bypassed. Every public entry point then calls
-`validObserver`, which tests one thing — is `loc` nil — because a zero-value `Observer`
-is the only invalid one the type system still permits. That is the whole invariant:
-**an `Observer` with a non-nil location has already been fully validated**. It is why
-`SunriseSunset` does not re-check for NaN, why the benchmark file can build one at
-package scope and discard the error, and why the fuzz targets can treat a
-`NewObserver` failure as "not a case worth exploring" and return.
+Coordinates are validated **once**, in `NewObserver`. Latitude in range, longitude in
+range, neither NaN nor infinite, location non-nil. The fields are unexported, so a
+validated `Observer` is the only kind that can be built — with one hole: `dusk.Observer{}`
+is still spellable by a caller. `validObserver` exists solely to close it, testing
+`loc == nil` at every public entry point. That is the one interior re-check in the
+package, and it is not defensive programming; it is the cost of Go having no way to
+forbid the zero value.
 
-The parallel invariant on the time axis is `validJulianDateRange`. `julianDate` computes
-through `UnixNano`, which is undefined outside roughly 1677-2262 — and, as its comment
-is careful to say since issue #54, undefined means _an arbitrary wrong number_, not zero
-and not a sentinel. So every public entry point range-checks before computing, and
-`MoonriseMoonset` checks three times: the caller's instant, and both derived local
-midnights, because the conversion can push a boundary date over the edge.
+Dates are validated **every time**, and for a different reason. `julianDate` goes
+through `UnixNano`, which is undefined outside roughly 1677–2262 — and undefined here
+means _an arbitrary wrong number_, not zero and not a sentinel, so nothing downstream
+could detect it. Hence `validJulianDateRange` at every public entry, and three times
+inside `MoonriseMoonset`: the caller's instant plus both derived local midnights,
+because converting to local time can push a boundary date over the edge. The sentinel
+for this lives in `epoch.go` beside the check rather than with the other sentinels in
+`dusk.go`, deliberately.
 
-### A day is resolved in the observer's zone — and then two things happen to it
+### A day is resolved in the observer's zone — and then two different things happen to it
 
-This is the subtlety that costs the most when it is missed, and the reference CLI
-comments on it twice because of that. All the day-based entry points begin the same way:
+This is the subtlety that costs the most when it is missed, and the repository has paid
+for it more than once.
 
-```go
-localDate := date.In(obs.loc)
-```
+Every day-based entry point begins by resolving the caller's `time.Time` to a calendar
+date **in the observer's zone** and discarding the time of day. So passing a
+`time.UTC` midnight with a Detroit observer selects the previous day, silently, and
+returns entirely plausible times for it. Three of the library's own README examples were
+wrong in exactly this way before v4.0.0. The rule "callers must build dates in the
+observer's timezone" is written in four places; it is a convention the type system does
+not express, which is the standing complaint against it.
 
-The time of day is then discarded. Only the calendar date survives, and which calendar
-date that is depends on the observer's zone — so a caller who builds `time.Date(...,
-time.UTC)` and hands it to an observer in Detroit gets the previous day, silently, with
-entirely plausible times. `cmd/dusk` anchors its parsed `--date` at **midday** in the
-observer's zone rather than midnight for a second-order version of the same trap: a few
-zones (`America/Santiago` in September, `America/Havana` in March) have no 00:00 on
-transition days, and Go resolves the missing hour backwards into the previous day.
+What happens **after** the date is extracted is where the halves part company, and both
+answers are correct:
 
-What happens _after_ the calendar date is extracted is where the two halves of the
-package part company, and the split is principled rather than accidental:
-
-- **The solar path** rebuilds the day as UTC midnight:
-  `time.Date(y, m, d, 0, 0, 0, 0, time.UTC)`. It does not want the observer's offset.
-  The NOAA method it implements takes an integer day number (`julianDay` rounds
-  `JD - J2000` to the nearest integer) and applies the longitude correction itself, in
-  `meanSolarTime`, as `n - lon/360`. Handing it a true local midnight would apply the
-  observer's longitude twice, once through the zone and once through the formula.
+- **The solar path** rebuilds the day as UTC midnight. It must, because `meanSolarTime`
+  applies the observer's longitude itself, after `julianDay` has rounded to an integer
+  day number. Hand it a zone-adjusted instant and the longitude is applied twice.
 - **The lunar path** rebuilds the day as true local midnight in `obs.loc` and converts
-  to UTC, and computes the next local midnight the same way. It needs real instants,
-  because it is going to walk the day one minute at a time and ask for the Moon's
-  altitude at each. It also needs the real _length_ of the day: the scan runs
-  `int(nextMidnight.Sub(d).Minutes())` iterations, which is 1380 on a spring-forward
-  day and 1500 on a fall-back day, not a hard-coded 1440.
+  to UTC, and computes the next local midnight the same way. It must, because it walks
+  the day minute by minute and needs the real _length_ of the day: 1380 minutes on a
+  spring-forward day, 1500 on a fall-back day, not a hard-coded 1440.
 
-If you unify those two, you break one of them. The comment in
-`greenwichMeanSiderealTime` — "Do not 'simplify' by passing t here" — is the same
-warning about the same class of mistake one layer down.
+**This is the single most dangerous-looking duplication in the codebase.** The same
+extraction opens all three day-based entry points — verbatim at the two solar sites, and
+as the local-midnight variant at the lunar one — and a maintainer consolidating them into
+one helper will pick one convention and silently break the other half. The reference tests
+will catch it — and the failure will present as an algorithm bug, not a day-boundary
+bug, which is the expensive way to find out. Only the lunar site explains its own
+choice; neither mentions the other.
 
-### Two vocabularies for "this did not happen"
+### Two carriers for "this did not happen", and the choice is contested
 
 The package distinguishes an event that is _geometrically impossible_ from one that
-merely _did not fall inside this calendar day_, and it uses different mechanisms for
-each, on purpose.
+merely _did not fall inside this calendar day_. That distinction is real and worth
+keeping: at 70°N in December the Sun does not rise at all, while the Moon routinely
+rises on Tuesday and sets on Wednesday because a lunar day runs about 24h50m.
 
-**Sentinel errors** say the geometry forbids it. `solarHourAngle` computes the cosine of
-the hour angle and, when it falls outside [-1, 1], returns `ErrCircumpolar` (the Sun
-never gets down to the angle) or `ErrNeverRises` (never gets up to it). At a depression
-angle these mean something a reader will get backwards on first contact, which is why
-`cmd/dusk/report.go` writes it down: at 18° below the horizon, "circumpolar" means the
-night never gets that dark, and "never rises" means the day never gets that light.
+Where the theory is under challenge is that the two meanings are carried by two
+different **mechanisms**. The Sun uses an error — `ErrCircumpolar` or `ErrNeverRises`
+returned in place of the whole result. The Moon uses a value — a zero `time.Time` for
+the crossing that did not happen, plus `AboveHorizon` to say which side of the horizon
+it was on.
 
-**A zero `time.Time`** says the event did not occur today. `MoonriseMoonset` never
-returns a polar sentinel — a lunar day is about 24h50m, so the Moon routinely rises
-without setting before local midnight at any latitude at all, and that is not an error
-anywhere. It returns a zero `Rise` or `Set`, plus `AboveHorizon` to say which side of the
-horizon the Moon started the day on. Without that flag, "no rise and no set" is
-ambiguous between up-all-day and down-all-day, and `cmd/dusk`'s `moonCondition` needs
-exactly that distinction to choose between "stays above the horizon all day" and
-"neither rises nor sets today".
+The evidence against the split is that the only consumer reverses it. `cmd/dusk`
+declares a `horizonState` type, a translator from the sentinels, a state field threaded
+through two report structs, a wrapper whose whole job is separating expected polar
+geometry from genuine failure, and two prose tables keyed on the state — roughly sixty
+lines undoing a decision the library made about how to carry three outcomes. A second
+consumer would write them again. And the error path destroys a valid result on the way
+out: `computeSolarParams` has already produced the Julian date of solar transit, which
+is well defined on every day at every latitude, and `SunriseSunset` discards it with
+everything else. Solar noon happens during the polar night; the library knows when, and
+throws it away.
 
-### `TwilightEvent` is asymmetric, and every consumer pays for it
+Hold both readings. The distinction is principled; the carrier is not settled.
 
-`CivilTwilight(date, obs)` returns **tonight's** dusk and **tomorrow morning's** dawn.
-It is not a symmetric bracket around the night you asked about; it is the night that
-_starts_ on the date you asked about. To get this morning's dawn you call with
+### `TwilightEvent` is asymmetric, and every consumer pays
+
+`Twilight(D).Dusk` is the evening of day D. `Twilight(D).Dawn` is the morning of day
+**D+1**. The doc comment says so, and tells callers wanting this morning's dawn to pass
 yesterday's date.
 
-The implementation makes this unavoidable rather than incidental: `twilight` computes
-solar parameters twice, once for `date` and once for `date.AddDate(0, 0, 1)`, and
-returns an error if _either_ day's hour angle is impossible. Near 65-70°N there are
-transition dates where tonight's dusk is real and tomorrow's dawn is not, and the whole
-call fails.
+Two things follow that a maintainer should know before touching the twilight path.
+First, the implementation computes the whole solar parameter chain twice — once for
+today's dusk and once for tomorrow's dawn — where `SunriseSunset` takes both boundaries
+from one day's transit. Second, the error is all-or-nothing across two days of geometry:
+near 65–70°N there are transition dates where tonight's dusk is real and tomorrow's dawn
+is not, and the entire call fails. The doc comment's advice to compute each boundary
+separately is an admission that the type is wrong for that case.
 
-`cmd/dusk` is the worked example of living with this, and its comments are the clearest
-statement of the contract anywhere in the repository: each band is computed twice, dawn
-taken from yesterday's call and dusk from today's, with yesterday's _state_ deliberately
-discarded because it describes a night the report is not about. The v4 changelog records
-what happened when it was not discarded — a polar transition day printed "twilight never
-arrives" directly above a real civil dusk time.
+The reference CLI pays both costs visibly: it calls each of the three bands twice, once
+with yesterday's date for the dawn and once with today's for the dusk, and discards half
+of each result. Three rendered bands cost six library calls and twelve hour angles where
+three would do.
 
-### `LunarPhase` is the exception to every rule above
+### The gate is where the theory is enforced — and where it is not
 
-It takes no `Observer`, because the Moon shows the same face to the whole Earth. It uses
-the exact instant rather than the calendar day, because phase changes continuously. It
-is the only public function whose answer does not depend on where you are standing. When
-you are reasoning about "what do all the entry points do", `LunarPhase` is not one of
-them.
+`task` is the whole of quality control, and CI runs exactly it. Never a check in CI the
+local gate does not run; never a tool in the gate the workflow does not install. The
+toolchain is deliberately unpinned, so a red gate on untouched code is the signal
+working rather than a failure to manage.
+
+What the gate actually holds:
+
+- **Formatting, in two halves.** gofumpt and goimports run inside golangci-lint for Go;
+  prettier runs as `task docs` for Markdown and JSON. Both are declared in the
+  repository rather than left to an editor, which is what makes them reproducible.
+- **`default: all`, disabling only what fights this design** — and each disable carries
+  a measured finding count and a reason, which is the file's own stated bar for adding
+  another. Three of them (`mnd`, `exhaustruct_v5`, `gochecknoglobals`) exist because
+  transcribed Meeus coefficients, staged result structs and immutable tables are what
+  this package is made of.
+- **Coverage as a ratchet, not a percentage.** `coverage.ratchet` records uncovered
+  statements per package and the gate diffs against it, so it fails in both directions
+  and on a package appearing or vanishing. An integer because a percentage holds still
+  while a guarded branch adds one covered statement and one uncovered, and grows more
+  forgiving as the repository grows. A moved count is often a reflow rather than lost
+  coverage — blank lines split coverage blocks — so read the diff before believing it.
+- **The published examples compile and their output is asserted.** `example_test.go`
+  pins real times for Grand Rapids, Tromsø, Seattle and New York, which is why there is
+  no `paths-ignore` on the workflow: a documentation-only push can break an example.
+
+What the gate does **not** hold is the more useful list, because it is where drift
+actually lives. Nothing compares the README's stated Go minimum against `go.mod`.
+Nothing compares the twilight depression angles the CLI prints against the ones the
+library uses — they are literals in two modules. Nothing checks a snippet in
+`WALKTHROUGH.md` against the source it was quoted from. And the solar tests do not
+enforce the 1–2 minute accuracy the README promises; their tolerances run 3, 5 and 10
+minutes, and one of the two values labelled USNO is the library's own output.
+
+**Every one of those gaps is a claim a document makes that no check can falsify.** That
+is the shape of defect this repository produces, and the reason its standing documents
+are re-read at release rather than trusted.
+
+### `cmd/dusk` is an executable specification
+
+It is not a product, and reading it as one leads to the wrong changes. Its purpose is
+that every exported function has a caller and every documented edge case is reachable
+with a single flag — so the CLI is where the library's contract is demonstrated to be
+usable, and where its awkwardness shows up first.
+
+Its exit contract is part of the specification: **polar geometry is a result, so the
+report renders and exits 0.** Only a misused command line and an out-of-range date exit
+1, and they are distinguished by the message (`usage:` versus `unsupported date:`)
+rather than by the status. `main` is four lines; everything testable lives in a `run`
+that takes its streams as parameters, which is what keeps every branch reachable from a
+test.
+
+Read the other way, the CLI is the library's bug report. Three of the sharpest open
+findings are things it had to work around: the seven-line comment in `parseDate`
+explaining why the date is anchored at midday, the `horizonState` machinery, and the
+double twilight call.
 
 ## The seams
 
-**Between the package and the world**: `NewObserver` and the six exported sentinel
-errors. That is the whole surface for failure. Callers are expected to use `errors.Is`,
-which the sentinels support by being constants of an unexported `stringError` string
-type — immutable, unlike anything from `errors.New`.
+**Solar/lunar** is principled. Closed form versus series-plus-search is a real
+difference in the mathematics, and it justifies the separate files, the separate
+day-construction, and the 1–2 ms per moonrise call. Do not try to unify them.
 
-**Between the two halves of the astronomy**: `epoch.go`. Julian dates, sidereal time,
-nutation, obliquity, and the two coordinate conversions are the shared floor that
-`solar.go` and `lunar.go` both stand on. The seam is real but not symmetric, and the
-asymmetry is the intentional kind: `eclipticToEquatorial` applies full nutation, both
-Δψ and Δε, while `solarDeclination` uses mean obliquity alone. That is not an oversight
-to be tidied. The sunrise path is the NOAA simplified method, whose accuracy budget is
-1-2 minutes and which does not earn back the nutation terms; the lunar path is the full
-Chapter 47 series and does.
+**`trig.go` → `epoch.go` → everything** is principled and strictly one-directional.
+`trig.go` depends on nothing, `epoch.go` on `trig.go` alone, `solar.go` and `lunar.go`
+on both. Nothing reaches back up.
 
-**Between the library and its reference consumer**: `cmd/dusk` exists to be an
-executable specification. It calls every exported function, reaches every documented
-edge case from a single flag, and — this is the part that matters when you change it —
-re-sorts everything into clock order, because the library's grouping by call is not the
-order a day is lived in. It is also the only place the library's harder contract points
-are written down as running code rather than prose.
+**Inside `epoch.go` is a historical accident being lived with.** The file holds a time
+layer that everything sits on and a coordinate layer consumed by exactly two call
+chains, and the two sit at different depths. The file records the merge that produced
+it in a banner comment naming a file that no longer exists. No reading order fixes this,
+which is worth knowing before concluding your own reading is at fault.
 
-**Where the theory is thinnest**: the horizontal coordinate conversion.
-`equatorialToHorizontal` returns both altitude and azimuth, but nothing in the package
-reads azimuth — `MoonriseMoonset` takes `.alt` at both call sites and the field is
-touched only by its own tests. Azimuth is also the one angle not routed through
-`mod360`, and the zero-division guard at the poles interacts with the west-correction
-below it to produce 360 rather than 0. It is a general-purpose conversion in a package
-that otherwise contains nothing general-purpose, and it is half-dead. `solarPosition` is
-the same shape: a complete, tested, continuous-time solar position with no caller left
-in the library, stranded when v3 unexported `SolarPosition`.
+**The library/CLI boundary is where the theory is thinnest.** It is the only place two
+independently reasonable designs meet, and it is where the highest-severity structural
+findings cluster — the error-versus-value carrier, the twilight asymmetry, the
+depression angles duplicated across a module boundary. A maintainer looking for the
+next significant change should look here first.
+
+**Zero external dependencies is a boundary too**, and `depguard` runs in strict mode
+allowing only `$gostd` and this module. The Meeus tables are transcribed into the source
+rather than fetched. This is not frugality: the coefficient tables _are_ the algorithm,
+and a dependency that supplied them would make the astronomy someone else's to get
+right.
 
 ## What this is shaped to accommodate
 
-**A new twilight band** costs one line. `twilight(date, obs, depression)` is fully
-parameterised; the three exported wrappers are the only thing fixing 6, 12 and 18. A
-Danish "blue hour" at 4° or an aviation band would slot straight in, plus an entry in
-`cmd/dusk`'s `twilightBands` table.
+**A new twilight band costs one line.** The shared `twilight` is fully parameterised by
+depression angle; only the three exported wrappers fix 6, 12 and 18. A blue hour at 4°
+or an aviation band would slot in — plus an entry in the CLI's own table, which is
+precisely the duplication that argues for exporting the parameter instead.
 
-**Better lunar coefficients** cost a table edit. `tableLongDist` and `tableLat` are
-transcribed Meeus 47.A and 47.B, read by two loops that switch on the `M` column to
-apply the eccentricity factor `E` to the right powers. Adding terms is additive and
-local. Note that there is no validation of the tables at all — an earlier attempt at
-`init()`-time checks was added and then removed (`8a240d9`, then `57e4f04`). Their
-correctness rests entirely on the reference-value tests in `lunar_test.go`.
+**A new output format costs nothing in the library.** `cmd/dusk` already renders text
+and JSON from the same assembled report, and the assembly is separate from both.
 
-**A new consumer of the library** costs nothing, which is the point of the inert result
-types.
+**A new celestial body would not fit.** The package's vocabulary is Sun and Moon by
+name, from `solarHourAngle` to `lunarHorizonDepression`, and the horizon-crossing
+threshold is a per-body constant rather than a parameter. Adding planets means
+generalising the position source, the threshold and the day-scan together — a rewrite
+of the interior, not an addition to it.
 
-What would require rethinking:
+**Sub-minute precision would require rethinking the lunar method.** The minute scan's
+resolution is its accuracy floor, and events shorter than a minute — the Moon grazing
+the horizon at high latitude — are invisible to it by construction.
 
-**Sub-minute moonrise accuracy, or making it fast.** The minute-by-minute scan is not an
-implementation detail that can be optimised behind the same result; it _is_ the
-algorithm, and its resolution is its accuracy. A day where the Moon grazes the horizon
-for under a minute is invisible to it. Replacing it with interpolation between three
-positions (Meeus ch. 15, the standard approach) would change every moonrise time in the
-test suite by minutes, which is exactly why nobody has.
+**Dates outside 1677–2262 would require replacing `julianDate`.** The bound is
+`UnixNano`'s, not astronomy's, and the whole range-check apparatus exists to keep
+callers on the right side of it.
 
-**Partial twilight results at polar transition latitudes.** The all-or-nothing error
-from `twilight` is baked into its shape: one call, one error, two days of geometry. The
-doc comment already tells callers to compute each boundary separately if they need
-partial results, which is an admission that the type is wrong for that case rather than
-a workaround.
-
-**Elevation above sea level.** It was there in v2 and was deliberately removed in v3.
-Putting it back means a fourth `Observer` field and a term in `solarHourAngle`, and
-every reference value in `solar_test.go` was recorded without it.
-
-**Dates outside 1677-2262.** The bound is `UnixNano`'s, inherited from representing
-Julian dates through `time.Time`. Escaping it means not going through `time.Time` at
-all in `julianDate`, and every result type is a `time.Time`.
-
-Where a maintainer who did not hold this theory would do damage, in order of likelihood:
-"simplifying" the solar and lunar day-extraction into one shared helper; making
-`TwilightEvent` symmetric because the asymmetry looks like a bug; deleting `clamp`
-because it hides errors; passing `t` instead of midnight into `julianCentury` inside
-`greenwichMeanSiderealTime`; and reflowing `lunar.go` for style, which will move the
-coverage ratchet without changing a single thing the tests reach.
+Where a maintainer who did not understand the theory would do damage, in order of
+likelihood: consolidating the two day-constructions; adding `math.Sin` to a file outside
+`trig.go`; applying `clamp` to the hour-angle cosine, which would turn an impossible
+event into a plausible time; loosening a reference-data tolerance to make a change pass;
+and pinning a tool to silence the gate.
 
 ## Uncertainties
 
-Marked plainly, because these are inferences from code rather than recovered intent.
+Where I am reading intent from code and could be wrong.
 
-- **The missing 0.0009-day term.** The published NOAA/Meeus sunrise equation carries a
-  `+ 0.0009` fractional-day constant in mean solar time; `meanSolarTime` does not, and
-  `julianDay` rounds rather than taking a ceiling. 0.0009 days is 78 seconds. I could not
-  determine whether the rounding was chosen to absorb it or whether the term was simply
-  dropped. Results match USNO within the documented 1-2 minutes either way, so nothing
-  observable is at stake — but a maintainer "restoring" the term should know the rounding
-  is doing part of its job.
-- **Whether `solarPosition` is meant to be used.** Its doc comment argues for a design
-  distinction (continuous versus rounded Julian days) that the package no longer acts
-  on. I read it as v3 residue; it could be a deliberate placeholder for a solar-altitude
-  feature. Filed as a finding either way, because the comment currently misleads.
-- **`lunarPhaseName`'s parameter is called `age` and receives an elongation.** Inside, it
-  is immediately `mod360`'d and compared against degree boundaries, so it is
-  unambiguously an angle. `DaysApprox` — the actual age — is derived separately as a
-  linear scaling of the same elongation. I take `age` to be a leftover from an earlier
-  formulation rather than a claim, but I cannot rule out that the two were once the same
-  parameter.
-- **The `E`/`E2` switch in the coefficient loops.** `switch r.M { case 0 / 1,-1 / 2,-2 }`
-  has no default, so a table row with `|M| > 2` would contribute nothing and fail
-  silently. Meeus 47.A contains no such row and neither does the transcription, so this
-  is correct today. Whether the absence of a default is a considered decision or an
-  accident of the table's contents, I cannot tell.
-- **The scope of `AboveHorizon`.** It is computed from the altitude at the first scanned
-  instant, compared against `-lunarHorizonDepression` rather than against 0 — consistent
-  with the crossing tests in the loop below it, but it means "above the refraction-
-  corrected horizon", not "above the geometric horizon". No caller appears to depend on
-  the difference.
+**Whether the solar `-0.83` was chosen or inherited.** It is the standard Meeus `h0` for
+the Sun — refraction plus semidiameter — and it is right. But the lunar constant beside
+it, 0.833, is demonstrably the solar value given a lunar-sounding justification after
+the fact, with the Moon's horizontal parallax missing entirely. One of the two was
+copied. I cannot tell from the code whether the solar one was arrived at independently.
+
+**What `AboveHorizon` is measured against.** It compares the Moon's altitude to the same
+refraction-corrected threshold the scan uses, so it reports whether the Moon was
+_visibly_ up at local midnight rather than geometrically above the horizon. That is
+defensible and probably intended — it agrees with the rise and set times it sits beside
+— but nothing says so, and a caller could reasonably read the field either way.
+
+**Whether the v3/v4 API shrink was finished or merely paused.** Several unexported
+functions survive with no caller, and one of them carries a doc comment arguing for a
+design distinction the package does not act on. The residue is documented; what I cannot
+tell is whether what remains was kept deliberately or simply not reached.
+
+**Whether the twilight asymmetry is a contract or an accident.** The doc comment
+describes it confidently enough to read as a decision, and the CLI's comment calls it
+"the single most easily missed detail in the library's contract" — which is how you
+describe something you have accepted. But the implementation's shape suggests it fell
+out of computing tomorrow separately rather than being chosen, and nothing records the
+choice being made.
+
+**How much of the lunar error budget is method and how much is the missing parallax.**
+The README attributes the ~20 minute spread to the simplified approach plus the
+one-minute scan. The parallax omission alone accounts for 5–12 minutes of systematic
+bias. Whether the remainder is the series truncation, the scan, or something else is not
+something I can settle without reference data the repository does not carry.
 
 ## Index
 
-| #   | Severity | Issue                                                    | Primary location                              |
-| --- | -------- | -------------------------------------------------------- | --------------------------------------------- |
-| 1   | medium   | `moonevent-doc-promises-a-duration-field-removed-in-v3`  | `dusk.go:118-119`                             |
-| 2   | medium   | `readme-lists-a-phase-angle-that-v4-removed`             | `README.md:218`                               |
-| 3   | medium   | `readme-claims-go-1-24-while-go-mod-requires-1-27`       | `README.md:264`, `go.mod:3`                   |
-| 4   | medium   | `solarposition-has-no-production-caller`                 | `solar.go:74-89`                              |
-| 5   | medium   | `sun-and-moon-fuzz-targets-assert-nothing`               | `fuzz_test.go:15-30`, `63-78`                 |
-| 6   | low      | `horizontal-azimuth-can-be-360-at-the-pole-guard`        | `epoch.go:197-215`                            |
-| 7   | low      | `claude-md-file-table-misplaces-the-date-range-sentinel` | `CLAUDE.md` Architecture table, `epoch.go:31` |
+Everything this pass found that is actionable was already filed; no new findings went to
+`.issues/`. The open issues this theory refers to, in the order they appear above:
 
-**Total: 7 issues (0 critical, 0 high, 5 medium, 2 low)**
+| Issue                                              | What it is                                                        |
+| -------------------------------------------------- | ----------------------------------------------------------------- |
+| [#65](https://github.com/philoserf/dusk/issues/65) | The unnormalised azimuth, and the pole guard that can return 360° |
+| [#62](https://github.com/philoserf/dusk/issues/62) | …which nothing reads, so it should be deleted rather than fixed   |
+| [#63](https://github.com/philoserf/dusk/issues/63) | The day hazard left as a convention instead of a type             |
+| [#78](https://github.com/philoserf/dusk/issues/78) | Two day-constructions, neither comment naming the other           |
+| [#70](https://github.com/philoserf/dusk/issues/70) | Error-as-carrier, reversed by its only consumer                   |
+| [#77](https://github.com/philoserf/dusk/issues/77) | Twilight spanning two days, and the double call it forces         |
+| [#76](https://github.com/philoserf/dusk/issues/76) | The depression angle hidden behind three names                    |
+| [#61](https://github.com/philoserf/dusk/issues/61) | README's Go minimum against `go.mod`                              |
+| [#72](https://github.com/philoserf/dusk/issues/72) | Solar tolerances wider than the documented accuracy               |
+| [#64](https://github.com/philoserf/dusk/issues/64) | `epoch.go`'s two layers                                           |
+| [#69](https://github.com/philoserf/dusk/issues/69) | The lunar threshold's missing horizontal parallax                 |
+| [#67](https://github.com/philoserf/dusk/issues/67) | The scan closed at both ends                                      |
+| [#74](https://github.com/philoserf/dusk/issues/74) | `solarPosition`, the shrink's residue                             |
+| [#75](https://github.com/philoserf/dusk/issues/75) | Two fuzz targets that assert nothing                              |
