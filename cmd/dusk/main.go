@@ -23,7 +23,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/philoserf/dusk/v4"
+	"github.com/philoserf/dusk/v5"
 )
 
 // errUsage reports a command line the tool cannot act on.

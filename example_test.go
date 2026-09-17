@@ -6,7 +6,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/philoserf/dusk/v4"
+	"github.com/philoserf/dusk/v5"
 )
 
 func ExampleNewObserver() {
