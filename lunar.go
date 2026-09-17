@@ -6,9 +6,9 @@ import (
 
 const lunarMonthDays = 29.53059
 
-// lunarHorizonDepression accounts for atmospheric refraction (~0.566°) and
-// the Moon's mean semidiameter (~0.25°) when detecting moonrise/moonset.
-const lunarHorizonDepression = 0.833
+// earthRadiusKm is the Earth's equatorial radius, used to turn the Moon's
+// distance into an equatorial horizontal parallax.
+const earthRadiusKm = 6378.14
 
 // ---------------------------------------------------------------------------
 // Exported functions
@@ -138,6 +138,45 @@ func lunarPosition(t time.Time) equatorial {
 	return eclipticToEquatorial(t, ec.lon, ec.lat)
 }
 
+// moonAltitudeAboveHorizon returns how far the Moon's centre is above the
+// altitude at which it is seen to rise or set, in degrees. Positive means up.
+//
+// The threshold is Meeus's lunar h0 (Astronomical Algorithms, ch. 15 p. 102):
+//
+//	h0 = 0.7275*pi - 0.5667
+//
+// where pi is the equatorial horizontal parallax, about 0.951 degrees at mean
+// distance. Note the sign: unlike the Sun's -0.8333, the lunar h0 is *positive*
+// (about +0.125 degrees). The Moon is close enough that parallax outweighs
+// refraction, so its centre is above the geometric horizon when it is seen to
+// rise -- not below it, as the Sun's is.
+//
+// h0 is recomputed per sample rather than fixed, because the distance varies by
+// about +/-0.05 degrees of h0 between perigee and apogee. The distance is free:
+// lunarEclipticPosition already returns it.
+func moonAltitudeAboveHorizon(t time.Time, obs Observer) float64 {
+	ec := lunarEclipticPosition(t)
+	eq := eclipticToEquatorial(t, ec.lon, ec.lat)
+	h0 := 0.7275*asinx(earthRadiusKm/ec.dist) - 0.5667
+
+	return altitudeOf(t, obs, eq) - h0
+}
+
+// crossingInstant interpolates the moment the Moon crossed its horizon
+// threshold, between the sample one minute before cur and cur itself. prevDiff
+// and curDiff are moonAltitudeAboveHorizon at those two instants and must
+// straddle zero.
+//
+// The result lies in [cur-1m, cur) -- strictly inside the scanned day even on
+// the final iteration, which is what keeps a closed upper bound from attributing
+// an event to the wrong calendar day. It also removes the one-minute
+// quantization of reporting the sample instant rather than the crossing.
+func crossingInstant(cur time.Time, prevDiff, curDiff float64) time.Time {
+	frac := prevDiff / (prevDiff - curDiff)
+
+	return cur.Add(-time.Minute + time.Duration(frac*float64(time.Minute)))
+}
+
 // MoonriseMoonset computes the moonrise and moonset times for the given date
 // at the specified observer position and timezone.
 // The date is converted to the observer's timezone to determine the local
@@ -153,9 +192,12 @@ func lunarPosition(t time.Time) equatorial {
 // should expect proportional cost and may benefit from caching or
 // parallelization.
 //
-// The one-minute resolution means events shorter than one minute may not be
-// detected. At polar or near-polar latitudes, the Moon can graze the horizon
-// briefly enough to fall within a single scan step.
+// The scan samples once a minute, so an event shorter than one minute may not
+// be detected at all: at polar or near-polar latitudes the Moon can graze the
+// horizon briefly enough to fall within a single scan step. A crossing that is
+// detected, though, is not quantized to the sample -- the reported instant is
+// interpolated between the two bracketing altitudes, and always falls strictly
+// inside the local day.
 //
 // An error is returned if the date is out of the valid Julian date range.
 func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
@@ -192,27 +234,27 @@ func MoonriseMoonset(date time.Time, obs Observer) (MoonEvent, error) {
 
 	var rise, set time.Time
 
-	prevAlt := altitudeOf(d, obs, lunarPosition(d))
-	aboveAtStart := prevAlt > -lunarHorizonDepression
+	prevDiff := moonAltitudeAboveHorizon(d, obs)
+	aboveAtStart := prevDiff > 0
 
 	for i := 1; i <= scanMinutes; i++ {
 		cur := d.Add(time.Duration(i) * time.Minute)
 
-		alt := altitudeOf(cur, obs, lunarPosition(cur))
+		curDiff := moonAltitudeAboveHorizon(cur, obs)
 
-		if rise.IsZero() && alt > -lunarHorizonDepression && prevAlt <= -lunarHorizonDepression {
-			rise = cur.In(obs.loc)
+		if rise.IsZero() && curDiff > 0 && prevDiff <= 0 {
+			rise = crossingInstant(cur, prevDiff, curDiff).In(obs.loc)
 		}
 
-		if set.IsZero() && alt < -lunarHorizonDepression && prevAlt >= -lunarHorizonDepression {
-			set = cur.In(obs.loc)
+		if set.IsZero() && curDiff < 0 && prevDiff >= 0 {
+			set = crossingInstant(cur, prevDiff, curDiff).In(obs.loc)
 		}
 
 		if !rise.IsZero() && !set.IsZero() {
 			break
 		}
 
-		prevAlt = alt
+		prevDiff = curDiff
 	}
 
 	return MoonEvent{

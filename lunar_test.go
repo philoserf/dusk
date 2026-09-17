@@ -200,6 +200,8 @@ func TestMoonriseMoonset_AboveHorizon(t *testing.T) {
 			wantSetZero:  false,
 		},
 		{
+			// USNO reports "Object continuously above the Horizon" for this
+			// date and place.
 			name:         "high arctic winter — Moon above horizon all day",
 			lat:          78,
 			lon:          16,
@@ -210,6 +212,8 @@ func TestMoonriseMoonset_AboveHorizon(t *testing.T) {
 			wantSetZero:  true,
 		},
 		{
+			// USNO reports "Object continuously below the Horizon" for this
+			// date and place.
 			name:         "high arctic summer — Moon below horizon all day",
 			lat:          78,
 			lon:          16,
@@ -283,11 +287,14 @@ func TestMoonriseMoonset(t *testing.T) {
 	if evt.Set.IsZero() {
 		t.Error("expected non-zero set time")
 	}
-	// Regression reference: algorithm-computed values for NYC 2024-01-15.
-	// Note: simplified Meeus approach can differ from USNO by up to ~1.5h for the Moon.
-	tolerance := 5 * time.Minute
-	wantRise := time.Date(2024, 1, 15, 10, 6, 0, 0, loc)
-	wantSet := time.Date(2024, 1, 15, 22, 13, 0, 0, loc)
+	// USNO reference, aa.usno.navy.mil/api/rstt/oneday, NYC 2024-01-15:
+	// moonrise 10:11, moonset 22:07. These are published values, not library
+	// output -- the parallax-corrected threshold brought the two together.
+	// Measured margin at the time of writing: rise 7s, set 1s. USNO publishes to
+	// the minute, so up to 30s of any difference is its own rounding.
+	tolerance := time.Minute
+	wantRise := time.Date(2024, 1, 15, 10, 11, 0, 0, loc)
+	wantSet := time.Date(2024, 1, 15, 22, 7, 0, 0, loc)
 
 	if diff := evt.Rise.Sub(wantRise); diff < -tolerance || diff > tolerance {
 		t.Errorf("Rise = %v, want %v (±%v, diff=%v)", evt.Rise.Format("15:04"), wantRise.Format("15:04"), tolerance, diff)
@@ -324,10 +331,11 @@ func TestMoonriseMoonset_SouthernHemisphere(t *testing.T) {
 	if evt.Set.IsZero() {
 		t.Error("expected non-zero set time for Sydney")
 	}
-	// Regression reference: algorithm-computed values for Sydney 2024-01-15.
-	// These are library-derived, not USNO; used to detect regressions.
-	tolerance := 20 * time.Minute
-	wantRise := time.Date(2024, 1, 15, 9, 50, 0, 0, loc)
+	// USNO reference, aa.usno.navy.mil/api/rstt/oneday, Sydney 2024-01-15:
+	// moonrise 09:51, moonset 23:00. Published values, not library output.
+	// Measured margin at the time of writing: rise 13s, set 21s.
+	tolerance := time.Minute
+	wantRise := time.Date(2024, 1, 15, 9, 51, 0, 0, loc)
 	wantSet := time.Date(2024, 1, 15, 23, 0, 0, 0, loc)
 
 	if diff := evt.Rise.Sub(wantRise); diff < -tolerance || diff > tolerance {

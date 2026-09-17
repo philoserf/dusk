@@ -76,8 +76,9 @@ out-of-range date (`unsupported date:`) exit 1, told apart by the message rather
 - **Sentinel errors are `const`, not `var`** — declared as the unexported `stringError` string type
   in `dusk.go` so they cannot be reassigned. New sentinels follow that pattern, not `errors.New`
 - Table-driven tests everywhere, expected values from USNO/Stellarium/Meeus. Tolerances that
-  reference data actually supports: **1-2 minutes** for sunrise/sunset, up to **~20 minutes** for
-  moonrise/moonset (simplified Meeus with a minute-by-minute scan), **1-2%** for lunar illumination
+  reference data actually supports: **1-2 minutes** for sunrise/sunset, **1 minute** for
+  moonrise/moonset (measured margin is tens of seconds since the parallax-corrected
+  threshold landed), **1-2%** for lunar illumination
 - **Errors are checked on their own line**, never inline: `err := f()` then `if err != nil`,
   not `if err := f(); err != nil`. Enforced by `noinlineerr`, matching the other Go repos
 - **Every test calls `t.Parallel()`**, top level and subtest. Enforced by `paralleltest`.
