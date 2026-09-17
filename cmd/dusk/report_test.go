@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -74,43 +73,10 @@ func TestTwilightDawnAndDuskComeFromOneDay(t *testing.T) {
 	}
 }
 
-// TestStateOfMapsTheSentinels checks that the library's two geometric
-// sentinels become states and every other error stays an error.
-func TestStateOfMapsTheSentinels(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name      string
-		err       error
-		wantState horizonState
-		wantOK    bool
-	}{
-		{name: "circumpolar", err: dusk.ErrCircumpolar, wantState: stateStaysAbove, wantOK: true},
-		{name: "never rises", err: dusk.ErrNeverRises, wantState: stateStaysBelow, wantOK: true},
-		{name: "a real failure", err: dusk.ErrDateOutOfRange, wantState: stateCrosses, wantOK: false},
-		{name: "wrapped sentinel", err: fmt.Errorf("twilight: %w", dusk.ErrCircumpolar), wantState: stateStaysAbove, wantOK: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			state, ok := stateOf(tt.err)
-
-			if ok != tt.wantOK {
-				t.Fatalf("ok = %v, want %v", ok, tt.wantOK)
-			}
-
-			if state != tt.wantState {
-				t.Errorf("state = %v, want %v", state, tt.wantState)
-			}
-		})
-	}
-}
-
-// TestNotesDistinguishStates checks the JSON-facing prose, and in particular
-// that a depression angle inverts what the two sentinels mean: above the angle
-// is a night that never darkens, below it is a day that never lightens.
+// TestNotesDistinguishStates checks the JSON-facing prose. The two states read
+// the same way at any depression now that they are named for the geometry:
+// above the angle is a night that never darkens, below it a day that never
+// lightens.
 func TestNotesDistinguishStates(t *testing.T) {
 	t.Parallel()
 
@@ -119,12 +85,12 @@ func TestNotesDistinguishStates(t *testing.T) {
 		got     string
 		wantSub string
 	}{
-		{"solar stays above", solarNotes[stateStaysAbove], "midnight sun"},
-		{"solar stays below", solarNotes[stateStaysBelow], "polar night"},
-		{"solar crosses", solarNotes[stateCrosses], ""},
-		{"twilight stays above", twilightNote(stateStaysAbove, 6), "never gets this dark"},
-		{"twilight stays below", twilightNote(stateStaysBelow, 6), "this dark all day"},
-		{"twilight crosses", twilightNote(stateCrosses, 6), ""},
+		{"solar stays above", solarNotes[dusk.StaysAbove], "midnight sun"},
+		{"solar stays below", solarNotes[dusk.StaysBelow], "polar night"},
+		{"solar crosses", solarNotes[dusk.Crosses], ""},
+		{"twilight stays above", twilightNote(dusk.StaysAbove, 6), "never gets this dark"},
+		{"twilight stays below", twilightNote(dusk.StaysBelow, 6), "this dark all day"},
+		{"twilight crosses", twilightNote(dusk.Crosses, 6), ""},
 	}
 
 	for _, tt := range tests {

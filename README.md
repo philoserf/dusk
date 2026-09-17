@@ -69,7 +69,6 @@ A complete program showing error handling and formatted output:
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -93,15 +92,15 @@ func main() {
 
 	sun, err := dusk.SunriseSunset(date, obs)
 	if err != nil {
-		if errors.Is(err, dusk.ErrCircumpolar) {
-			fmt.Println("Midnight sun — the sun does not set today.")
-			return
-		}
-		if errors.Is(err, dusk.ErrNeverRises) {
-			fmt.Println("Polar night — the sun does not rise today.")
-			return
-		}
 		log.Fatal(err)
+	}
+
+	switch sun.Horizon {
+	case dusk.StaysAbove:
+		fmt.Println("Midnight sun — the sun does not set today.")
+	case dusk.StaysBelow:
+		fmt.Println("Polar night — the sun does not rise today.")
+	case dusk.Crosses:
 	}
 
 	fmt.Printf("Sunrise:  %s\n", sun.Rise.Format(time.Kitchen))
@@ -190,9 +189,9 @@ if err != nil {
 fmt.Printf("Astronomical night: %s\n", next.Dawn.Sub(tw.Dusk))
 ```
 
-### Polar error handling
+### Polar geometry
 
-At extreme latitudes, sunrise/sunset and twilight may be geometrically impossible. Use `errors.Is` to match the sentinel errors:
+At extreme latitudes the Sun may never rise or never set. That is an answer, not a failure — read it off `Horizon` and keep the rest of the result:
 
 ```go
 loc, err := time.LoadLocation("Arctic/Longyearbyen")
@@ -207,13 +206,21 @@ if err != nil {
 
 midsummer := time.Date(2025, 6, 21, 0, 0, 0, 0, loc)
 
-_, err = dusk.SunriseSunset(midsummer, obs)
-if errors.Is(err, dusk.ErrCircumpolar) {
+sun, err := dusk.SunriseSunset(midsummer, obs)
+if err != nil {
+	log.Fatal(err)
+}
+
+switch sun.Horizon {
+case dusk.StaysAbove:
 	fmt.Println("Midnight sun — no sunset at this latitude today.")
-}
-if errors.Is(err, dusk.ErrNeverRises) {
+case dusk.StaysBelow:
 	fmt.Println("Polar night — no sunrise at this latitude today.")
+case dusk.Crosses:
 }
+
+// Solar noon is reported on every day at every latitude, polar ones included.
+fmt.Printf("Solar noon: %s\n", sun.Noon.Format("15:04"))
 ```
 
 ## API
@@ -250,8 +257,6 @@ The Meeus phase angle was published as `LunarPhaseInfo.Angle` until v4.0.0 and r
 
 ### Errors
 
-- `ErrCircumpolar` — object always above the horizon (e.g., midnight sun)
-- `ErrNeverRises` — object never rises (e.g., polar night)
 - `ErrNilLocation` — nil timezone passed to `NewObserver`
 - `ErrNonFiniteCoord` — NaN or Inf coordinates
 - `ErrInvalidCoord` — latitude or longitude out of range
@@ -263,7 +268,7 @@ The Meeus phase angle was published as `LunarPhaseInfo.Angle` until v4.0.0 and r
 - The **calendar day is resolved in the observer's timezone** — functions convert the date with `date.In(observer location)` and ignore the time of day. Build the date with the observer's `*time.Location`, not `time.UTC`, or an observer west of Greenwich silently gets the previous day.
 - Longitude is **east-positive, west-negative** (e.g., New York is -74.006).
 - `Observer` is constructed via `NewObserver`, which validates coordinates and rejects NaN/Inf.
-- Functions that can fail return `error`. Two sentinel errors distinguish polar edge cases: `ErrCircumpolar` and `ErrNeverRises`.
+- Polar geometry is a **result, not an error**: `SunEvent.Horizon` and `TwilightEvent.Horizon` report `Crosses`, `StaysAbove` or `StaysBelow`, with `Rise`/`Set`/`Dawn`/`Dusk` zero when there was no crossing. `error` means a nil timezone, bad coordinates or a date out of range.
 - A **zero-value `time.Time`** signals "event did not occur" (e.g., the Moon does not rise on a given day). Check with `.IsZero()`.
 - `Twilight` returns both boundaries of one band on the queried day, symmetric about solar transit. Overnight darkness is tonight's dusk to tomorrow's dawn — two calls, because it spans two days.
 

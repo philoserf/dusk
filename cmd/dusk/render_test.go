@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"github.com/philoserf/dusk/v5"
 )
 
 // at builds a time on the report's day, in UTC, for readable fixtures.
@@ -167,14 +169,14 @@ func TestRenderTextConditions(t *testing.T) {
 		{
 			name: "polar night names the twilight that still arrives",
 			mutate: func(r *Report) {
-				r.Sun = SunReport{state: stateStaysBelow}
+				r.Sun = SunReport{horizon: dusk.StaysBelow}
 			},
 			want: []string{"does not rise today (polar night)", "reaches civil depth"},
 		},
 		{
 			name: "midnight sun",
 			mutate: func(r *Report) {
-				r.Sun = SunReport{state: stateStaysAbove}
+				r.Sun = SunReport{horizon: dusk.StaysAbove}
 			},
 			want: []string{"does not set today (midnight sun)"},
 		},
@@ -182,7 +184,7 @@ func TestRenderTextConditions(t *testing.T) {
 			name: "bands that never darken collapse to one sentence",
 			mutate: func(r *Report) {
 				for i := range r.Twilight {
-					r.Twilight[i].state = stateStaysAbove
+					r.Twilight[i].horizon = dusk.StaysAbove
 					r.Twilight[i].Dawn = time.Time{}
 					r.Twilight[i].Dusk = time.Time{}
 				}
@@ -194,7 +196,7 @@ func TestRenderTextConditions(t *testing.T) {
 			name: "bands that stay dark all day",
 			mutate: func(r *Report) {
 				for i := range r.Twilight {
-					r.Twilight[i].state = stateStaysBelow
+					r.Twilight[i].horizon = dusk.StaysBelow
 					r.Twilight[i].Dawn = time.Time{}
 					r.Twilight[i].Dusk = time.Time{}
 				}

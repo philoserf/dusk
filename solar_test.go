@@ -1,7 +1,6 @@
 package dusk
 
 import (
-	"errors"
 	"testing"
 	"time"
 )
@@ -141,9 +140,28 @@ func TestSunriseSunset_PolarDay(t *testing.T) {
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
 	obs := mustObserver(t, 69.65, 18.96, loc)
 
-	_, err = SunriseSunset(date, obs)
-	if !errors.Is(err, ErrCircumpolar) {
-		t.Errorf("expected ErrCircumpolar for midnight sun at 69.65°N, got %v", err)
+	event, err := SunriseSunset(date, obs)
+	if err != nil {
+		t.Fatalf("SunriseSunset() returned error: %v", err)
+	}
+
+	if event.Horizon != StaysAbove {
+		t.Errorf("Horizon = %v, want StaysAbove for midnight sun at 69.65°N", event.Horizon)
+	}
+
+	if !event.Rise.IsZero() || !event.Set.IsZero() {
+		t.Errorf("Rise = %v, Set = %v, want both zero under the midnight sun", event.Rise, event.Set)
+	}
+
+	// Neither of these was reachable while polar geometry arrived as an error:
+	// transit happens whether or not the Sun sets, and a day with no night is
+	// 24 hours of daylight.
+	if event.Noon.IsZero() {
+		t.Error("Noon is zero, want solar transit under the midnight sun")
+	}
+
+	if event.Duration != 24*time.Hour {
+		t.Errorf("Duration = %v, want 24h under the midnight sun", event.Duration)
 	}
 }
 
@@ -159,9 +177,25 @@ func TestSunriseSunset_PolarNight(t *testing.T) {
 	date := time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
 	obs := mustObserver(t, 69.65, 18.96, loc)
 
-	_, err = SunriseSunset(date, obs)
-	if !errors.Is(err, ErrNeverRises) {
-		t.Errorf("expected ErrNeverRises for polar night at 69.65°N, got %v", err)
+	event, err := SunriseSunset(date, obs)
+	if err != nil {
+		t.Fatalf("SunriseSunset() returned error: %v", err)
+	}
+
+	if event.Horizon != StaysBelow {
+		t.Errorf("Horizon = %v, want StaysBelow for polar night at 69.65°N", event.Horizon)
+	}
+
+	if !event.Rise.IsZero() || !event.Set.IsZero() {
+		t.Errorf("Rise = %v, Set = %v, want both zero through the polar night", event.Rise, event.Set)
+	}
+
+	if event.Noon.IsZero() {
+		t.Error("Noon is zero, want solar transit through the polar night")
+	}
+
+	if event.Duration != 0 {
+		t.Errorf("Duration = %v, want 0 through the polar night", event.Duration)
 	}
 }
 
@@ -356,9 +390,13 @@ func TestTwilight_PolarDay(t *testing.T) {
 	date := time.Date(2024, 6, 21, 0, 0, 0, 0, loc)
 	obs := mustObserver(t, 69.65, 18.96, loc)
 
-	_, err = Twilight(date, obs, 18)
-	if !errors.Is(err, ErrCircumpolar) {
-		t.Errorf("expected ErrCircumpolar for astronomical twilight at 69.65°N midsummer, got %v", err)
+	event, err := Twilight(date, obs, 18)
+	if err != nil {
+		t.Fatalf("Twilight() returned error: %v", err)
+	}
+
+	if event.Horizon != StaysAbove {
+		t.Errorf("Horizon = %v, want StaysAbove for astronomical twilight at 69.65°N midsummer", event.Horizon)
 	}
 }
 
@@ -373,9 +411,13 @@ func TestTwilight_PolarNight(t *testing.T) {
 
 	date := time.Date(2024, 12, 21, 0, 0, 0, 0, loc)
 
-	_, err := Twilight(date, obs, 18)
-	if !errors.Is(err, ErrNeverRises) {
-		t.Errorf("expected ErrNeverRises for astronomical twilight at 87°N midwinter, got %v", err)
+	event, err := Twilight(date, obs, 18)
+	if err != nil {
+		t.Fatalf("Twilight() returned error: %v", err)
+	}
+
+	if event.Horizon != StaysBelow {
+		t.Errorf("Horizon = %v, want StaysBelow for astronomical twilight at 87°N midwinter", event.Horizon)
 	}
 }
 
@@ -451,6 +493,10 @@ func TestTwilight_PolarTransition(t *testing.T) {
 		t.Fatalf("Twilight(Nov 26, 75°N, 6) should succeed, got %v", err)
 	}
 
+	if event.Horizon != Crosses {
+		t.Fatalf("Nov 26 Horizon = %v, want Crosses", event.Horizon)
+	}
+
 	if event.Dawn.IsZero() || event.Dusk.IsZero() {
 		t.Fatalf("Nov 26 should carry both boundaries, got dawn=%v dusk=%v", event.Dawn, event.Dusk)
 	}
@@ -461,8 +507,16 @@ func TestTwilight_PolarTransition(t *testing.T) {
 		t.Errorf("Nov 26 civil window = %v, want a positive span under an hour", window)
 	}
 
-	_, err = Twilight(gone, obs, 6)
-	if !errors.Is(err, ErrNeverRises) {
-		t.Fatalf("Twilight(Nov 27, 75°N, 6) should return ErrNeverRises, got %v", err)
+	next, err := Twilight(gone, obs, 6)
+	if err != nil {
+		t.Fatalf("Twilight() returned error: %v", err)
+	}
+
+	if next.Horizon != StaysBelow {
+		t.Fatalf("Nov 27 Horizon = %v, want StaysBelow", next.Horizon)
+	}
+
+	if !next.Dawn.IsZero() || !next.Dusk.IsZero() {
+		t.Errorf("Nov 27 dawn = %v, dusk = %v, want both zero", next.Dawn, next.Dusk)
 	}
 }

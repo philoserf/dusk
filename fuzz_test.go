@@ -25,10 +25,34 @@ func FuzzSunriseSunset(f *testing.F) {
 
 		sun, err := SunriseSunset(date, obs)
 		if err != nil {
-			return // circumpolar or never-rises is valid
+			return // out-of-range dates are rejected, not asserted on
 		}
 
-		// A non-error SunEvent means the Sun rose and set. clamp (trig.go) keeps
+		// Noon holds on every day at every latitude, polar ones included. That
+		// is the invariant the error carrier used to hide: before v5 this whole
+		// branch was unreachable above the Arctic circle.
+		if sun.Noon.IsZero() {
+			t.Error("Noon is the zero time")
+		}
+
+		if sun.Horizon != Crosses {
+			if !sun.Rise.IsZero() || !sun.Set.IsZero() {
+				t.Errorf("Horizon %v carries Rise %v and Set %v, want both zero", sun.Horizon, sun.Rise, sun.Set)
+			}
+
+			want := time.Duration(0)
+			if sun.Horizon == StaysAbove {
+				want = 24 * time.Hour
+			}
+
+			if sun.Duration != want {
+				t.Errorf("Duration %v on a %v day, want %v", sun.Duration, sun.Horizon, want)
+			}
+
+			return
+		}
+
+		// A crossing SunEvent means the Sun rose and set. clamp (trig.go) keeps
 		// NaN out of asin/acos by silently clamping, which its own comment
 		// concedes can mask an upstream bug; these checks are the sweep that
 		// fixed reference data cannot do.
