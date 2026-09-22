@@ -22,6 +22,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   gate:
     name: Gate
@@ -29,19 +33,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@v7
 
-      # Every action in this file is pinned by commit digest, with the tag it
-      # came from in a trailing comment; a major-version tag is repointed on
-      # every release, so it is a moving reference to third-party code that
-      # runs in the runner. Dependabot updates digests the same way it updates
-      # tags. What is deliberately unpinned is the tooling the actions install
-      # -- the Go toolchain here, golangci-lint below -- which is the whole
-      # argument of the Taskfile preamble.
+      # Actions are pinned to their major tag, as everywhere in the workspace:
+      # Dependabot reports a new major, and a patch arrives without a PR. The
+      # tooling the actions install -- Go here, golangci-lint below -- floats,
+      # which is the argument of the Taskfile preamble.
       - name: Go Setup
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        uses: actions/setup-go@v7
         with:
           go-version: stable
+          # No go.sum -- the module has no dependencies -- so there is nothing
+          # to key a module cache on.
+          cache: false
 
       # The official action installs the released binary. `go install` is not
       # a supported install path for golangci-lint and can produce a build
@@ -55,7 +59,7 @@ jobs:
       # working directory -- the one thing the "CI runs exactly `task`" rule
       # exists to prevent.
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           install-only: true

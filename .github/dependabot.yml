@@ -4,7 +4,24 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
+    groups:
+      dependencies:
+        patterns: ["*"]
+    assignees: [philoserf]
+    commit-message:
+      prefix: chore
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
+    groups:
+      actions:
+        patterns: ["*"]
+    assignees: [philoserf]
+    commit-message:
+      prefix: chore
