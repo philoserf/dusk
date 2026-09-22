@@ -27,6 +27,9 @@ vars:
   # This repository does not use -coverpkg, but the program is the one the
   # other Go repositories run, and one program is easier to trust than three.
   #
+  # LC_ALL=C because the output is checked in here and compared on a Linux
+  # runner, and the two collate a path separator differently.
+  #
   # An integer count, not a percentage, and that is the whole point: a
   # percentage holds still while a guarded branch adds one covered statement
   # and one uncovered, and it grows more forgiving as the repository grows.
@@ -35,7 +38,7 @@ vars:
     for (i=2; i<n; i++) d = d "/" p[i];
     pkg[$1]=d; stmts[$1]=$2; runs[$1]+=$3; seen[d]=1 }
     END { for (b in runs) if (runs[b]==0) u[pkg[b]] += stmts[b];
-    for (d in seen) print d, u[d]+0 }' {{.PROFILE}} | sort
+    for (d in seen) print d, u[d]+0 }' {{.PROFILE}} | LC_ALL=C sort
 
 tasks:
   default:
