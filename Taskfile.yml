@@ -58,6 +58,7 @@ tasks:
       - go mod tidy -diff
 
   vet:
+    desc: go vet ./...
     cmds:
       - go vet ./...
 
@@ -99,6 +100,7 @@ tasks:
       - prettier --write --log-level warn .
 
   nilaway:
+    desc: Flow-sensitive nil-dereference analysis with NilAway
     cmds:
       - nilaway ./...
 
