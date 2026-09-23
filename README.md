@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/philoserf/dusk/actions/workflows/ci.yml/badge.svg)](https://github.com/philoserf/dusk/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/philoserf/dusk/v5.svg)](https://pkg.go.dev/github.com/philoserf/dusk/v5)
+![Status: Stable](https://img.shields.io/badge/Status-Stable-brightgreen.svg)
 
 A single, zero-dependency Go package for astronomical calculations — sunrise/sunset, moonrise/moonset, twilight, and lunar phase — based on Meeus's _Astronomical Algorithms_.
 
