@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "case \"$CLAUDE_FILE_PATH\" in *.go) gofumpt -w \"$CLAUDE_FILE_PATH\" ;; esac",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.go) gofumpt -extra -w \"$f\" ;; esac",
             "timeout": 10
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "case \"$CLAUDE_FILE_PATH\" in *.go) go test -count=1 -short ./... 2>&1 | tail -1 ;; esac",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.go) go test -count=1 -short ./... 2>&1 | tail -1 ;; esac",
             "timeout": 30
           }
         ]
