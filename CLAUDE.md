@@ -7,10 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Go library for astronomical calculations: twilight, lunar phase, rise/set times.
 
 Onboarding references: `THEORY.md` (Naur-style theory of the codebase) and `WALKTHROUGH.md` (linear code tour).
-Both are hand-maintained prose — extend `THEORY.md` when a load-bearing idea changes, and regenerate
-`WALKTHROUGH.md` with the `code-walkthrough` skill when the code it quotes moves. Its snippets are quoted
-from the source by file and symbol, not by line range, and nothing in the gate checks them against the
-files they came from: re-read it before tagging.
+Both are hand-maintained prose, brought current at release time in one pass, not as work proceeds —
+extend `THEORY.md` where a load-bearing idea has changed, and regenerate `WALKTHROUGH.md` with the
+`code-walkthrough` skill. Its snippets are quoted from the source by file and symbol, not by line
+range, and nothing in the gate checks them against the files they came from: re-read it before tagging.
 
 ## Commands
 
@@ -65,15 +65,14 @@ out-of-range date (`unsupported date:`) exit 1, told apart by the message rather
 - `Observer` constructed via `NewObserver` — validates once at creation, fields unexported
 - **The calendar day is a type, not a convention.** `SunriseSunset`, `Twilight` and
   `MoonriseMoonset` take a `Date{Year, Month, Day}`; `DateIn(t, loc)` converts an instant.
-  Before v5.0.0 they took a `time.Time` and kept only `date.In(obs.loc)`'s calendar day, so
-  a `time.UTC` midnight silently selected the previous day west of Greenwich -- a trap this
-  file, `THEORY.md`, the README and the CLI each had to state separately. The two internal
-  reconstructions are unchanged: solar builds UTC midnight, lunar builds true local midnight
+  A `time.Time` day would be read in the observer's zone, where a `time.UTC` midnight falls
+  on the previous day west of Greenwich. Internally, solar builds UTC midnight and lunar
+  builds true local midnight
 - `LunarPhase` is the exception to the day regime: it takes an **instant**, not a day, and no
   `Observer` — phase is Sun-Earth-Moon geometry, so the observer is irrelevant
-- `Twilight(date, obs, depression)` returns **both boundaries on the queried day**, symmetric
-  about transit — so either both exist or neither does. The v4 two-day shape, and the three
-  named wrappers over it, are gone; overnight darkness is now two calls at the call site
+- `Twilight(date, obs, depression)` returns **both boundaries on the queried day** — one
+  `Horizon` governs the day, so either both exist or neither does. Overnight darkness is two
+  calls at the call site
 - **The text report rounds to the minute; the JSON does not.** `cmd/dusk`'s timeline rounds
   where an event enters it, not at the `Format` call — the day-marker logic compares against
   the report's day, so a 23:59:45 sunset has to round to tomorrow's 00:00 _before_ that
@@ -99,11 +98,8 @@ out-of-range date (`unsupported date:`) exit 1, told apart by the message rather
   USNO's one-day service publishes sunrise/sunset and civil twilight only, so the nautical
   pin in `solar_test.go` is uncorroborated and labelled as such. Record the measured margin
   beside a tolerance so the next reader can tell a tight test from a lucky one
-- **Errors are checked on their own line**, never inline: `err := f()` then `if err != nil`,
-  not `if err := f(); err != nil`. Enforced by `noinlineerr`, matching the other Go repos
-- **Every test calls `t.Parallel()`**, top level and subtest. Enforced by `paralleltest`.
-  Accumulating state across parallel subtests is a race — check table-wide properties in
-  their own sequential test instead
+- Every test and subtest is parallel (`paralleltest`), so accumulating state across subtests
+  is a race — check table-wide properties in their own sequential test instead
 
 ## Lint posture
 
@@ -111,25 +107,19 @@ out-of-range date (`unsupported date:`) exit 1, told apart by the message rather
 Each disable carries a **measured finding count and a reason** — the file's own rule, and the bar for
 adding another: count the findings, read them, and write down why they are wrong here.
 
-- `nolintlint` requires a **specific** linter and an **explanation**, and fails on an unused
-  `//nolint` — a blanket directive will not pass the gate
-- `depguard` is `list-mode: strict`, allowing only `$gostd` and this module's own path
-- `_test.go` relaxes the linters that table-driven, white-box tests trip (`dupl`, `goconst`,
-  `funlen`, `gocognit`, `cyclop`, `lll`, `gosec`, `noctx`, `testpackage`, `gochecknoglobals`)
 - Terse Meeus notation (`T`, `M`, `Lp`, `Mp`, `h0`) is permitted by name in the `varnamelen`
   ignore list and by disabling `gocritic`'s `captLocal`; a new one-letter name needs an entry
 - gofumpt and goimports run **inside** golangci-lint, which is the single definition of formatted
-  this repo has **for Go**. A `PostToolUse` hook in `.claude/settings.json` also runs `gofumpt -w`
-  on Go file writes — but the Brewfile does not install gofumpt, so on a fresh machine that hook
-  fails rather than formats (exit 127), and `task lint` is what catches the formatting
+  this repo has **for Go**. Two `PostToolUse` hooks in `.claude/settings.json` act on each Go file
+  an `Edit` or `Write` touches, reading its path from the hook's stdin JSON: one runs
+  `gofumpt -extra -w` on it, the other runs `go test -count=1 -short ./...` and reports the last
+  line. The Brewfile does not install gofumpt, so without it the format hook fails harmlessly
+  (a non-blocking error) and `task lint` is what catches the formatting
 - **prettier is the same thing for every file that is not Go** — Markdown, JSON and YAML — run
   by `task docs` and configured by
   `.prettierrc.json`. `embeddedLanguageFormatting: "off"` is the load-bearing setting: prettier's
   default rewrites source inside fenced blocks, and this repository's documents quote their own
-  compiled examples. `.prettierignore` names what is out of scope and why — `.golangci.yml`
-  (prettier explodes the commented `varnamelen` flow sequence) and `.issues/` (hidden by the
-  global `core.excludesfile`, not by this repo's `.gitignore`, so git skips it and prettier
-  would not)
+  compiled examples. `.prettierignore` names what is out of scope and why
 
 ## Gotchas
 
@@ -142,7 +132,6 @@ adding another: count the findings, read them, and write down why they are wrong
   176s. It recovers about half the true skew; the rest needs the hour angle measured against
   the Sun's own right ascension rather than a fixed transit, which is #114
 - `solarHourAngle` takes `depression` (positive degrees below horizon) for twilight reuse; pass 0 for sunrise/sunset
-- `LunarPhaseInfo.Waxing` distinguishes waxing (elongation 0-180) from waning; `DaysApprox` is a linear approximation
 - `eclipticToEquatorial` applies full nutation (Δψ + Δε); `solarDeclination` uses mean obliquity only (intentional asymmetry — NOAA simplified method for sunrise/sunset)
 - **The Moon's horizon threshold is _positive_ and the Sun's is negative.** Meeus's lunar
   `h0 = 0.7275·π − 0.5667` is about **+0.125°**, because horizontal parallax outweighs
