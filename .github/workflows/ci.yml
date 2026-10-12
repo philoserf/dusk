@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v7
 
       # Actions are pinned to their major tag, as everywhere in the workspace:
-      # Dependabot reports a new major, and a patch arrives without a PR. The
+      # a new major is a hand edit, and a patch arrives without one. The
       # tooling the actions install -- Go here, golangci-lint below -- floats,
       # which is the argument of the Taskfile preamble.
       - name: Go Setup
