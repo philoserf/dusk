@@ -16,8 +16,7 @@ range, and nothing in the gate checks them against the files they came from: re-
 
 Run `task --list` for the current set.
 
-**CI runs exactly `task`.** Never add a check to CI that the local gate does not run,
-and never add a tool to the gate without also installing it in the workflow. The Go
+**The gate is `task`.** The Go
 toolchain, golangci-lint and prettier are deliberately unpinned: a red gate on untouched
 code is the signal working — answer the finding rather than pinning the tool.
 
@@ -166,9 +165,3 @@ are hand-edited — see the `major-version-bump` skill.
 
 No release automation. `CHANGELOG.md` is written by hand. **Tag last**, by hand, after the gate
 is green and `WALKTHROUGH.md` has been re-verified against the current source.
-
-## CI
-
-One GitHub Actions job that installs the toolchain and runs `task`. No paths-ignore: a
-gate that skips a documentation-only push cannot catch a broken example, and the examples
-here compile.
