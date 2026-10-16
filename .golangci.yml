@@ -130,6 +130,8 @@ formatters:
     gofumpt:
       extra:
         group-params: true
+        clothe-returns: true
+        balance-calls: true
 
 issues:
   # Show every finding. The defaults cap output per linter and per repeated
