@@ -979,8 +979,8 @@ message rather than the status.
 
 ## How it is held together
 
-**CI runs exactly `task`** — the same gate that runs locally. Nothing is checked in CI
-that a developer cannot run, and nothing is in the local gate that CI does not install.
+**`task` is the whole gate**, and there is no CI: it runs only when someone runs it, so
+a check left out of it is not run anywhere.
 
 Coverage is held by a **ratchet**, not a percentage. `coverage.ratchet` records the count
 of uncovered statements per package and `task ratchet` diffs against it, so the gate

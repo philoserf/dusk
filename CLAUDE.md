@@ -111,9 +111,8 @@ adding another: count the findings, read them, and write down why they are wrong
 - gofumpt and goimports run **inside** golangci-lint, which is the single definition of formatted
   this repo has **for Go**. Two `PostToolUse` hooks in `.claude/settings.json` act on each Go file
   an `Edit` or `Write` touches, reading its path from the hook's stdin JSON: one runs
-  `gofumpt -extra -w` on it, the other runs `go test -count=1 -short ./...` and reports the last
-  line. The Brewfile does not install gofumpt, so without it the format hook fails harmlessly
-  (a non-blocking error) and `task lint` is what catches the formatting
+  `golangci-lint fmt` on it, so it applies exactly the gofumpt extras `.golangci.yml` enables,
+  and the other runs `go test -count=1 -short ./...` and reports the last line
 - **`bun fmt` is the same thing for every file that is not Go** — Markdown, JSON and YAML — run
   by `task docs` and configured by `.prettierrc.json`, which it reads as-is.
   `embeddedLanguageFormatting: "off"` is the load-bearing setting: the default rewrites source
