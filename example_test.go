@@ -172,15 +172,14 @@ func ExampleTwilight() {
 	// Dawn first: both boundaries are on the queried day, in clock order.
 	fmt.Printf("Dawn: %s\n", tw.Dawn.Round(time.Minute).Format("15:04"))
 	fmt.Printf("Dusk: %s\n", tw.Dusk.Round(time.Minute).Format("15:04"))
-	// USNO publishes 04:31 and 21:52 for this date and place; the library
-	// computes 04:30:50 and 21:51:26, margins of 10s and 34s. Dawn agrees once
-	// rounded; dusk is 34 seconds short of the minute and rounds down, which is
-	// the reference's own rounding rather than an error here -- USNO publishes
-	// to the minute too.
+	// USNO publishes 04:31 and 21:52 for this date and place. The library
+	// computes 04:31:00 and 21:51:34; JPL DE421 (via Skyfield) has 04:30:53 and
+	// 21:51:37, margins of 7s and 3s. Before v5.2.0 referred the Sun's longitude
+	// to the equinox of date, dusk was 21:51:26 and rounded down.
 
 	// Output:
 	// Dawn: 04:31
-	// Dusk: 21:51
+	// Dusk: 21:52
 }
 
 func ExampleMoonriseMoonset() {

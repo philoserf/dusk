@@ -145,12 +145,13 @@ error.
 
 **Three things about this are load-bearing.**
 
-It is deliberately partial, and the code says so where it happens. Measured against USNO
-across twelve place/date pairs, worst-case sunset falls from 176s to 115s — but Oslo's true
-skew is −180s and this reports −86s. The remainder needs the hour angle measured against the
-Sun's own right ascension rather than a transit computed once for the day, which means
-solving `altitude(t) = h0` the way `MoonriseMoonset` already does. That is filed, not
-forgotten.
+The remainder after v5.1.0 was not the method's. v5.1.0 measured a −86s Oslo skew against
+USNO's −180s and filed the gap (#114) as unmodelled right-ascension motion. Both halves of
+that were wrong: USNO's −180s is minute rounding — JPL DE421 has −85s, which is what this
+reports — and the 1–2 minute residual on every equinox boundary was the Sun's longitude
+being referred to the J2000 equinox while its obliquity was of date. v5.2.0 adds the
+`1.71946·T` perihelion term and every boundary in the ephemeris test sits within ~10s.
+**Check a skew against a reference that publishes seconds before modelling it.**
 
 **Sunrise got worse, and that was accepted knowingly.** The mirrored construction put the
 entire error on sunset, which left sunrise accidentally accurate; correcting the geometry
@@ -415,10 +416,11 @@ the threshold and the day-scan together: a rewrite of the interior, not an addit
 **The solar accuracy budget is now seconds, not minutes, and that changes what the
 architecture can afford.** `THEORY.md` has defended the nutation asymmetry — full nutation
 for the Moon, mean obliquity alone for the Sun — on the grounds that the NOAA method's 1–2
-minute budget does not earn the nutation terms back. After v5.1.0 the worst solar
-disagreement is 115 seconds and the remainder is a modelling gap rather than noise. The
-defence still holds today; it will not hold after the residual asymmetry is closed, and
-whoever closes it should expect to revisit that trade rather than assume it.
+minute budget does not earn the nutation terms back. After v5.2.0 the worst solar
+disagreement with JPL DE421 is about 10 seconds across the ephemeris test's ten cases. The
+nutation in longitude is at most about 0.005°, which near an equinox is
+0.002° of declination and a second or two at Oslo, so the defence still holds — but it is
+now one of the largest unmodelled terms rather than noise beneath a bigger one.
 
 **Sub-minute precision is partly there and partly not.** Interpolation removed the
 one-minute quantization from the _reported_ instant, and the result agrees with USNO

@@ -127,9 +127,12 @@ adding another: count the findings, read them, and write down why they are wrong
 - **The two solar boundaries are solved independently, not mirrored.** `solarCrossing` takes
   a first symmetric estimate about transit, then re-solves each boundary against the
   declination at its own instant — near an equinox declination moves ~0.4°/day, so the
-  afternoon half-day really is shorter. Worst measured disagreement with USNO is 115s, from
-  176s. It recovers about half the true skew; the rest needs the hour angle measured against
-  the Sun's own right ascension rather than a fixed transit, which is #114
+  afternoon half-day really is shorter. Against JPL DE421 the reported skew matches to the
+  second and every boundary in `TestSunriseSunset_AgainstEphemeris` is within ~10s
+- **`solarEclipticLongitude` is referred to the equinox of date** via its `1.71946·T`
+  perihelion term. Dropping it (as before v5.2.0) refers the longitude to J2000 while the
+  obliquity is of date — an error that grows ~1.7° a century, vanishes at the solstices and
+  so masquerades as an equinox asymmetry. USNO's minute rounding cannot see it; DE421 can
 - `solarHourAngle` takes `depression` (positive degrees below horizon) for twilight reuse; pass 0 for sunrise/sunset
 - `eclipticToEquatorial` applies full nutation (Δψ + Δε); `solarDeclination` uses mean obliquity only (intentional asymmetry — NOAA simplified method for sunrise/sunset)
 - **The Moon's horizon threshold is _positive_ and the Sun's is negative.** Meeus's lunar

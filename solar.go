@@ -21,7 +21,7 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 	J := meanSolarTime(date, lon)
 	M := solarMeanAnomaly(J)
 	C := solarEquationOfCenter(M)
-	lambda := solarEclipticLongitude(M, C)
+	lambda := solarEclipticLongitude(M, C, J)
 	T := julianCentury(date)
 	delta := solarDeclination(lambda, T)
 	jTransit := solarTransitJD(J, M, lambda)
@@ -35,7 +35,7 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 func (sp solarParams) declinationAt(offsetDays float64) float64 {
 	M := solarMeanAnomaly(sp.J + offsetDays)
 	C := solarEquationOfCenter(M)
-	lambda := solarEclipticLongitude(M, C)
+	lambda := solarEclipticLongitude(M, C, sp.J+offsetDays)
 
 	return solarDeclination(lambda, sp.T+offsetDays/36525.0)
 }
@@ -86,11 +86,10 @@ func solarCrossing(date Date, obs Observer, depression float64) (solarDay, error
 	// morning one, and the mirrored construction cannot represent that at all.
 	//
 	// Re-solving each boundary against the declination at its own estimated
-	// instant recovers most of the difference. It does not recover all of it:
-	// the hour angle is still measured about a transit computed once for the
-	// day, so the Sun's motion in right ascension between transit and the
-	// boundary is unmodelled. Measured, that leaves about half the equinox skew
-	// at high latitude, which is issue #114.
+	// instant recovers the skew: at Oslo near the September equinox it reports
+	// −85s against JPL DE421's −85s. The Sun's motion in right ascension needs no
+	// separate term, because omega/360 converts in solar days, which already
+	// carry it. One pass is enough; a second moves nothing measurable.
 	return solarDay{
 		rise:    sp.jTransit - refineOmega(sp, -omega/360.0, depression, obs.lat, omega)/360.0,
 		transit: sp.jTransit,
@@ -175,9 +174,19 @@ func solarEquationOfCenter(M float64) float64 {
 	return 1.9148*sinx(M) + 0.0200*sinx(2*M) + 0.0003*sinx(3*M)
 }
 
-// solarEclipticLongitude returns the Sun's ecliptic longitude in degrees.
-func solarEclipticLongitude(M, C float64) float64 {
-	return mod360(M + C + 180 + 102.9372)
+// solarEclipticLongitude returns the Sun's ecliptic longitude in degrees,
+// referred to the mean equinox of date. J is days since J2000.0, the same
+// argument solarMeanAnomaly takes.
+//
+// The perihelion term is 102.93735 + 1.71946·T (Meeus ch. 25: L0 − M + 180),
+// and the secular part is not optional. Without it the longitude is referred
+// to the equinox of J2000 while the obliquity it meets in solarDeclination is
+// of date, and the gap grows by 1.72° a century: 0.46° by 2026, which near an
+// equinox is 0.18° of declination and about 80 seconds on each end of the day
+// at Oslo. It read as a sunrise/sunset asymmetry because it vanishes at the
+// solstices, where declination stops moving.
+func solarEclipticLongitude(M, C, J float64) float64 {
+	return mod360(M + C + 180 + 102.93735 + 1.71946*J/36525.0)
 }
 
 // solarDeclination returns the Sun's declination in degrees from its ecliptic

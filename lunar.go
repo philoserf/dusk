@@ -101,7 +101,7 @@ func LunarPhase(date time.Time) (LunarPhaseInfo, error) {
 	J := julianDate(date) - j2000
 	Msol := solarMeanAnomaly(J)
 	C := solarEquationOfCenter(Msol)
-	sunLon := solarEclipticLongitude(Msol, C)
+	sunLon := solarEclipticLongitude(Msol, C, J)
 
 	T := julianCentury(date)
 	Mp := lunarMeanAnomaly(T)

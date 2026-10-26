@@ -65,11 +65,10 @@ func TestSunriseSunset_HighLatitudeEquinox(t *testing.T) {
 	// USNO reference, aa.usno.navy.mil/api/rstt/oneday: Rise 06:49, Upper
 	// Transit 13:12, Set 19:32.
 	//
-	// Measured margin: 47s on rise, 17s on transit, 107s on set. Before v5.1.0
-	// solved the two boundaries independently it was 3s, 17s and **148s** --
-	// note that rise was *better* then. The mirrored construction put the whole
-	// error on sunset, which left sunrise accidentally accurate; correcting the
-	// geometry distributes it. The remaining asymmetry is issue #114.
+	// The library has 06:49:20, 13:11:33 and 19:32:22, inside USNO's own minute
+	// rounding; TestSunriseSunset_AgainstEphemeris holds the same day to the
+	// second against JPL DE421. Before v5.2.0 the margins were 47s, 17s and
+	// 107s, and before v5.1.0 3s, 17s and 148s.
 	oslo, err := time.LoadLocation("Europe/Oslo")
 	if err != nil {
 		t.Fatalf("failed to load timezone: %v", err)
@@ -102,11 +101,11 @@ func TestSunriseSunset_HighLatitudeEquinox(t *testing.T) {
 	}
 
 	// The afternoon half-day is genuinely shorter than the morning near an
-	// equinox, because declination moves about 0.4° a day. USNO has 22980s and
-	// 22800s here, a skew of −180s. A mirrored construction reports 0 by
-	// definition, which is what this assertion exists to forbid: it fails if
-	// anyone reintroduces the symmetry, and it does not pretend the current
-	// −86s is the whole story.
+	// equinox, because declination moves about 0.4° a day. JPL DE421 has 22927s
+	// and 22842s here, a skew of −85s, and the library reports −85s. (USNO's
+	// minute-rounded times give −180s, which is the rounding, not the sky.) A
+	// mirrored construction reports 0 by definition, which is what this
+	// assertion exists to forbid: it fails if anyone reintroduces the symmetry.
 	morning := event.Noon.Sub(event.Rise)
 	afternoon := event.Set.Sub(event.Noon)
 
@@ -448,21 +447,24 @@ func TestTwilight_Equatorial(t *testing.T) {
 func TestTwilight_RefinementAtThePolarLimit(t *testing.T) {
 	t.Parallel()
 
-	// 65.5°N, civil twilight, 2025-05-13. The first pass says the Sun crosses
+	// 65.5°N, civil twilight, 2026-05-13. The first pass says the Sun crosses
 	// 6° below the horizon; re-solving the evening boundary against the
 	// declination at its own estimated instant says it does not, because a day
 	// this close to the limit is gaining length fast enough to cross it inside
 	// the correction.
 	//
-	// Found by search rather than by guess -- it is the earliest such day at any
-	// latitude and band the suite covers. The branch it exercises is the one
+	// Found by search rather than by guess -- the first such day at this latitude
+	// from 2024 on. It was 2025-05-13 until v5.2.0 moved the solar longitude to
+	// the equinox of date, which shifts every polar limit by a day or so; when a
+	// fix moves it again, search for the new day rather than loosening the
+	// assertion. The branch it exercises is the one
 	// deliberate approximation in solarCrossing: keep the first estimate rather
 	// than report a state the day as a whole does not have, because the
 	// alternative is a boundary that vanishes and reappears across one degree of
 	// latitude.
 	obs := mustObserver(t, 65.5, 0, time.UTC)
 
-	event, err := Twilight(Date{2025, 5, 13}, obs, 6)
+	event, err := Twilight(Date{2026, 5, 13}, obs, 6)
 	if err != nil {
 		t.Fatalf("Twilight() returned error: %v", err)
 	}
@@ -592,36 +594,39 @@ func TestNauticalTwilight_AbsoluteTime(t *testing.T) {
 func TestTwilight_PolarTransition(t *testing.T) {
 	t.Parallel()
 
-	// At 75°N the civil band closes between 2024-11-26 and 2024-11-27.
+	// At 75°N the civil band closes between 2024-11-25 and 2024-11-26. JPL DE421
+	// (via Skyfield) puts the Sun's transit altitude at −5.88° on the 25th and
+	// −6.07° on the 26th, and the 25th's window at 09:36:29–10:36:41 UTC; the
+	// library has 09:36:38–10:37:03. Until v5.2.0 referred the solar longitude
+	// to the equinox of date, this pinned the 26th/27th -- a day late.
 	//
 	// A same-day event is symmetric about solar transit, so both boundaries
 	// exist or neither does -- the transition can only land BETWEEN days, and
-	// that is what this pins. Under the v4 two-day event the Nov 26 call failed,
-	// but it failed on Nov 27's geometry: Nov 26 has a real 19-minute civil
-	// window that the whole-call error threw away along with it.
+	// that is what this pins. Under the v4 two-day event the last day's call
+	// failed on the next day's geometry, throwing away a real civil window.
 	loc := time.UTC
 	obs := mustObserver(t, 75.0, 25.0, loc)
 
-	last := Date{2024, 11, 26}
-	gone := Date{2024, 11, 27}
+	last := Date{2024, 11, 25}
+	gone := Date{2024, 11, 26}
 
 	event, err := Twilight(last, obs, 6)
 	if err != nil {
-		t.Fatalf("Twilight(Nov 26, 75°N, 6) should succeed, got %v", err)
+		t.Fatalf("Twilight(Nov 25, 75°N, 6) should succeed, got %v", err)
 	}
 
 	if event.Horizon != Crosses {
-		t.Fatalf("Nov 26 Horizon = %v, want Crosses", event.Horizon)
+		t.Fatalf("Nov 25 Horizon = %v, want Crosses", event.Horizon)
 	}
 
 	if event.Dawn.IsZero() || event.Dusk.IsZero() {
-		t.Fatalf("Nov 26 should carry both boundaries, got dawn=%v dusk=%v", event.Dawn, event.Dusk)
+		t.Fatalf("Nov 25 should carry both boundaries, got dawn=%v dusk=%v", event.Dawn, event.Dusk)
 	}
 
-	// The window is narrow and closing: minutes, not hours.
+	// The window is narrow and closing: about an hour, by the reference.
 	window := event.Dusk.Sub(event.Dawn)
-	if window <= 0 || window > time.Hour {
-		t.Errorf("Nov 26 civil window = %v, want a positive span under an hour", window)
+	if window <= 0 || window > 75*time.Minute {
+		t.Errorf("Nov 25 civil window = %v, want a positive span of about an hour", window)
 	}
 
 	next, err := Twilight(gone, obs, 6)
@@ -630,10 +635,69 @@ func TestTwilight_PolarTransition(t *testing.T) {
 	}
 
 	if next.Horizon != StaysBelow {
-		t.Fatalf("Nov 27 Horizon = %v, want StaysBelow", next.Horizon)
+		t.Fatalf("Nov 26 Horizon = %v, want StaysBelow", next.Horizon)
 	}
 
 	if !next.Dawn.IsZero() || !next.Dusk.IsZero() {
-		t.Errorf("Nov 27 dawn = %v, dusk = %v, want both zero", next.Dawn, next.Dusk)
+		t.Errorf("Nov 26 dawn = %v, dusk = %v, want both zero", next.Dawn, next.Dusk)
+	}
+}
+
+func TestSunriseSunset_AgainstEphemeris(t *testing.T) {
+	t.Parallel()
+
+	// Reference values from JPL DE421 through Skyfield 1.x (almanac.find_risings,
+	// find_transits, find_settings at horizon_degrees = -0.8333, the same
+	// threshold solarHourAngle uses), printed to the second in UTC. USNO
+	// publishes to the minute, which is too coarse to see this test's subject:
+	// near an equinox, a solar longitude referred to the J2000 equinox rather than
+	// the equinox of date put every 2026 sunrise early and every sunset late by up
+	// to two minutes at high latitude. Measured on HEAD before the fix: Oslo set
+	// +94s, 68°N set +128s, Oslo March rise +74s. After: under 11s everywhere.
+	//
+	// The solstice rows are the control: declination stops moving there, so the
+	// old error vanished and they must stay tight either way.
+	const tolerance = 30 * time.Second
+
+	for _, tt := range []struct {
+		name            string
+		lat, lon        float64
+		date            Date
+		rise, noon, set string
+	}{
+		{"Grand Rapids equinox", 42.96, -85.67, Date{2026, 9, 17}, "2026-09-17T11:24:39Z", "2026-09-17T17:37:06Z", "2026-09-17T23:48:48Z"},
+		{"Seattle equinox", 47.61, -122.33, Date{2026, 9, 17}, "2026-09-17T13:49:37Z", "2026-09-17T20:03:42Z", "2026-09-18T02:16:54Z"},
+		{"Oslo September", 59.91, 10.75, Date{2026, 9, 17}, "2026-09-17T04:49:24Z", "2026-09-17T11:11:31Z", "2026-09-17T17:32:13Z"},
+		{"65N September", 65.0, 10.75, Date{2026, 9, 17}, "2026-09-17T04:44:21Z", "2026-09-17T11:11:31Z", "2026-09-17T17:36:54Z"},
+		{"68N September", 68.0, 10.75, Date{2026, 9, 17}, "2026-09-17T04:40:19Z", "2026-09-17T11:11:31Z", "2026-09-17T17:40:37Z"},
+		{"Oslo March", 59.91, 10.75, Date{2026, 3, 20}, "2026-03-20T05:18:58Z", "2026-03-20T11:24:27Z", "2026-03-20T17:31:19Z"},
+		{"Oslo solstice", 59.91, 10.75, Date{2026, 12, 21}, "2026-12-21T08:18:05Z", "2026-12-21T11:15:03Z", "2026-12-21T14:12:00Z"},
+		{"New York solstice", 40.71, -74.006, Date{2026, 6, 21}, "2026-06-21T09:25:02Z", "2026-06-21T16:57:53Z", "2026-06-22T00:30:44Z"},
+		{"Quito equinox", -0.18, -78.47, Date{2026, 3, 20}, "2026-03-20T11:18:00Z", "2026-03-20T17:21:15Z", "2026-03-20T23:24:30Z"},
+		{"Sydney equinox", -33.87, 151.21, Date{2026, 9, 23}, "2026-09-22T19:43:57Z", "2026-09-23T01:47:41Z", "2026-09-23T07:51:56Z"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			event, err := SunriseSunset(tt.date, mustObserver(t, tt.lat, tt.lon, time.UTC))
+			if err != nil {
+				t.Fatalf("SunriseSunset() returned error: %v", err)
+			}
+
+			for _, c := range []struct {
+				which string
+				got   time.Time
+				want  string
+			}{{"Rise", event.Rise, tt.rise}, {"Noon", event.Noon, tt.noon}, {"Set", event.Set, tt.set}} {
+				want, err := time.Parse(time.RFC3339, c.want)
+				if err != nil {
+					t.Fatalf("bad reference %q: %v", c.want, err)
+				}
+
+				if diff := c.got.Sub(want); diff < -tolerance || diff > tolerance {
+					t.Errorf("%s = %v, want %v (±%v, diff=%v)", c.which, c.got.Format(time.TimeOnly), want.Format(time.TimeOnly), tolerance, diff)
+				}
+			}
+		})
 	}
 }
