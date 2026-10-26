@@ -1,5 +1,80 @@
 # Changelog
 
+## v5.2.0 — 2026-10-26
+
+One accuracy fix, and the tooling moves off GitHub. **Every solar time in this release
+moves again** — sunrise, sunset and all three twilight bands — and this time sunrise and
+sunset both get better. No exported signature changes.
+
+### The Sun's longitude is referred to the equinox of date
+
+`solarEclipticLongitude` added the longitude of perihelion as the constant `102.9372`, its
+value **at J2000**, and dropped the secular `1.71946·T` term Meeus gives with it (ch. 25:
+`L0 − M + 180`). The longitude was therefore measured from the J2000 equinox, while the
+obliquity it meets in `solarDeclination` is of date. The gap grows by 1.72° a century; by
+2026 it is 0.46° of longitude, which near an equinox is about 0.18° of declination.
+
+That lengthened or shortened the whole day symmetrically and vanished at the solstices, where
+declination stops moving — so it read as an equinox asymmetry, and v5.1.0 read it that way.
+
+Measured to the second against JPL DE421 (through Skyfield, at the same −0.8333° horizon),
+`library − DE421` in seconds:
+
+| place, date                        | rise before | rise after | set before | set after |
+| ---------------------------------- | ----------- | ---------- | ---------- | --------- |
+| Grand Rapids 2026-09-17            | −35         | −4         | +59        | +9        |
+| Oslo 2026-09-17                    | −71         | −4         | +94        | +9        |
+| 68°N 2026-09-17                    | −104        | −4         | **+128**   | +10       |
+| Oslo 2026-03-20                    | +75         | −9         | −61        | +4        |
+| Oslo 2026-12-21 (solstice control) | −8          | +4         | −6         | +3        |
+| Sydney 2026-09-23                  | +32         | −7         | −15        | +5        |
+
+Worst case falls from 128 seconds to 10. Those ten place/date pairs, equator to 68°N, are now
+`TestSunriseSunset_AgainstEphemeris`, held to 30 seconds. `README.md`'s accuracy paragraph
+now quotes DE421 rather than USNO, whose minute rounding could not see this error at all.
+
+**v5.1.0's "about half the asymmetry remains" was wrong, in both halves.** USNO's −180s
+Oslo skew is its own minute rounding: DE421 has −85s, and v5.1.0 already reported −86s.
+The skew was right; both ends were off by the same amount. And the Sun's motion in right
+ascension needs no separate term, because `omega/360` converts the hour angle to solar days,
+which already carry it. [#114](https://github.com/philoserf/dusk/issues/114) is closed
+without the root-finding it proposed.
+
+**The v5.1.0 sunrise trade is gone.** v5.1.0 made Oslo's sunrise worse to make its sunset
+better; Oslo's rise is now 4 seconds from DE421.
+
+**Twilight moves too, and so do the polar limits.** `Twilight` shares the geometry, so all
+three bands get the correction. `ExampleTwilight`'s dusk goes from 21:51:26 to 21:51:34
+(DE421: 21:51:37) and now rounds to 21:52, which is what USNO publishes. At 75°N the civil
+band now closes between 2024-11-25 and 2024-11-26; the test pinned the 26th/27th, a day late
+by DE421. The 65.5°N day that exercises `refineOmega`'s fallback moved from 2025-05-13 to
+2026-05-13.
+
+**`LunarPhase` moves slightly.** It uses the same helper for the Sun's longitude, so
+elongation and illumination shift by a fraction of a degree. Meeus's lunar longitude is of
+date, so this makes the two consistent. No phase test moved, and moonrise and moonset are
+untouched.
+
+### Also
+
+- **No CI, no release workflow, no Dependabot.** The gate is `task`, run locally; there is
+  no hosted check behind it. The README loses its CI badge and gains a status badge.
+- `bun fmt` replaces prettier for Markdown, JSON and YAML, reading `.prettierrc.json` and
+  `.prettierignore` unchanged. The switch reformats nothing.
+- The project's Claude Code hooks read the edited file's path from stdin. They read
+  `$CLAUDE_FILE_PATH`, which is never set, so neither had ever run. The format hook now runs
+  `golangci-lint fmt`, and `.golangci.yml` enables every gofumpt extra rule.
+- Every task has a `desc:`, so `task --list` shows the whole Taskfile.
+- `WALKTHROUGH.md`'s solar section, `THEORY.md` and the Taskfile's comments are brought up to
+  the equinox-of-date longitude and to there being no CI.
+
+### Upgrading
+
+No signature changes and no import-path change: `go get -u` is the whole migration. If you
+have pinned sunrise, sunset or twilight times, expect them to move by up to about two minutes
+near an equinox at high latitude, and pinned polar-limit dates by a day. Re-derive them from
+a reference rather than from this library.
+
 ## v5.1.0 — 2026-09-17
 
 Two accuracy fixes and a hygiene fix. **Every solar time in this release moves** — sunrise,

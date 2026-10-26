@@ -158,7 +158,8 @@ entire error on sunset, which left sunrise accidentally accurate; correcting the
 distributes it. Oslo's sunrise went from −3s to −47s. A maintainer who measures only sunrise
 will read this as a regression and be half right — the model improved and that output did
 not. The same trade was made in v4.1.0 when the lunar parallax fix moved every moonrise
-later.
+later. In this case the trade was temporary: once v5.2.0 corrected the longitude, Oslo's
+sunrise sits 4s from DE421.
 
 `refineOmega`'s fallback is the one approximation in the path. When the refined declination
 puts a boundary out of reach on a day whose first pass said the Sun crosses, it keeps the
@@ -283,9 +284,8 @@ does not belong on a type that describes one.
 
 ### The gate is where the theory is enforced — and where it is not
 
-`task` is the whole of quality control, and CI runs exactly it. Never a check in CI the
-local gate does not run; never a tool in the gate the workflow does not install. The
-toolchain is deliberately unpinned, so a red gate on untouched code is the signal
+`task` is the whole of quality control. There is no CI: the gate runs only when someone
+runs it, so a check left out of it is not run anywhere. The toolchain is deliberately unpinned, so a red gate on untouched code is the signal
 working rather than a failure to manage.
 
 What the gate actually holds:
@@ -305,8 +305,8 @@ What the gate actually holds:
   forgiving as the repository grows. A moved count is often a reflow rather than lost
   coverage — blank lines split coverage blocks — so read the diff before believing it.
 - **The published examples compile and their output is asserted.** `example_test.go`
-  pins real times for Grand Rapids, Tromsø, Seattle and New York, which is why there is
-  no `paths-ignore` on the workflow: a documentation-only push can break an example.
+  pins real times for Grand Rapids, Tromsø, Seattle and New York, which is why a
+  documentation-only change still needs the gate: it can break an example.
 
 What the gate does **not** hold is the more useful list, because it is where drift
 actually lives. Nothing compares the README's stated Go minimum against `go.mod`.
