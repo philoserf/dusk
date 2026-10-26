@@ -1,5 +1,5 @@
-# The gate. CI runs exactly `task` -- never add a check to CI that this does
-# not run, and never add a tool to the gate without also installing it there.
+# The gate. There is no CI: this is the whole check, and it runs only when
+# someone runs it, so a check left out of it is not run anywhere.
 #
 # The toolchain is deliberately unpinned. The gate is meant to fail when a
 # tool moves rather than drift behind it, so a red gate on code you did not
@@ -108,7 +108,7 @@ tasks:
     desc: The suite, with the race detector, writing a coverage profile
     # Once per invocation: `default` runs the suite and then `ratchet`, which
     # depends on it. Without this the whole -race suite runs twice on every
-    # gate and every CI run, for one profile that does not change.
+    # gate run, for one profile that does not change.
     run: once
     cmds:
       - go test -race -covermode=atomic -coverprofile={{.PROFILE}} ./...
