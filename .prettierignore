@@ -1,13 +1,13 @@
 # The varnamelen ignore list is a YAML flow sequence with comments grouping the
 # names into three annotated categories -- which is how anyone adding a
-# one-letter name knows where to put it. Prettier explodes a flow sequence to
+# one-letter name knows where to put it. bun fmt explodes a flow sequence to
 # one entry per line, and the grouping stops meaning anything.
 .golangci.yml
 
 # Local scratch: .issues/ is written by the code-* skills, .planning/ by
-# release-captain. Prettier reads this repo's .gitignore but not the global
+# release-captain. bun fmt reads this repo's .gitignore but not the global
 # core.excludesfile, and both are ignored through the latter -- so git hides
-# them and prettier would not. Without these lines the gate fails on files the
+# them and bun fmt would not. Without these lines the gate fails on files the
 # repository does not carry.
 .issues/
 .planning/

@@ -290,7 +290,7 @@ working rather than a failure to manage.
 What the gate actually holds:
 
 - **Formatting, in two halves.** gofumpt and goimports run inside golangci-lint for Go;
-  prettier runs as `task docs` for Markdown and JSON. Both are declared in the
+  `bun fmt` runs as `task docs` for Markdown and JSON. Both are declared in the
   repository rather than left to an editor, which is what makes them reproducible.
 - **`default: all`, disabling only what fights this design** — and each disable carries
   a measured finding count and a reason, which is the file's own stated bar for adding

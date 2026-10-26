@@ -17,7 +17,7 @@ range, and nothing in the gate checks them against the files they came from: re-
 Run `task --list` for the current set.
 
 **The gate is `task`.** The Go
-toolchain, golangci-lint and prettier are deliberately unpinned: a red gate on untouched
+toolchain, golangci-lint and bun are deliberately unpinned: a red gate on untouched
 code is the signal working — answer the finding rather than pinning the tool.
 
 Coverage is held by a **ratchet**, not a percentage: `coverage.ratchet` records the
@@ -114,11 +114,11 @@ adding another: count the findings, read them, and write down why they are wrong
   `gofumpt -extra -w` on it, the other runs `go test -count=1 -short ./...` and reports the last
   line. The Brewfile does not install gofumpt, so without it the format hook fails harmlessly
   (a non-blocking error) and `task lint` is what catches the formatting
-- **prettier is the same thing for every file that is not Go** — Markdown, JSON and YAML — run
-  by `task docs` and configured by
-  `.prettierrc.json`. `embeddedLanguageFormatting: "off"` is the load-bearing setting: prettier's
-  default rewrites source inside fenced blocks, and this repository's documents quote their own
-  compiled examples. `.prettierignore` names what is out of scope and why
+- **`bun fmt` is the same thing for every file that is not Go** — Markdown, JSON and YAML — run
+  by `task docs` and configured by `.prettierrc.json`, which it reads as-is.
+  `embeddedLanguageFormatting: "off"` is the load-bearing setting: the default rewrites source
+  inside fenced blocks, and this repository's documents quote their own compiled examples.
+  `.prettierignore` names what is out of scope and why
 
 ## Gotchas
 
