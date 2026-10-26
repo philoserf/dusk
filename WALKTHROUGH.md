@@ -457,7 +457,7 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 	J := meanSolarTime(date, lon)
 	M := solarMeanAnomaly(J)
 	C := solarEquationOfCenter(M)
-	lambda := solarEclipticLongitude(M, C)
+	lambda := solarEclipticLongitude(M, C, J)
 	T := julianCentury(date)
 	delta := solarDeclination(lambda, T)
 	jTransit := solarTransitJD(J, M, lambda)
@@ -468,8 +468,11 @@ func computeSolarParams(date time.Time, lon float64) solarParams {
 
 Read the units carefully. `J` is **days** since J2000, and `solarMeanAnomaly` takes days
 — the repository fixed this unit deliberately, and `lunar.go` scales its own centuries
-back to days rather than keeping a second function in the other unit. `T` is
-**centuries**, and only `solarDeclination` wants it.
+back to days rather than keeping a second function in the other unit.
+`solarEclipticLongitude` takes the same `J`, for the `1.71946·T` term that refers the
+longitude to the equinox of date rather than J2000 — without it the declination drifts
+0.18° from the truth by 2026, near an equinox. `T` is **centuries**, and only
+`solarDeclination` wants it.
 
 Two numbers come out — the declination and the Julian date of solar transit — plus the two
 time bases they were computed from. Those are carried so the correction pass below can
@@ -481,7 +484,7 @@ re-solve on the same footing instead of inventing a second convention:
 func (sp solarParams) declinationAt(offsetDays float64) float64 {
 	M := solarMeanAnomaly(sp.J + offsetDays)
 	C := solarEquationOfCenter(M)
-	lambda := solarEclipticLongitude(M, C)
+	lambda := solarEclipticLongitude(M, C, sp.J+offsetDays)
 
 	return solarDeclination(lambda, sp.T+offsetDays/36525.0)
 }
@@ -584,15 +587,13 @@ The fallback is the one deliberate approximation here. A refined declination tha
 boundary out of reach is the polar limit arriving mid-correction, on a day whose first pass
 said the Sun crosses; keeping the first estimate avoids a boundary that vanishes and
 reappears across a degree of latitude. `TestTwilight_RefinementAtThePolarLimit` pins a real
-case — 65.5°N, civil, 2025-05-13 — found by search rather than guessed.
+case — 65.5°N, civil, 2026-05-13 — found by search rather than guessed.
 
-**It is a partial fix, and the code says so.** Measured against USNO, worst-case sunset falls
-from 176s to 115s, which is what makes the README's two-minute claim true. Sunrise gets
-_worse_ — the mirrored construction put the whole error on sunset, leaving sunrise
-accidentally accurate, and correcting the geometry distributes it. About half the true skew
-remains, because the hour angle is still measured about a transit computed once for the day:
-the Sun's own motion in right ascension between transit and the boundary is unmodelled. That
-is issue #114.
+**One pass recovers the whole skew.** At Oslo near the September equinox the library reports
+a −85s afternoon-minus-morning skew, and JPL DE421 has −85s. No right-ascension term is
+needed: `omega/360` converts in solar days, which already carry the Sun's motion. With the
+equinox-of-date longitude, every boundary in `TestSunriseSunset_AgainstEphemeris` sits within
+about 10 seconds of DE421.
 
 ### Twilight, which is the same computation
 
