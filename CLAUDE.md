@@ -17,7 +17,7 @@ range, and nothing in the gate checks them against the files they came from: re-
 Run `task --list` for the current set.
 
 **The gate is `task`.** The Go
-toolchain, golangci-lint and bun are deliberately unpinned: a red gate on untouched
+toolchain, golangci-lint, govulncheck and bun are deliberately unpinned: a red gate on untouched
 code is the signal working — answer the finding rather than pinning the tool.
 
 Coverage is held by a **ratchet**, not a percentage: `coverage.ratchet` records the
