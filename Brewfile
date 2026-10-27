@@ -6,3 +6,4 @@ brew "go-task"       # task runner (Taskfile.yml)
 brew "golangci-lint" # the gate's linter, and the single definition of formatted
                      # this repo has: gofumpt and goimports run inside it
 brew "bun"           # `bun fmt`, the same for Markdown, JSON and YAML: the gate's `task docs`
+brew "govulncheck"   # the gate's known-vulnerability scan: `task vuln`
