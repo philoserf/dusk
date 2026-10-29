@@ -997,7 +997,7 @@ publishes civil twilight and no deeper band, so the nautical pins are uncorrobor
 labelled as such.
 
 `.golangci.yml` runs `default: all` and disables only what fights this repository's
-deliberate design, each disable carrying a measured finding count and a reason.
+deliberate design, each disable carrying a reason that survives reading the findings.
 
 ## What this pass turned up
 
