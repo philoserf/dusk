@@ -294,8 +294,9 @@ What the gate actually holds:
   `bun fmt` runs as `task docs` for Markdown and JSON. Both are declared in the
   repository rather than left to an editor, which is what makes them reproducible.
 - **`default: all`, disabling only what fights this design** — and each disable carries
-  a measured finding count and a reason, which is the file's own stated bar for adding
-  another. Three of them (`mnd`, `exhaustruct_v5`, `gochecknoglobals`) exist because
+  a reason that survives reading the findings, which is the file's own stated bar for
+  adding another. It records no finding counts, which go stale with every code change.
+  Three of the disables (`mnd`, `exhaustruct_v5`, `gochecknoglobals`) exist because
   transcribed Meeus coefficients, staged result structs and immutable tables are what
   this package is made of.
 - **Coverage as a ratchet, not a percentage.** `coverage.ratchet` records uncovered

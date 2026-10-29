@@ -103,8 +103,9 @@ out-of-range date (`unsupported date:`) exit 1, told apart by the message rather
 ## Lint posture
 
 `.golangci.yml` runs `default: all` and disables only what fights this repo's deliberate design.
-Each disable carries a **measured finding count and a reason** — the file's own rule, and the bar for
-adding another: count the findings, read them, and write down why they are wrong here.
+Each disable carries a **reason that survives reading the findings**, and no finding count, since a
+count goes stale with every code change. That is the file's own rule, and the bar for adding another:
+read the findings and write down why they are wrong here.
 
 - Terse Meeus notation (`T`, `M`, `Lp`, `Mp`, `h0`) is permitted by name in the `varnamelen`
   ignore list and by disabling `gocritic`'s `captLocal`; a new one-letter name needs an entry
