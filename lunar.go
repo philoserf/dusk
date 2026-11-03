@@ -86,8 +86,10 @@ func lunarEclipticPosition(t time.Time) ecliptic {
 // LunarPhase uses the exact time — the phase changes continuously. The result
 // depends on the UTC instant; timezone does not affect the calculation.
 //
-// The phase angle uses the Meeus approach: solar ecliptic longitude from the
-// mean-anomaly method, lunar ecliptic position from Chapter 47 tables.
+// The Moon's ecliptic position is Meeus chapter 47 in full. The Sun's is the
+// low-precision mean-anomaly method SunriseSunset uses, and the phase angle is a
+// compact approximation rather than Meeus's exact chapter 48 form; both are
+// within the 1-2% illumination this documents.
 //
 // An error is returned if the date is out of the valid Julian date range.
 func LunarPhase(date time.Time) (LunarPhaseInfo, error) {
@@ -112,7 +114,8 @@ func LunarPhase(date time.Time) (LunarPhaseInfo, error) {
 		d = 360 - d
 	}
 
-	// phase angle (Meeus p. 346)
+	// Phase angle, a compact approximation. Meeus ch. 48 gives the exact form,
+	// from the Sun's and Moon's distances; this one's source is not recorded.
 	PA := 180 - d - 0.1468*((1-0.0549*sinx(Mp))/(1-0.0167*sinx(Msol)))*sinx(d)
 
 	K := 100 * (1 + cosx(PA)) / 2

@@ -670,7 +670,8 @@ decoration.
 		d = 360 - d
 	}
 
-	// phase angle (Meeus p. 346)
+	// Phase angle, a compact approximation. Meeus ch. 48 gives the exact form,
+	// from the Sun's and Moon's distances; this one's source is not recorded.
 	PA := 180 - d - 0.1468*((1-0.0549*sinx(Mp))/(1-0.0167*sinx(Msol)))*sinx(d)
 
 	K := 100 * (1 + cosx(PA)) / 2
@@ -683,7 +684,7 @@ decoration.
 ```
 
 Three fields, and that is the second reduction this struct has had. v4.0.0 removed
-`Angle` — the Meeus phase angle `PA` above, published and read by nobody. v5.0.0 removed
+`Angle` — the phase angle `PA` above, published and read by nobody. v5.0.0 removed
 `DaysApprox` and `Waxing`, both restatements of `Elongation`: the Moon is waxing when
 `Elongation < 180`, and a linear estimate of lunation age is
 `Elongation / 360 * 29.53059`.

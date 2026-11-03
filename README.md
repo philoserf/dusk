@@ -3,7 +3,9 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/philoserf/dusk/v5.svg)](https://pkg.go.dev/github.com/philoserf/dusk/v5)
 ![Status: Stable](https://img.shields.io/badge/Status-Stable-brightgreen.svg)
 
-A single, zero-dependency Go package for astronomical calculations — sunrise/sunset, moonrise/moonset, twilight, and lunar phase — based on Meeus's _Astronomical Algorithms_.
+A single, zero-dependency Go package for astronomical calculations — sunrise/sunset, moonrise/moonset, twilight, and lunar phase. It started from Meeus's _Astronomical Algorithms_ and has diverged where something else measured better or Meeus offers no closed form.
+
+The Moon's position is Meeus ch. 47 in full, and both horizon thresholds are his. The Sun follows the NOAA method, a shorter descendant of Meeus: fixed-coefficient series, one hour angle re-solved at each boundary's own declination, and mean obliquity without nutation. It lands within about 10 seconds of JPL DE421, which a literal ch. 15 reading does not improve on. Moonrise and moonset are found by a minute-by-minute scan, because the Moon has no closed form. Lunar phase uses a compact phase-angle approximation and the low-precision solar position. `THEORY.md` records the reasoning for each.
 
 ## Install
 
