@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -385,5 +386,46 @@ func TestObserverFromFlags(t *testing.T) {
 				t.Errorf("err = %v, want it to wrap errUsage", err)
 			}
 		})
+	}
+}
+
+// TestRunJSONNightOnEveryBand reproduces issue #136 through the command: every
+// band in --json carries its own night, tomorrow's dawn minus tonight's dusk.
+func TestRunJSONNightOnEveryBand(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+
+	args := []string{"--lat", "43.1155", "--lon", "-85.5664", "--tz", "America/Detroit", "--date", "2026-11-12", "--json"}
+
+	err := run(args, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	var got struct {
+		Twilight []struct {
+			Name  string `json:"name"`
+			Night string `json:"night"`
+		} `json:"twilight"`
+	}
+
+	err = json.Unmarshal(stdout.Bytes(), &got)
+	if err != nil {
+		t.Fatalf("Unmarshal: %v\n%s", err, stdout.String())
+	}
+
+	obs := observerAt(t, 43.1155, -85.5664, "America/Detroit")
+	date := dusk.Date{Year: 2026, Month: 11, Day: 12}
+
+	if len(got.Twilight) != len(twilightBands) {
+		t.Fatalf("got %d bands, want %d", len(got.Twilight), len(twilightBands))
+	}
+
+	for idx, band := range got.Twilight {
+		want := wantNight(t, obs, date, twilightBands[idx].degrees)
+		if band.Night == "" || band.Night != want {
+			t.Errorf("%s: night = %q, want %q", band.Name, band.Night, want)
+		}
 	}
 }

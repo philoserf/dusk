@@ -41,8 +41,9 @@ type SunReport struct {
 }
 
 // TwilightReport holds one twilight band. Dawn and Dusk are both today's, as
-// the library returns them. Night is set only on the deepest band that has one,
-// which is the only one the summary prints.
+// the library returns them. Night runs from today's Dusk to tomorrow's Dawn, and
+// is set on every band that crosses on both days; the summary prints only the
+// deepest one.
 type TwilightReport struct {
 	Name  string    `json:"name"`
 	Dawn  time.Time `json:"dawn,omitzero"`
@@ -172,60 +173,50 @@ var twilightBands = []struct {
 	{"Astronomical", 18},
 }
 
-// twilightReports computes all three twilight bands for the day, then the
-// overnight darkness for the one band that displays it.
+// twilightReports computes all three twilight bands for the day, each with its
+// overnight darkness.
 //
 // dusk.Twilight returns both boundaries of a band for a single day, so one call
-// per band is enough. The Dark row needs an interval that spans midnight, which
-// no single day's event can carry: it is tonight's Dusk to tomorrow's Dawn, and
-// costs the one extra call below.
+// per band is enough for Dawn and Dusk. Night needs an interval that spans
+// midnight, which no single day's event can carry: it is tonight's Dusk to
+// tomorrow's Dawn, and costs one more call per band that crosses today.
 func twilightReports(date dusk.Date, obs dusk.Observer) ([]TwilightReport, error) {
 	reports := make([]TwilightReport, 0, len(twilightBands))
 
-	// Bands run shallow to deep, so the last one that crosses is the deepest
-	// that crosses - which is the band the summary's Dark row names.
-	deepest := -1
+	// The library normalizes an out-of-range day, so the 32nd of December is
+	// the 1st of January.
+	next := dusk.Date{Year: date.Year, Month: date.Month, Day: date.Day + 1}
 
-	var deepestDusk time.Time
-
-	for i, band := range twilightBands {
+	for _, band := range twilightBands {
 		event, err := dusk.Twilight(date, obs, float64(band.degrees))
 		if err != nil {
 			return nil, fmt.Errorf("%s twilight: %w", band.name, err)
 		}
 
-		if event.Horizon == dusk.Crosses {
-			deepest = i
-			deepestDusk = event.Dusk
-		}
-
-		reports = append(reports, TwilightReport{
+		report := TwilightReport{
 			Name:    band.name,
 			Dawn:    toSecond(event.Dawn),
 			Dusk:    toSecond(event.Dusk),
 			Note:    twilightNote(event.Horizon, band.degrees),
 			degrees: band.degrees,
 			horizon: event.Horizon,
-		})
-	}
+		}
 
-	if deepest < 0 {
-		return reports, nil
-	}
+		if event.Horizon == dusk.Crosses {
+			tomorrow, err := dusk.Twilight(next, obs, float64(band.degrees))
+			if err != nil {
+				return nil, fmt.Errorf("%s twilight: %w", band.name, err)
+			}
 
-	band := twilightBands[deepest]
+			// A band that crosses today need not cross tomorrow: near a polar
+			// transition the night has no end to measure to, and Night is
+			// omitted.
+			if tomorrow.Horizon == dusk.Crosses {
+				report.Night = shortDuration(tomorrow.Dawn.Sub(event.Dusk))
+			}
+		}
 
-	next := dusk.Date{Year: date.Year, Month: date.Month, Day: date.Day + 1}
-
-	tomorrow, err := dusk.Twilight(next, obs, float64(band.degrees))
-	if err != nil {
-		return nil, fmt.Errorf("%s twilight: %w", band.name, err)
-	}
-
-	// A band that crosses today need not cross tomorrow: near a polar
-	// transition the night has no end to measure to, and the row is omitted.
-	if tomorrow.Horizon == dusk.Crosses {
-		reports[deepest].Night = shortDuration(tomorrow.Dawn.Sub(deepestDusk))
+		reports = append(reports, report)
 	}
 
 	return reports, nil
