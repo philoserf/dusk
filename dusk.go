@@ -15,9 +15,18 @@
 // An error means the call could not be made: a nil location, coordinates that
 // are not finite or out of range, or a date outside the supported span.
 //
-// # References
+// # Sources
+//
+// The package started from Meeus and has diverged from him where something
+// else measured better or he offers no closed form. The Moon's position is his
+// chapter 47 in full, and both horizon thresholds are his chapter 15 values. The
+// Sun follows the NOAA solar calculator, a shorter descendant of Meeus, and lands
+// within about 10 seconds of JPL DE421. Moonrise and moonset are found by a
+// minute scan, since the Moon has no closed form, and lunar phase uses a compact
+// phase-angle approximation.
 //
 //   - Meeus, Jean. Astronomical Algorithms. 2nd ed. Willmann-Bell, 1998.
+//   - NOAA Global Monitoring Laboratory, Solar Calculator.
 package dusk
 
 import (
