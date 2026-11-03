@@ -522,3 +522,53 @@ func (failingWriter) Write([]byte) (int, error) {
 
 // errWriteFailed is the failure returned by failingWriter.
 var errWriteFailed = errors.New("write failed")
+
+// TestRenderTextSummaryPicksTheDeepestNight checks that the summary prints one
+// Dark row, for the deepest band that has a night, now that every band can.
+func TestRenderTextSummaryPicksTheDeepestNight(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		nights []string // civil, nautical, astronomical
+		want   string
+	}{
+		{"all three", []string{"7h28m", "5h56m", "4h02m"}, "4h02m  (astronomical, tonight)"},
+		{"no astronomical", []string{"7h28m", "5h56m", ""}, "5h56m  (nautical, tonight)"},
+		{"civil only", []string{"7h28m", "", ""}, "7h28m  (civil, tonight)"},
+		{"none", []string{"", "", ""}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			report := sampleReport()
+			for i := range report.Twilight {
+				report.Twilight[i].Night = tt.nights[i]
+			}
+
+			var buf bytes.Buffer
+
+			err := renderText(&buf, report)
+			if err != nil {
+				t.Fatalf("renderText: %v", err)
+			}
+
+			out := buf.String()
+
+			rows := strings.Count(out, "Dark ")
+			if tt.want == "" {
+				if rows != 0 {
+					t.Errorf("got %d Dark rows, want none:\n%s", rows, out)
+				}
+
+				return
+			}
+
+			if rows != 1 || !strings.Contains(out, tt.want) {
+				t.Errorf("want one Dark row with %q, got %d:\n%s", tt.want, rows, out)
+			}
+		})
+	}
+}
