@@ -1,5 +1,44 @@
 # Changelog
 
+## v5.3.0 — 2026-11-03
+
+One CLI fix, restoring what v5.0.0 took out of the JSON. No library change: the package's
+exported API and results are identical to v5.2.0.
+
+### `--json` reports `night` on every twilight band again
+
+Before v5.0.0 each band in `twilight[]` carried its own `night`. From v5.0.0 through v5.2.0
+only the deepest band that had one did, because the text summary prints a single `Dark` row
+and the report builder computed tomorrow's dawn for that band alone. Civil and nautical lost
+`night` from the JSON with no error (#136).
+
+Every band that crosses the horizon today and tomorrow now carries `night`: tomorrow's dawn
+minus tonight's dusk, from the library's untruncated instants. A band that does not cross on
+both days, including one that crosses tonight but not tomorrow near a polar transition, omits
+the key. For Grand Rapids on 2026-11-12, civil now reports `13h11m` and nautical `12h02m`,
+where both were absent.
+
+The text output is unchanged. It still prints one `Dark` row for the deepest band that has a
+night, and now falls back to a shallower band when the deepest crosses tonight but not
+tomorrow. A day costs up to six library calls instead of four.
+
+### Also
+
+- The README and package doc no longer say the library follows Meeus. It started there and
+  diverged: the Moon's position and both horizon thresholds are Meeus; the Sun is the NOAA
+  method; moonrise is a minute scan; the phase angle is a compact approximation. The package
+  doc lists the NOAA Solar Calculator beside Meeus, and the phase-angle comment stops citing
+  an unverified page (#138).
+- `govulncheck` runs in the gate.
+- The lint config and the major-version-bump skill drop their finding counts.
+- `WALKTHROUGH.md` and `THEORY.md` describe the per-band night.
+
+### Upgrading
+
+`go get -u` is the whole migration for the library. If you read `--json`, civil and nautical
+`night` are back; code that computed them by calling `dusk` a second time for tomorrow can
+read them directly.
+
 ## v5.2.0 — 2026-10-26
 
 One accuracy fix, and the tooling moves off GitHub. **Every solar time in this release

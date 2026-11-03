@@ -838,36 +838,32 @@ break in. The zone is still needed — to answer "what is today" when `--date` i
 The two entry-point shapes meet here, and the CLI has to say which instant of the day it
 means. Through v4 that instant arrived by accident.
 
-The three twilight bands cost one call each, plus one more:
+Each twilight band costs one call, plus one more for tomorrow when it crosses today:
 
 `cmd/dusk/report.go` — `twilightReports`
 
 ```go
-	// Bands run shallow to deep, so the last one that crosses is the deepest
-	// that crosses - which is the band the summary's Dark row names.
-	deepest := -1
+		if event.Horizon == dusk.Crosses {
+			tomorrow, err := dusk.Twilight(next, obs, float64(band.degrees))
+			if err != nil {
+				return nil, fmt.Errorf("%s twilight: %w", band.name, err)
+			}
 
-	var deepestDusk time.Time
-
-	for i, band := range twilightBands {
-		event, err := dusk.Twilight(date, obs, float64(band.degrees))
-		...
-	}
+			// A band that crosses today need not cross tomorrow: near a polar
+			// transition the night has no end to measure to, and Night is
+			// omitted.
+			if tomorrow.Horizon == dusk.Crosses {
+				report.Night = shortDuration(tomorrow.Dawn.Sub(event.Dusk))
+			}
+		}
 ```
 
-and then, for that one band only:
-
-```go
-	// A band that crosses today need not cross tomorrow: near a polar
-	// transition the night has no end to measure to, and the row is omitted.
-	if tomorrow.Horizon == dusk.Crosses {
-		reports[deepest].Night = shortDuration(tomorrow.Dawn.Sub(deepestDusk))
-	}
-```
-
-Overnight darkness spans midnight, so no single day's event can carry it. The summary
-prints the night of exactly one band — the deepest that has one — so the CLI pays one
-extra call rather than three. Through v4 it made six calls to render three bands.
+Overnight darkness spans midnight, so no single day's event can carry it. `next` is built
+once, before the loop, as `date.Day + 1`, and the library normalizes the 32nd of December
+to the 1st of January. Every band that crosses on both days gets its own `Night`, and the
+JSON carries all of them. The text summary still prints one `Dark` row, choosing the deepest
+band that has a night when it renders. v5.0.0 through v5.2.0 computed `Night` for that one
+band only, which saved two calls and dropped civil and nautical from the JSON (#136).
 
 ### Rendering a day in the order it is lived
 

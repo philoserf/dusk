@@ -274,10 +274,12 @@ the correct one — computed from that day's own parameters — and the day's re
 one outcome: the transition now lands between days, where the geometry puts it.
 
 The consumer cost went with it. Three rendered bands cost six library calls and twelve
-hour angles; they now cost three, plus one more for the overnight-darkness row. That row
-is the one thing the two-day shape genuinely bought — dusk-to-dawn spans midnight, so no
-single day's event can hold it — and it moved to the call site, which needs the night of
-exactly one band rather than all three.
+hour angles; they now cost three, plus one more per band for overnight darkness. That
+span is the one thing the two-day shape genuinely bought — dusk-to-dawn spans midnight, so
+no single day's event can hold it — and it moved to the call site. v5.0.0 computed it for
+the deepest band only, because the text summary prints one `Dark` row. That let the
+renderer's need shape the JSON, which lost civil and nautical night until v5.3.0 (#136).
+**Choose what to display in the renderer, not in the report it renders.**
 
 `NightDuration` is gone for the same reason `Date` exists: a field that spans two days
 does not belong on a type that describes one.
