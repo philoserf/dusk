@@ -4,10 +4,8 @@
 # one entry per line, and the grouping stops meaning anything.
 .golangci.yml
 
-# Local scratch: .issues/ is written by the code-* skills, .planning/ by
-# release-captain. bun fmt reads this repo's .gitignore but not the global
-# core.excludesfile, and both are ignored through the latter -- so git hides
-# them and bun fmt would not. Without these lines the gate fails on files the
-# repository does not carry.
-.issues/
+# Local scratch: .planning/ is written by release-captain. bun fmt reads this
+# repo's .gitignore but not the global core.excludesfile, which is where it is
+# ignored -- so git hides it and bun fmt would not. Without this line the gate
+# fails on files the repository does not carry.
 .planning/
