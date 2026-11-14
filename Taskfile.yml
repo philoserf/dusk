@@ -78,11 +78,12 @@ tasks:
     desc: bun fmt, the single definition of formatted for everything that is not Go
     # The counterpart to `lint`. golangci-lint owns the Go files; bun fmt owns
     # everything else this repository carries as prose or data. Declared here,
-    # with .prettierrc.json beside it, because formatting that lives only in an
+    # with bunfig.toml beside it, because formatting that lives only in an
     # editor or an agent's hook is not reproducible by anyone else -- and
     # the formatter's default embeddedLanguageFormatting rewrites source inside
     # fenced blocks, which is the one thing a repository of worked examples
-    # cannot have. .prettierignore records what is deliberately out of scope.
+    # cannot have. bunfig.toml's ignore patterns record what is deliberately
+    # out of scope.
     cmds:
       - |
         bun fmt --check . || {
