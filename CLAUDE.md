@@ -116,9 +116,9 @@ read the findings and write down why they are wrong here.
   and the other runs `go test -count=1 -short ./...` and reports the last line
 - **`bun fmt` is the same thing for every file that is not Go** — Markdown, JSON and YAML — run
   by `task docs` and configured by the `[fmt]` table in `bunfig.toml`.
-  `embeddedLanguageFormatting: "off"` is the load-bearing setting: the default rewrites source
+  `embeddedLanguageFormatting = "off"` is the load-bearing setting: the default rewrites source
   inside fenced blocks, and this repository's documents quote their own compiled examples.
-  Its ignore patterns name what is out of scope and why
+  The table's ignore patterns name what is out of scope and why.
 
 ## Gotchas
 
