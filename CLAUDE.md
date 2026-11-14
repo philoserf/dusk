@@ -115,10 +115,10 @@ read the findings and write down why they are wrong here.
   `golangci-lint fmt` on it, so it applies exactly the gofumpt extras `.golangci.yml` enables,
   and the other runs `go test -count=1 -short ./...` and reports the last line
 - **`bun fmt` is the same thing for every file that is not Go** — Markdown, JSON and YAML — run
-  by `task docs` and configured by `.prettierrc.json`, which it reads as-is.
-  `embeddedLanguageFormatting: "off"` is the load-bearing setting: the default rewrites source
+  by `task docs` and configured by the `[fmt]` table in `bunfig.toml`.
+  `embeddedLanguageFormatting = "off"` is the load-bearing setting: the default rewrites source
   inside fenced blocks, and this repository's documents quote their own compiled examples.
-  `.prettierignore` names what is out of scope and why
+  The table's ignore patterns name what is out of scope and why.
 
 ## Gotchas
 
